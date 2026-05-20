@@ -44,9 +44,14 @@ class _HomeScreenState extends State<HomeScreen> {
         }
         break;
       case 'field_agent':
+        if (staff.areaId != null) {
+          context.read<CustomersProvider>().loadByArea(staff.areaId!);
+        }
+        break;
       case 'cable_operator':
         if (staff.areaId != null) {
           context.read<CustomersProvider>().loadByArea(staff.areaId!);
+          context.read<ComplaintQueueProvider>().loadForArea(staff.areaId!);
         }
         break;
     }
@@ -257,7 +262,6 @@ class _KpiGrid extends StatelessWidget {
           ),
         ];
       case 'field_agent':
-      case 'cable_operator':
         final custs = context.watch<CustomersProvider>();
         final custLoading = custs.loading;
         return [
@@ -283,6 +287,38 @@ class _KpiGrid extends StatelessWidget {
           PnKpiCard(
             label: 'Disconnected',
             value: custLoading ? '…' : '${custs.disconnectedCount}',
+            icon: Icons.cancel_outlined,
+            valueColor: pn.danger,
+          ),
+        ];
+      case 'cable_operator':
+        final coCusts = context.watch<CustomersProvider>();
+        final coQ = context.watch<ComplaintQueueProvider>();
+        final coLoading = coCusts.loading;
+        final coQLoading = coQ.loading;
+        return [
+          PnKpiCard(
+            label: 'Customers',
+            value: coLoading ? '…' : '${coCusts.customers.length}',
+            icon: Icons.people_outline,
+            onTap: () => context.push('/cable-operator/customers'),
+          ),
+          PnKpiCard(
+            label: 'Active',
+            value: coLoading ? '…' : '${coCusts.activeCount}',
+            icon: Icons.check_circle_outline,
+            valueColor: pn.success,
+            onTap: () => context.push('/cable-operator/customers'),
+          ),
+          PnKpiCard(
+            label: 'Open Complaints',
+            value: coQLoading ? '…' : '${coQ.open.length}',
+            icon: Icons.error_outline,
+            valueColor: pn.warning,
+          ),
+          PnKpiCard(
+            label: 'Disconnected',
+            value: coLoading ? '…' : '${coCusts.disconnectedCount}',
             icon: Icons.cancel_outlined,
             valueColor: pn.danger,
           ),
@@ -341,9 +377,12 @@ class _QuickActions extends StatelessWidget {
           ('View Pending Bills', Icons.receipt_long_outlined, '/collector/bills'),
         ];
       case 'field_agent':
-      case 'cable_operator':
         return [
           ('View Customers', Icons.people_outline, '/field-agent/customers'),
+        ];
+      case 'cable_operator':
+        return [
+          ('View Customers', Icons.people_outline, '/cable-operator/customers'),
         ];
       default:
         return [];

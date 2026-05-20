@@ -11,6 +11,8 @@ import '../screens/collector/bill_list_screen.dart';
 import '../screens/collector/collect_payment_screen.dart';
 import '../screens/field_agent/customer_list_screen.dart';
 import '../screens/field_agent/customer_detail_screen.dart';
+import '../screens/cable_operator/co_customer_list_screen.dart';
+import '../screens/cable_operator/co_customer_detail_screen.dart';
 
 GoRouter buildRouter() {
   return GoRouter(
@@ -54,6 +56,20 @@ GoRouter buildRouter() {
           GoRoute(
             path: ':id',
             builder: (context, state) => CustomerDetailScreen(
+              customerId: state.pathParameters['id']!,
+            ),
+          ),
+        ],
+      ),
+
+      // Cable operator routes
+      GoRoute(
+        path: '/cable-operator/customers',
+        builder: (context, state) => const CoCustomerListScreen(),
+        routes: [
+          GoRoute(
+            path: ':id',
+            builder: (context, state) => CoCustomerDetailScreen(
               customerId: state.pathParameters['id']!,
             ),
           ),
