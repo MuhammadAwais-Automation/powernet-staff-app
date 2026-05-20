@@ -5,6 +5,8 @@ class Staff {
   final String? phone;
   final String? areaId;
   final String? areaName;
+  final String? username;
+  final String? authUserId;
 
   Staff({
     required this.id,
@@ -13,6 +15,8 @@ class Staff {
     this.phone,
     this.areaId,
     this.areaName,
+    this.username,
+    this.authUserId,
   });
 
   factory Staff.fromJson(Map<String, dynamic> json) {
@@ -23,6 +27,8 @@ class Staff {
       phone: json['phone'] as String?,
       areaId: json['area_id'] as String?,
       areaName: json['area_name'] as String?,
+      username: json['username'] as String?,
+      authUserId: json['auth_user_id'] as String?,
     );
   }
 
@@ -34,6 +40,8 @@ class Staff {
       'phone': phone,
       'area_id': areaId,
       'area_name': areaName,
+      'username': username,
+      'auth_user_id': authUserId,
     };
   }
 
@@ -47,10 +55,16 @@ class Staff {
         return 'Helper Technician';
       case 'cable_operator':
         return 'Cable Operator';
+      case 'field_agent':
+        return 'Field Agent';
+      case 'complaint_manager':
+        return 'Complaint Manager';
       case 'admin':
         return 'Admin';
       default:
         return role;
     }
   }
+
+  bool get isMobileRole => role != 'admin' && role != 'complaint_manager';
 }

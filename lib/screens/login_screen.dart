@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../theme/app_theme.dart';
-import 'home_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -33,28 +33,16 @@ class _LoginScreenState extends State<LoginScreen> {
     FocusScope.of(context).unfocus();
     setState(() => _loading = true);
     final auth = context.read<AuthProvider>();
-    try {
-      final ok = await auth.login(
-        _usernameCtrl.text.trim().toLowerCase(),
-        _passwordCtrl.text,
-      );
-      if (!mounted) return;
-      if (ok) {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const HomeScreen()),
-        );
-      } else {
-        _showError('Invalid credentials');
-      }
-    } catch (e) {
-      if (!mounted) return;
-      final lower = e.toString().toLowerCase();
-      final msg = lower.contains('socket') || lower.contains('network')
-          ? 'No internet connection'
-          : 'Connection error, try again';
-      _showError(msg);
-    } finally {
-      if (mounted) setState(() => _loading = false);
+    final result = await auth.login(
+      _usernameCtrl.text.trim().toLowerCase(),
+      _passwordCtrl.text,
+    );
+    if (!mounted) return;
+    setState(() => _loading = false);
+    if (result.ok) {
+      context.go('/home');
+    } else {
+      _showError(result.error ?? 'Login failed');
     }
   }
 
@@ -62,7 +50,7 @@ class _LoginScreenState extends State<LoginScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(msg),
-        backgroundColor: Colors.red.shade600,
+        backgroundColor: danger,
         behavior: SnackBarBehavior.floating,
       ),
     );
@@ -70,6 +58,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final pn = Theme.of(context).extension<PnColors>()!;
     return Scaffold(
       body: SafeArea(
         child: Padding(
@@ -78,16 +67,22 @@ class _LoginScreenState extends State<LoginScreen> {
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Icon(Icons.wifi_tethering, size: 64, color: primaryColor),
+              const Icon(Icons.wifi_tethering, size: 64, color: primary),
               const SizedBox(height: 12),
-              const Text(
+              Text(
                 'PowerNet Staff',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.w700,
-                  color: Colors.black87,
+                  color: pn.text,
                 ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Sign in to continue',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 14, color: pn.textMuted),
               ),
               const SizedBox(height: 40),
               TextField(
