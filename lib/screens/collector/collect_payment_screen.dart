@@ -122,9 +122,9 @@ class _CollectPaymentScreenState extends State<CollectPaymentScreen> {
                       methods: _methods,
                       submitting: _submitting,
                       formKey: _formKey,
-                      onMethodChanged: (v) => (v != null)
-                          ? null
-                          : null,
+                      onMethodChanged: (v) {
+                        if (v != null) setState(() => _method = v);
+                      },
                       onSubmit: _submit,
                     ),
     );

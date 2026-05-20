@@ -45,8 +45,9 @@ class CustomersProvider extends ChangeNotifier {
     notifyListeners();
     try {
       _searchResults = await _repo.search(query, areaId: areaId);
-    } catch (_) {
+    } catch (e) {
       _searchResults = [];
+      _error = e.toString();
     } finally {
       _searching = false;
       notifyListeners();

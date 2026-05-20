@@ -27,7 +27,7 @@ class BillsRepository {
   }
 
   Future<List<Bill>> fetchCollectedToday(String collectorId) async {
-    final today = DateTime.now();
+    final today = DateTime.now().toUtc();
     final dateStr =
         '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
     final res = await supabase
@@ -35,8 +35,8 @@ class BillsRepository {
         .select(_cols)
         .eq('collected_by', collectorId)
         .eq('status', 'paid')
-        .gte('paid_at', '${dateStr}T00:00:00')
-        .lte('paid_at', '${dateStr}T23:59:59')
+        .gte('paid_at', '${dateStr}T00:00:00Z')
+        .lte('paid_at', '${dateStr}T23:59:59Z')
         .order('paid_at', ascending: false);
     return (res as List).map((j) => Bill.fromJson(j as Map<String, dynamic>)).toList();
   }

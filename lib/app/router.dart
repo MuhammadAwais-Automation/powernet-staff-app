@@ -1,5 +1,4 @@
 import 'package:go_router/go_router.dart';
-import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../screens/splash_screen.dart';
 import '../screens/login_screen.dart';
@@ -14,18 +13,18 @@ import '../screens/field_agent/customer_detail_screen.dart';
 import '../screens/cable_operator/co_customer_list_screen.dart';
 import '../screens/cable_operator/co_customer_detail_screen.dart';
 
-GoRouter buildRouter() {
+GoRouter buildRouter(AuthProvider auth) {
   return GoRouter(
     initialLocation: '/',
+    refreshListenable: auth,
     redirect: (context, state) {
-      final auth = context.read<AuthProvider>();
       if (auth.loading) return null;
       final loggedIn = auth.isLoggedIn;
       final loc = state.matchedLocation;
       final onLogin = loc == '/login';
       final onSplash = loc == '/';
-      if (!loggedIn && !onLogin && !onSplash) return '/login';
-      if (loggedIn && onLogin) return '/home';
+      if (!loggedIn && !onLogin) return '/login';
+      if (loggedIn && (onLogin || onSplash)) return '/home';
       return null;
     },
     routes: [

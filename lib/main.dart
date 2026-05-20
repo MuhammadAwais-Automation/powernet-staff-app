@@ -30,8 +30,8 @@ class _PowerNetStaffAppState extends State<PowerNetStaffApp> {
   void initState() {
     super.initState();
     _auth = AuthProvider();
+    _router = buildRouter(_auth);
     _auth.initialize();
-    _router = buildRouter();
   }
 
   @override

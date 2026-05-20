@@ -58,7 +58,9 @@ class BillsProvider extends ChangeNotifier {
       _bills.removeWhere((b) => b.id == billId);
       notifyListeners();
       return true;
-    } catch (_) {
+    } catch (e) {
+      _error = e.toString();
+      notifyListeners();
       return false;
     }
   }

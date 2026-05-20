@@ -79,7 +79,9 @@ class ComplaintQueueProvider extends ChangeNotifier {
         notifyListeners();
       }
       return true;
-    } catch (_) {
+    } catch (e) {
+      _error = e.toString();
+      notifyListeners();
       return false;
     }
   }
@@ -108,7 +110,9 @@ class ComplaintQueueProvider extends ChangeNotifier {
         notifyListeners();
       }
       return true;
-    } catch (_) {
+    } catch (e) {
+      _error = e.toString();
+      notifyListeners();
       return false;
     }
   }

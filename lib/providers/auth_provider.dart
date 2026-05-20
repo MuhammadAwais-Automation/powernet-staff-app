@@ -43,32 +43,43 @@ class AuthProvider extends ChangeNotifier {
   }
 
   void _listenAuthState() {
-    supabase.auth.onAuthStateChange.listen((data) async {
-      final session = data.session;
-      final event = data.event;
+    supabase.auth.onAuthStateChange.listen(
+      (data) async {
+        try {
+          final session = data.session;
+          final event = data.event;
 
-      if (session == null) {
-        _currentStaff = null;
-        notifyListeners();
-        return;
-      }
+          if (session == null) {
+            _currentStaff = null;
+            notifyListeners();
+            return;
+          }
 
-      // Skip silent events when same user already loaded
-      if (event == AuthChangeEvent.tokenRefreshed ||
-          event == AuthChangeEvent.signedIn ||
-          event == AuthChangeEvent.initialSession) {
-        if (_currentStaff?.authUserId == session.user.id) return;
-        final staff = await _service.fetchStaffByAuthId(session.user.id);
-        if (staff == null) {
-          await _service.signOut();
-          _currentStaff = null;
-        } else {
-          _currentStaff = staff;
-          await _persist(staff);
+          // Skip silent events when same user already loaded
+          if (event == AuthChangeEvent.tokenRefreshed ||
+              event == AuthChangeEvent.signedIn ||
+              event == AuthChangeEvent.initialSession) {
+            if (_currentStaff?.authUserId == session.user.id) return;
+            final staff = await _service.fetchStaffByAuthId(session.user.id);
+            if (staff == null) {
+              await _service.signOut();
+              _currentStaff = null;
+            } else {
+              _currentStaff = staff;
+              await _persist(staff);
+            }
+            notifyListeners();
+          }
+        } catch (e) {
+          debugPrint('AuthProvider: auth state handler error: $e');
+          notifyListeners();
         }
-        notifyListeners();
-      }
-    });
+      },
+      onError: (Object e) {
+        debugPrint('AuthProvider: auth stream error: $e');
+      },
+      cancelOnError: false,
+    );
   }
 
   Future<({bool ok, String? error})> login(

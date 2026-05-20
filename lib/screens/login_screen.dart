@@ -39,9 +39,7 @@ class _LoginScreenState extends State<LoginScreen> {
     );
     if (!mounted) return;
     setState(() => _loading = false);
-    if (result.ok) {
-      context.go('/home');
-    } else {
+    if (!result.ok) {
       _showError(result.error ?? 'Login failed');
     }
   }
