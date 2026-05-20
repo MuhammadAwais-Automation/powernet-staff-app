@@ -90,7 +90,7 @@ class AuthProvider extends ChangeNotifier {
         return (ok: false, error: 'Invalid credentials');
       }
       _currentStaff = staff;
-      await _persist(staff);
+      await _persist(staff).catchError((_) {});
       notifyListeners();
       return (ok: true, error: null);
     } catch (e) {
