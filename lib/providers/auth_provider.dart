@@ -25,13 +25,17 @@ class AuthProvider extends ChangeNotifier {
 
   Future<void> _loadSavedStaff() async {
     try {
-      final json = await _storage.read(key: _key);
+      final json = await _storage
+          .read(key: _key)
+          .timeout(const Duration(seconds: 5));
       if (json != null) {
         _currentStaff =
             Staff.fromJson(jsonDecode(json) as Map<String, dynamic>);
       }
     } catch (_) {
-      await _storage.delete(key: _key);
+      try {
+        await _storage.delete(key: _key);
+      } catch (_) {}
     } finally {
       _loading = false;
       notifyListeners();
