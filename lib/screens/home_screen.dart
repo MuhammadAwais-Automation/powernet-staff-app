@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/bills_provider.dart';
 import '../providers/complaint_queue_provider.dart';
+import '../providers/customers_provider.dart';
 import '../theme/app_theme.dart';
 import '../widgets/pn_kpi_card.dart';
 
@@ -40,6 +41,12 @@ class _HomeScreenState extends State<HomeScreen> {
       case 'recovery_agent':
         if (staff.areaId != null) {
           context.read<BillsProvider>().loadPendingByArea(staff.areaId!, staff.id);
+        }
+        break;
+      case 'field_agent':
+      case 'cable_operator':
+        if (staff.areaId != null) {
+          context.read<CustomersProvider>().loadByArea(staff.areaId!);
         }
         break;
     }
@@ -249,6 +256,37 @@ class _KpiGrid extends StatelessWidget {
             icon: Icons.location_on_outlined,
           ),
         ];
+      case 'field_agent':
+      case 'cable_operator':
+        final custs = context.watch<CustomersProvider>();
+        final custLoading = custs.loading;
+        return [
+          PnKpiCard(
+            label: 'Total',
+            value: custLoading ? '…' : '${custs.customers.length}',
+            icon: Icons.people_outline,
+            onTap: () => context.push('/field-agent/customers'),
+          ),
+          PnKpiCard(
+            label: 'Active',
+            value: custLoading ? '…' : '${custs.activeCount}',
+            icon: Icons.check_circle_outline,
+            valueColor: pn.success,
+            onTap: () => context.push('/field-agent/customers'),
+          ),
+          PnKpiCard(
+            label: 'Suspended',
+            value: custLoading ? '…' : '${custs.suspendedCount}',
+            icon: Icons.pause_circle_outline,
+            valueColor: pn.warning,
+          ),
+          PnKpiCard(
+            label: 'Disconnected',
+            value: custLoading ? '…' : '${custs.disconnectedCount}',
+            icon: Icons.cancel_outlined,
+            valueColor: pn.danger,
+          ),
+        ];
       default:
         return [
           PnKpiCard(
@@ -301,6 +339,11 @@ class _QuickActions extends StatelessWidget {
       case 'recovery_agent':
         return [
           ('View Pending Bills', Icons.receipt_long_outlined, '/collector/bills'),
+        ];
+      case 'field_agent':
+      case 'cable_operator':
+        return [
+          ('View Customers', Icons.people_outline, '/field-agent/customers'),
         ];
       default:
         return [];

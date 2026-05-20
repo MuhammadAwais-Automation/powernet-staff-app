@@ -6,6 +6,7 @@ import 'config/supabase_config.dart';
 import 'providers/auth_provider.dart';
 import 'providers/bills_provider.dart';
 import 'providers/complaint_queue_provider.dart';
+import 'providers/customers_provider.dart';
 import 'theme/app_theme.dart';
 
 Future<void> main() async {
@@ -40,6 +41,7 @@ class _PowerNetStaffAppState extends State<PowerNetStaffApp> {
         ChangeNotifierProvider.value(value: _auth),
         ChangeNotifierProvider(create: (_) => BillsProvider()),
         ChangeNotifierProvider(create: (_) => ComplaintQueueProvider()),
+        ChangeNotifierProvider(create: (_) => CustomersProvider()),
       ],
       child: Consumer<AuthProvider>(
         builder: (context, auth, child) => MaterialApp.router(

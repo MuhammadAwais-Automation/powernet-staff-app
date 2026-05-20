@@ -9,6 +9,8 @@ import '../screens/technician/complaint_list_screen.dart';
 import '../screens/technician/complaint_detail_screen.dart';
 import '../screens/collector/bill_list_screen.dart';
 import '../screens/collector/collect_payment_screen.dart';
+import '../screens/field_agent/customer_list_screen.dart';
+import '../screens/field_agent/customer_detail_screen.dart';
 
 GoRouter buildRouter() {
   return GoRouter(
@@ -39,6 +41,20 @@ GoRouter buildRouter() {
             path: ':id',
             builder: (context, state) => ComplaintDetailScreen(
               complaintId: state.pathParameters['id']!,
+            ),
+          ),
+        ],
+      ),
+
+      // Field agent routes
+      GoRoute(
+        path: '/field-agent/customers',
+        builder: (context, state) => const FieldAgentCustomerListScreen(),
+        routes: [
+          GoRoute(
+            path: ':id',
+            builder: (context, state) => CustomerDetailScreen(
+              customerId: state.pathParameters['id']!,
             ),
           ),
         ],
