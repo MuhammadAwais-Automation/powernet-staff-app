@@ -85,25 +85,30 @@ class _CollectPaymentScreenState extends State<CollectPaymentScreen> {
     if (staff == null || bill == null) return;
 
     setState(() => _submitting = true);
-    final amount = _visitType.isVisitOnly
-        ? 0.0
-        : (double.tryParse(_amountCtrl.text.trim()) ?? 0);
-    final rawNote = _noteCtrl.text.trim();
-    final note = rawNote.isEmpty
-        ? (_visitType.isVisitOnly ? _visitType.label : null)
-        : rawNote;
 
-    final result = await bills.submitPayment(
-      billId: widget.billId,
-      amount: amount,
-      collectorId: staff.id,
-      paymentMethod: _visitType.isVisitOnly ? 'visit' : _method,
-      paymentNote: note,
-    );
+    double? paidAmount;
+    final PaymentSubmissionResult result;
+    if (_visitType.isVisitOnly) {
+      result = await bills.submitVisit(
+        billId: widget.billId,
+        collectorId: staff.id,
+        visitType: _visitType.label,
+      );
+    } else {
+      paidAmount = double.tryParse(_amountCtrl.text.trim()) ?? 0;
+      final rawNote = _noteCtrl.text.trim();
+      result = await bills.submitPayment(
+        billId: widget.billId,
+        amount: paidAmount,
+        collectorId: staff.id,
+        paymentMethod: _method,
+        paymentNote: rawNote.isEmpty ? null : rawNote,
+      );
+    }
     if (mounted) setState(() => _submitting = false);
     if (!mounted) return;
 
-    final fullPayment = !_visitType.isVisitOnly && amount >= bill.remaining;
+    final fullPayment = paidAmount != null && paidAmount >= bill.remaining;
     switch (result) {
       case PaymentSubmissionResult.synced:
         ScaffoldMessenger.of(context).showSnackBar(
@@ -269,7 +274,7 @@ class _PaymentForm extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 18),
-          _OfflineHint(pn: pn),
+          if (!isVisitOnly) _OfflineHint(pn: pn),
           const SizedBox(height: 22),
           SizedBox(
             height: 54,

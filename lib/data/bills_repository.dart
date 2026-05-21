@@ -109,6 +109,19 @@ class BillsRepository {
     return Bill.fromJson(res);
   }
 
+  Future<void> recordVisit({
+    required String billId,
+    required String collectorId,
+    required String visitType,
+  }) async {
+    await supabase.from('bills').update({
+      'payment_method': 'visit',
+      'payment_note': visitType,
+      'collected_by': collectorId,
+      'paid_at': DateTime.now().toUtc().toIso8601String(),
+    }).eq('id', billId);
+  }
+
   Future<void> recordPayment({
     required String billId,
     required double paidAmount,
