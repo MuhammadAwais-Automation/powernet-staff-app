@@ -19,10 +19,11 @@ enum VisitType {
   };
 
   static VisitType fromValue(String value) => switch (value) {
+    'payment_collected' => VisitType.paymentCollected,
     'house_locked' => VisitType.houseLocked,
     'promise_to_pay' => VisitType.promiseToPay,
     'refused_to_pay' => VisitType.refusedToPay,
-    _ => VisitType.paymentCollected,
+    _ => VisitType.houseLocked,
   };
 
   bool get requiresAmount => this == VisitType.paymentCollected;
