@@ -18,13 +18,16 @@ enum VisitType {
     VisitType.refusedToPay => 'refused_to_pay',
   };
 
-  static VisitType fromValue(String value) => switch (value) {
-    'payment_collected' => VisitType.paymentCollected,
-    'house_locked' => VisitType.houseLocked,
-    'promise_to_pay' => VisitType.promiseToPay,
-    'refused_to_pay' => VisitType.refusedToPay,
-    _ => VisitType.houseLocked,
-  };
+  static VisitType fromValue(String value) {
+    final normalized = value.trim().toLowerCase().replaceAll(' ', '_');
+    return switch (normalized) {
+      'payment_collected' => VisitType.paymentCollected,
+      'house_locked' => VisitType.houseLocked,
+      'promise_to_pay' => VisitType.promiseToPay,
+      'refused_to_pay' => VisitType.refusedToPay,
+      _ => VisitType.houseLocked,
+    };
+  }
 
   bool get requiresAmount => this == VisitType.paymentCollected;
   bool get isVisitOnly => this != VisitType.paymentCollected;

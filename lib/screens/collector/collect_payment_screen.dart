@@ -92,7 +92,7 @@ class _CollectPaymentScreenState extends State<CollectPaymentScreen> {
       result = await bills.submitVisit(
         billId: widget.billId,
         collectorId: staff.id,
-        visitType: _visitType.label,
+        visitType: _visitType.value,
       );
     } else {
       paidAmount = double.tryParse(_amountCtrl.text.trim()) ?? 0;
