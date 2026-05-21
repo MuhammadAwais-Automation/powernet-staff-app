@@ -7,6 +7,7 @@ import '../../providers/auth_provider.dart';
 import '../../providers/bills_provider.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/empty_state.dart';
+import '../../widgets/pn_status_badge.dart';
 
 class CollectPaymentScreen extends StatefulWidget {
   final String billId;
@@ -18,16 +19,16 @@ class CollectPaymentScreen extends StatefulWidget {
 
 class _CollectPaymentScreenState extends State<CollectPaymentScreen> {
   final BillsRepository _repo = BillsRepository();
-  Bill? _bill;
-  bool _loading = true;
-  String? _error;
-
+  final _formKey = GlobalKey<FormState>();
   final _amountCtrl = TextEditingController();
   final _noteCtrl = TextEditingController();
-  // ignore: prefer_final_fields
-  String _method = 'cash';
+
+  Bill? _bill;
+  bool _loading = true;
   bool _submitting = false;
-  final _formKey = GlobalKey<FormState>();
+  String? _error;
+  String _method = 'cash';
+  VisitType _visitType = VisitType.paymentCollected;
 
   static const _methods = [
     ('cash', 'Cash'),
@@ -49,15 +50,30 @@ class _CollectPaymentScreenState extends State<CollectPaymentScreen> {
       _error = null;
     });
     try {
-      _bill = await _repo.fetchById(widget.billId);
-      if (_bill != null) {
-        _amountCtrl.text = _bill!.remaining.toStringAsFixed(0);
-      }
-    } catch (e) {
+      final bill = await _repo.fetchById(widget.billId);
+      _bill = bill;
+      if (bill != null) _amountCtrl.text = bill.remaining.toStringAsFixed(0);
+    } on Exception catch (e) {
       _error = e.toString();
     } finally {
-      setState(() => _loading = false);
+      if (mounted) setState(() => _loading = false);
     }
+  }
+
+  void _onVisitTypeChanged(VisitType? type) {
+    if (type == null) return;
+    setState(() {
+      _visitType = type;
+      if (type.isVisitOnly) {
+        _amountCtrl.text = '0';
+        if (_noteCtrl.text.isEmpty) _noteCtrl.text = type.label;
+      } else {
+        final bill = _bill;
+        if (bill != null) _amountCtrl.text = bill.remaining.toStringAsFixed(0);
+        final autoNotes = VisitType.values.map((v) => v.label).toSet();
+        if (autoNotes.contains(_noteCtrl.text)) _noteCtrl.text = '';
+      }
+    });
   }
 
   Future<void> _submit() async {
@@ -65,33 +81,59 @@ class _CollectPaymentScreenState extends State<CollectPaymentScreen> {
     final auth = context.read<AuthProvider>();
     final bills = context.read<BillsProvider>();
     final staff = auth.currentStaff;
-    if (staff == null || _bill == null) return;
+    final bill = _bill;
+    if (staff == null || bill == null) return;
 
     setState(() => _submitting = true);
-    final amount = double.tryParse(_amountCtrl.text.trim()) ?? 0;
-    final ok = await bills.collectPayment(
+    final amount = _visitType.isVisitOnly
+        ? 0.0
+        : (double.tryParse(_amountCtrl.text.trim()) ?? 0);
+    final rawNote = _noteCtrl.text.trim();
+    final note = rawNote.isEmpty
+        ? (_visitType.isVisitOnly ? _visitType.label : null)
+        : rawNote;
+
+    final result = await bills.submitPayment(
       billId: widget.billId,
       amount: amount,
       collectorId: staff.id,
-      paymentMethod: _method,
-      paymentNote: _noteCtrl.text.trim().isEmpty ? null : _noteCtrl.text.trim(),
+      paymentMethod: _visitType.isVisitOnly ? 'visit' : _method,
+      paymentNote: note,
     );
     if (mounted) setState(() => _submitting = false);
-    if (ok && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Payment collected successfully'),
-          backgroundColor: Color(0xFF16A34A),
-        ),
-      );
-      context.pop();
-    } else if (!ok && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Failed to record payment. Try again.'),
-          backgroundColor: Color(0xFFDC2626),
-        ),
-      );
+    if (!mounted) return;
+
+    final fullPayment = !_visitType.isVisitOnly && amount >= bill.remaining;
+    switch (result) {
+      case PaymentSubmissionResult.synced:
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              _visitType.isVisitOnly
+                  ? '${_visitType.label} logged'
+                  : fullPayment
+                      ? 'Full payment recorded'
+                      : 'Partial payment recorded',
+            ),
+            backgroundColor: success,
+          ),
+        );
+        context.pop();
+      case PaymentSubmissionResult.queued:
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Internet issue: saved locally for sync'),
+            backgroundColor: warning,
+          ),
+        );
+        context.pop();
+      case PaymentSubmissionResult.failed:
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to save. Try again.'),
+            backgroundColor: danger,
+          ),
+        );
     }
   }
 
@@ -106,96 +148,107 @@ class _CollectPaymentScreenState extends State<CollectPaymentScreen> {
   Widget build(BuildContext context) {
     final pn = Theme.of(context).extension<PnColors>()!;
     return Scaffold(
+      backgroundColor: pn.surfaceMuted,
       appBar: AppBar(title: const Text('Collect Payment')),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _error != null
-              ? ErrorState(message: _error!, onRetry: _load)
-              : _bill == null
-                  ? const EmptyState(message: 'Bill not found')
-                  : _Form(
-                      bill: _bill!,
-                      pn: pn,
-                      amountCtrl: _amountCtrl,
-                      noteCtrl: _noteCtrl,
-                      method: _method,
-                      methods: _methods,
-                      submitting: _submitting,
-                      formKey: _formKey,
-                      onMethodChanged: (v) {
-                        if (v != null) setState(() => _method = v);
-                      },
-                      onSubmit: _submit,
-                    ),
+          ? ErrorState(message: _error!, onRetry: _load)
+          : _bill == null
+          ? const EmptyState(message: 'Bill not found')
+          : _PaymentForm(
+              bill: _bill!,
+              formKey: _formKey,
+              amountCtrl: _amountCtrl,
+              noteCtrl: _noteCtrl,
+              method: _method,
+              methods: _methods,
+              submitting: _submitting,
+              visitType: _visitType,
+              onVisitTypeChanged: _onVisitTypeChanged,
+              onMethodChanged: (value) {
+                if (value != null) setState(() => _method = value);
+              },
+              onSubmit: _submit,
+            ),
     );
   }
 }
 
-class _Form extends StatelessWidget {
+class _PaymentForm extends StatelessWidget {
   final Bill bill;
-  final PnColors pn;
+  final GlobalKey<FormState> formKey;
   final TextEditingController amountCtrl;
   final TextEditingController noteCtrl;
   final String method;
   final List<(String, String)> methods;
   final bool submitting;
-  final GlobalKey<FormState> formKey;
+  final VisitType visitType;
+  final void Function(VisitType?) onVisitTypeChanged;
   final void Function(String?) onMethodChanged;
   final VoidCallback onSubmit;
 
-  const _Form({
+  const _PaymentForm({
     required this.bill,
-    required this.pn,
+    required this.formKey,
     required this.amountCtrl,
     required this.noteCtrl,
     required this.method,
     required this.methods,
     required this.submitting,
-    required this.formKey,
+    required this.visitType,
+    required this.onVisitTypeChanged,
     required this.onMethodChanged,
     required this.onSubmit,
   });
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Form(
-        key: formKey,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _SummaryCard(bill: bill, pn: pn),
-            const SizedBox(height: 20),
-            Text('Amount (Rs.)',
-                style: TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 13,
-                    color: pn.text)),
+    final pn = Theme.of(context).extension<PnColors>()!;
+    final isVisitOnly = visitType.isVisitOnly;
+    return Form(
+      key: formKey,
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(16, 10, 16, 24),
+        children: [
+          _BillHeader(bill: bill),
+          const SizedBox(height: 16),
+          _FieldLabel(label: 'Visit type', pn: pn),
+          const SizedBox(height: 8),
+          _VisitTypeSelector(
+            selected: visitType,
+            onChanged: onVisitTypeChanged,
+            pn: pn,
+          ),
+          const SizedBox(height: 16),
+          if (!isVisitOnly) ...[
+            _QuickAmountRow(bill: bill, amountCtrl: amountCtrl),
+            const SizedBox(height: 14),
+            _FieldLabel(label: 'Collected amount', pn: pn),
             const SizedBox(height: 8),
             TextFormField(
               controller: amountCtrl,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
               decoration: const InputDecoration(
                 prefixText: 'Rs. ',
                 hintText: '0',
               ),
-              validator: (v) {
-                final n = double.tryParse(v ?? '');
-                if (n == null || n <= 0) return 'Enter valid amount';
+              validator: (value) {
+                if (isVisitOnly) return null;
+                final amount = double.tryParse(value ?? '');
+                if (amount == null || amount <= 0) return 'Enter valid amount';
+                if (amount > bill.remaining) {
+                  return 'Amount cannot exceed Rs. ${bill.remaining.toStringAsFixed(0)}';
+                }
                 return null;
               },
             ),
             const SizedBox(height: 16),
-            Text('Payment Method',
-                style: TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 13,
-                    color: pn.text)),
+            _FieldLabel(label: 'Payment method', pn: pn),
             const SizedBox(height: 8),
             DropdownButtonFormField<String>(
-              // ignore: deprecated_member_use
-              value: method,
+              initialValue: method,
               items: methods
                   .map((m) => DropdownMenuItem(value: m.$1, child: Text(m.$2)))
                   .toList(),
@@ -203,115 +256,386 @@ class _Form extends StatelessWidget {
               decoration: const InputDecoration(),
             ),
             const SizedBox(height: 16),
-            Text('Note (optional)',
-                style: TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 13,
-                    color: pn.text)),
-            const SizedBox(height: 8),
-            TextFormField(
-              controller: noteCtrl,
-              maxLines: 2,
-              decoration: const InputDecoration(hintText: 'Add a note...'),
+          ],
+          _FieldLabel(label: 'Recovery note', pn: pn),
+          const SizedBox(height: 8),
+          TextFormField(
+            controller: noteCtrl,
+            maxLines: 3,
+            decoration: InputDecoration(
+              hintText: isVisitOnly
+                  ? 'Add details about this visit...'
+                  : 'e.g. partial paid, promise date...',
             ),
-            const SizedBox(height: 28),
-            SizedBox(
-              width: double.infinity,
-              height: 50,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF16A34A),
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
-                ),
-                onPressed: submitting ? null : onSubmit,
-                child: submitting
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                            strokeWidth: 2, color: Colors.white),
-                      )
-                    : const Text('Confirm Payment',
-                        style: TextStyle(
-                            fontWeight: FontWeight.w700, fontSize: 15)),
+          ),
+          const SizedBox(height: 18),
+          _OfflineHint(pn: pn),
+          const SizedBox(height: 22),
+          SizedBox(
+            height: 54,
+            child: ElevatedButton.icon(
+              onPressed: submitting ? null : onSubmit,
+              icon: submitting
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : Icon(
+                      isVisitOnly
+                          ? Icons.location_on_outlined
+                          : Icons.verified_outlined,
+                    ),
+              label: Text(
+                submitting
+                    ? 'Saving...'
+                    : isVisitOnly
+                        ? 'Log Visit'
+                        : 'Record Collection',
+                style: const TextStyle(fontWeight: FontWeight.w800),
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 }
 
-class _SummaryCard extends StatelessWidget {
-  final Bill bill;
+class _VisitTypeSelector extends StatelessWidget {
+  final VisitType selected;
+  final void Function(VisitType?) onChanged;
   final PnColors pn;
-  const _SummaryCard({required this.bill, required this.pn});
+
+  const _VisitTypeSelector({
+    required this.selected,
+    required this.onChanged,
+    required this.pn,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            _Row(label: 'Customer', value: bill.customerName, pn: pn),
-            _Row(label: 'Code', value: bill.customerCode, pn: pn),
-            _Row(label: 'Month', value: bill.month, pn: pn),
-            _Row(
-                label: 'Bill Amount',
-                value: 'Rs. ${bill.amount.toStringAsFixed(0)}',
-                pn: pn),
-            if (bill.paidAmount != null && bill.paidAmount! > 0)
-              _Row(
-                  label: 'Already Paid',
-                  value: 'Rs. ${bill.paidAmount!.toStringAsFixed(0)}',
-                  pn: pn),
-            const Divider(height: 16),
-            Row(
+    return Column(
+      children: VisitType.values.map((type) {
+        final isSelected = selected == type;
+        return GestureDetector(
+          onTap: () => onChanged(type),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 150),
+            margin: const EdgeInsets.only(bottom: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            decoration: BoxDecoration(
+              color: isSelected ? primary.withValues(alpha: 0.1) : pn.surface,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: isSelected ? primary : pn.border,
+                width: isSelected ? 1.5 : 1,
+              ),
+            ),
+            child: Row(
               children: [
-                Text('Remaining',
+                Icon(
+                  _iconFor(type),
+                  size: 20,
+                  color: isSelected ? primary : pn.textMuted,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    type.label,
                     style: TextStyle(
-                        fontWeight: FontWeight.w700, color: pn.text)),
-                const Spacer(),
-                Text(
-                  'Rs. ${bill.remaining.toStringAsFixed(0)}',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 16,
-                    color: Color(0xFFF05A2B),
+                      color: isSelected ? primary : pn.text,
+                      fontWeight:
+                          isSelected ? FontWeight.w700 : FontWeight.w500,
+                      fontSize: 14,
+                    ),
                   ),
                 ),
+                if (isSelected)
+                  Icon(Icons.check_circle, size: 18, color: primary),
               ],
             ),
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  IconData _iconFor(VisitType type) => switch (type) {
+    VisitType.paymentCollected => Icons.payments_outlined,
+    VisitType.houseLocked => Icons.lock_outline,
+    VisitType.promiseToPay => Icons.handshake_outlined,
+    VisitType.refusedToPay => Icons.block_outlined,
+  };
+}
+
+class _BillHeader extends StatelessWidget {
+  final Bill bill;
+
+  const _BillHeader({required this.bill});
+
+  @override
+  Widget build(BuildContext context) {
+    final pn = Theme.of(context).extension<PnColors>()!;
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: pn.surface,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: pn.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  bill.customerName,
+                  style: TextStyle(
+                    color: pn.text,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+              PnStatusBadge.fromString(bill.collectionStatus),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            '${bill.customerCode} · ${bill.month}',
+            style: TextStyle(color: pn.textMuted, fontSize: 13),
+          ),
+          if (bill.hasAddress) ...[
+            const SizedBox(height: 10),
+            _AddressCard(bill: bill, pn: pn),
           ],
+          const SizedBox(height: 18),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(99),
+            child: LinearProgressIndicator(
+              minHeight: 8,
+              value: bill.collectionProgress,
+              backgroundColor: pn.surfaceMuted,
+              color: primary,
+            ),
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              _MoneyStat(label: 'Bill', value: bill.amount),
+              _MoneyStat(label: 'Paid', value: bill.paidAmount ?? 0),
+              _MoneyStat(
+                label: 'Balance',
+                value: bill.remaining,
+                highlight: true,
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AddressCard extends StatelessWidget {
+  final Bill bill;
+  final PnColors pn;
+
+  const _AddressCard({required this.bill, required this.pn});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: pn.surfaceMuted,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: pn.border),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.location_on_outlined, size: 16, color: pn.textMuted),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  bill.customerAddress,
+                  style: TextStyle(
+                    color: pn.text,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                if (bill.connectionNo.isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    'Conn # ${bill.connectionNo}',
+                    style: TextStyle(color: pn.textMuted, fontSize: 11),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MoneyStat extends StatelessWidget {
+  final String label;
+  final double value;
+  final bool highlight;
+
+  const _MoneyStat({
+    required this.label,
+    required this.value,
+    this.highlight = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final pn = Theme.of(context).extension<PnColors>()!;
+    return Expanded(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: TextStyle(color: pn.textMuted, fontSize: 11)),
+          const SizedBox(height: 3),
+          Text(
+            'Rs. ${value.toStringAsFixed(0)}',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: highlight ? primary : pn.text,
+              fontSize: highlight ? 16 : 14,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _QuickAmountRow extends StatelessWidget {
+  final Bill bill;
+  final TextEditingController amountCtrl;
+
+  const _QuickAmountRow({required this.bill, required this.amountCtrl});
+
+  @override
+  Widget build(BuildContext context) {
+    final half = (bill.remaining / 2).round();
+    final full = bill.remaining.round();
+    return Row(
+      children: [
+        _QuickAmountButton(
+          label: 'Half',
+          amount: half,
+          onTap: () => amountCtrl.text = half.toString(),
+        ),
+        const SizedBox(width: 8),
+        _QuickAmountButton(
+          label: 'Full',
+          amount: full,
+          primaryAction: true,
+          onTap: () => amountCtrl.text = full.toString(),
+        ),
+      ],
+    );
+  }
+}
+
+class _QuickAmountButton extends StatelessWidget {
+  final String label;
+  final int amount;
+  final bool primaryAction;
+  final VoidCallback onTap;
+
+  const _QuickAmountButton({
+    required this.label,
+    required this.amount,
+    required this.onTap,
+    this.primaryAction = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final pn = Theme.of(context).extension<PnColors>()!;
+    return Expanded(
+      child: OutlinedButton(
+        onPressed: onTap,
+        style: OutlinedButton.styleFrom(
+          foregroundColor: primaryAction ? Colors.white : pn.text,
+          backgroundColor: primaryAction ? primary : pn.surface,
+          side: BorderSide(color: primaryAction ? primary : pn.border),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
+          padding: const EdgeInsets.symmetric(vertical: 12),
+        ),
+        child: Text(
+          '$label - Rs. $amount',
+          style: const TextStyle(fontWeight: FontWeight.w800),
         ),
       ),
     );
   }
 }
 
-class _Row extends StatelessWidget {
+class _FieldLabel extends StatelessWidget {
   final String label;
-  final String value;
   final PnColors pn;
-  const _Row({required this.label, required this.value, required this.pn});
+
+  const _FieldLabel({required this.label, required this.pn});
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
+    return Text(
+      label,
+      style: TextStyle(
+        fontWeight: FontWeight.w700,
+        fontSize: 13,
+        color: pn.text,
+      ),
+    );
+  }
+}
+
+class _OfflineHint extends StatelessWidget {
+  final PnColors pn;
+
+  const _OfflineHint({required this.pn});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(13),
+      decoration: BoxDecoration(
+        color: info.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: info.withValues(alpha: 0.22)),
+      ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: TextStyle(color: pn.textMuted, fontSize: 13)),
-          const Spacer(),
-          Text(value,
-              style: TextStyle(
-                  color: pn.text,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500)),
+          const Icon(Icons.offline_bolt_outlined, size: 19, color: info),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'If internet drops, this is saved locally and syncs on next refresh.',
+              style: TextStyle(color: pn.text, fontSize: 12, height: 1.35),
+            ),
+          ),
         ],
       ),
     );
