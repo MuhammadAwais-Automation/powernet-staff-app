@@ -18,12 +18,14 @@ class BillsProvider extends ChangeNotifier {
 
   List<Bill> _bills = [];
   List<Bill> _collectedToday = [];
+  List<Bill> _visitedToday = [];
   bool _loading = false;
   String? _error;
   int _pendingSyncCount = 0;
 
   List<Bill> get bills => _bills;
   List<Bill> get collectedToday => _collectedToday;
+  List<Bill> get visitedToday => _visitedToday;
   bool get loading => _loading;
   String? get error => _error;
   int get pendingSyncCount => _pendingSyncCount;
@@ -51,11 +53,11 @@ class BillsProvider extends ChangeNotifier {
       final results = await Future.wait([
         _repo.fetchPendingByArea(areaId),
         _repo.fetchCollectedToday(collectorId),
+        _repo.fetchVisitedToday(collectorId),
       ]);
-      final nextBills = results[0];
-      final nextCollectedToday = results[1];
-      _bills = nextBills;
-      _collectedToday = nextCollectedToday;
+      _bills = results[0];
+      _collectedToday = results[1];
+      _visitedToday = results[2];
     } catch (e) {
       _error = e.toString();
     } finally {
@@ -170,16 +172,21 @@ class BillsProvider extends ChangeNotifier {
     final idx = _bills.indexWhere((b) => b.id == billId);
     if (idx == -1) return;
     final bill = _bills[idx];
+    final updatedBill = bill.copyWith(
+      collectedBy: collectorId,
+      paymentMethod: 'visit',
+      paymentNote: visitType,
+      paidAt: DateTime.now().toUtc().toIso8601String(),
+    );
     _bills = [
       ..._bills.take(idx),
-      bill.copyWith(
-        collectedBy: collectorId,
-        paymentMethod: 'visit',
-        paymentNote: visitType,
-        paidAt: DateTime.now().toUtc().toIso8601String(),
-      ),
+      updatedBill,
       ..._bills.skip(idx + 1),
     ];
+    final alreadyInVisits = _visitedToday.any((b) => b.id == billId);
+    if (!alreadyInVisits) {
+      _visitedToday = [updatedBill, ..._visitedToday];
+    }
   }
 
   void _applyLocalPayment({

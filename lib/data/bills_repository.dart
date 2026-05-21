@@ -99,6 +99,23 @@ class BillsRepository {
         .toList();
   }
 
+  Future<List<Bill>> fetchVisitedToday(String collectorId) async {
+    final today = DateTime.now().toUtc();
+    final dateStr =
+        '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
+    final res = await supabase
+        .from('bills')
+        .select(billBaseSelect)
+        .eq('collected_by', collectorId)
+        .eq('payment_method', 'visit')
+        .gte('paid_at', '${dateStr}T00:00:00Z')
+        .lte('paid_at', '${dateStr}T23:59:59Z')
+        .order('paid_at', ascending: false);
+    return (res as List)
+        .map((j) => Bill.fromJson(j as Map<String, dynamic>))
+        .toList();
+  }
+
   Future<Bill?> fetchById(String id) async {
     final res = await supabase
         .from('bills')
