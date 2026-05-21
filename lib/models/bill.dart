@@ -111,7 +111,6 @@ class Bill {
   String get customerCode => customer?['customer_code'] as String? ?? '—';
   String get customerAddress => customer?['address_value'] as String? ?? '';
   String get customerAddressType => customer?['address_type'] as String? ?? '';
-  String get connectionNo => customer?['connection_no'] as String? ?? '';
 
   bool get hasAddress => customerAddress.isNotEmpty;
 }

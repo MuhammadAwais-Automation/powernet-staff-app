@@ -8,12 +8,12 @@ import '../config/supabase_config.dart';
 const billBaseSelect =
     'id, customer_id, amount, paid_amount, month, status, collected_by, '
     'paid_at, receipt_no, payment_method, payment_note, created_at, '
-    'customer:customers(id, customer_code, full_name, address_type, address_value, connection_no)';
+    'customer:customers(id, customer_code, full_name, address_type, address_value)';
 
 const billAreaSelect =
     'id, customer_id, amount, paid_amount, month, status, collected_by, '
     'paid_at, receipt_no, payment_method, payment_note, created_at, '
-    'customer:customers!inner(id, customer_code, full_name, address_type, address_value, connection_no, area_id)';
+    'customer:customers!inner(id, customer_code, full_name, address_type, address_value, area_id)';
 
 const _queuedPaymentsKey = 'queued_bill_payments';
 

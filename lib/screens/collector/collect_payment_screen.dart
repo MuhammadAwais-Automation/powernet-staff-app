@@ -474,13 +474,6 @@ class _AddressCard extends StatelessWidget {
                     fontWeight: FontWeight.w600,
                   ),
                 ),
-                if (bill.connectionNo.isNotEmpty) ...[
-                  const SizedBox(height: 2),
-                  Text(
-                    'Conn # ${bill.connectionNo}',
-                    style: TextStyle(color: pn.textMuted, fontSize: 11),
-                  ),
-                ],
               ],
             ),
           ),
