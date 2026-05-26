@@ -76,7 +76,13 @@ class _ComplaintListScreenState extends State<ComplaintListScreen>
         elevation: 0,
         leading: IconButton(
           icon: Icon(Icons.arrow_back, color: pn.text),
-          onPressed: () => context.pop(),
+          onPressed: () {
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              context.go('/home');
+            }
+          },
         ),
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -233,7 +239,7 @@ class _SyncBanner extends StatelessWidget {
           const SizedBox(width: 10),
           Expanded(
             child: Text(
-              '$count complaint update${count == 1 ? '' : 's'} locally saved. Internet on hotay hi auto sync ho jayega.',
+              '$count complaint update${count == 1 ? '' : 's'} saved locally. Will auto-sync when internet connection is restored.',
               style: TextStyle(color: pn.text, fontSize: 12, height: 1.35),
             ),
           ),

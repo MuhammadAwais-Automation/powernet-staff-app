@@ -58,7 +58,7 @@ class _ComplaintDetailScreenState extends State<ComplaintDetailScreen> {
         debugPrint('POWERNET_DEBUG: complaint detail load failed: $e');
         setState(() {
           _error =
-              'Internet band hai. Complaint detail open karne ke liye pehle cached complaint select karein.';
+              'No internet connection. To view complaint details, please select a cached complaint first.';
         });
       }
     } finally {
@@ -83,7 +83,7 @@ class _ComplaintDetailScreenState extends State<ComplaintDetailScreen> {
         SnackBar(
           content: Text(
             queue.pendingSyncCount > 0
-                ? 'Saved offline. Internet on hotay hi auto sync ho jayega.'
+                ? 'Saved offline. Will auto-sync when internet connection is restored.'
                 : 'Complaint status updated.',
           ),
           backgroundColor: queue.pendingSyncCount > 0 ? warning : success,
@@ -110,7 +110,7 @@ class _ComplaintDetailScreenState extends State<ComplaintDetailScreen> {
         SnackBar(
           content: Text(
             queue.pendingSyncCount > 0
-                ? 'Resolution saved offline. Internet on hotay hi auto sync ho jayega.'
+                ? 'Resolution saved offline. Will auto-sync when internet connection is restored.'
                 : 'Complaint successfully resolved!',
           ),
           backgroundColor: queue.pendingSyncCount > 0 ? warning : success,
@@ -129,7 +129,13 @@ class _ComplaintDetailScreenState extends State<ComplaintDetailScreen> {
         elevation: 0,
         leading: IconButton(
           icon: Icon(Icons.arrow_back, color: pn.text),
-          onPressed: () => context.pop(),
+          onPressed: () {
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              context.go('/technician/complaints');
+            }
+          },
         ),
         title: Text(
           _complaint?.complaintCode ?? 'Complaint Details',

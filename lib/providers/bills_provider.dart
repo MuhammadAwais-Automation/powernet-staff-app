@@ -84,7 +84,7 @@ class BillsProvider extends ChangeNotifier {
       await _loadCachedSnapshot(areaIds, collectorId);
       _error =
           _bills.isEmpty && _collectedToday.isEmpty && _visitedToday.isEmpty
-          ? 'Internet band hai. Pehli dafa data load karne ke liye internet on karein.'
+          ? 'No internet connection. Please connect to the internet to load data for the first time.'
           : null;
     } finally {
       _loading = false;
@@ -146,7 +146,7 @@ class BillsProvider extends ChangeNotifier {
         return PaymentSubmissionResult.queued;
       } on Exception catch (queueError) {
         debugPrint('POWERNET_DEBUG: queueVisit failed: $queueError');
-        _error = 'Local save failed. Dobara try karein.';
+        _error = 'Local save failed. Please try again.';
         notifyListeners();
         return PaymentSubmissionResult.failed;
       }
@@ -201,7 +201,7 @@ class BillsProvider extends ChangeNotifier {
         return PaymentSubmissionResult.queued;
       } on Exception catch (queueError) {
         debugPrint('POWERNET_DEBUG: queuePayment failed: $queueError');
-        _error = 'Local save failed. Dobara try karein.';
+        _error = 'Local save failed. Please try again.';
         notifyListeners();
         return PaymentSubmissionResult.failed;
       }

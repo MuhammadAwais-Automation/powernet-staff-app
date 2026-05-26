@@ -38,7 +38,7 @@ void main() {
 
       expect(ok, isFalse);
       expect(provider.complaints, isEmpty);
-      expect(provider.error, contains('setup/RLS'));
+      expect(provider.error, contains('row-level security'));
     });
   });
 }

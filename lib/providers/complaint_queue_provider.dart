@@ -69,7 +69,7 @@ class ComplaintQueueProvider extends ChangeNotifier {
       _sortComplaints();
     } catch (e) {
       debugPrint('POWERNET_DEBUG: loadForAreas failed: $e');
-      _error = 'Internet band hai. Complaints load nahi ho sakin.';
+      _error = 'No internet connection. Complaints could not be loaded.';
     } finally {
       _loading = false;
       notifyListeners();
@@ -209,7 +209,7 @@ class ComplaintQueueProvider extends ChangeNotifier {
       return true;
     } catch (queueError) {
       debugPrint('POWERNET_DEBUG: queue complaint status failed: $queueError');
-      _error = 'Local save failed. Dobara try karein.';
+      _error = 'Local save failed. Please try again.';
       notifyListeners();
       return false;
     }
@@ -267,9 +267,9 @@ class ComplaintQueueProvider extends ChangeNotifier {
         text.contains('no address associated') ||
         text.contains('network is unreachable');
     if (networkIssue) {
-      return 'Internet band hai. Pehli dafa complaints load karne ke liye internet on karein.';
+      return 'No internet connection. Please connect to the internet to load complaints for the first time.';
     }
-    return 'Complaints load nahi ho sakin. Retry karein ya admin se schema/config check karwayein.';
+    return 'Complaints could not be loaded. Please retry or contact the administrator to verify schema configuration.';
   }
 
   Future<void> _cacheActiveSnapshot() async {

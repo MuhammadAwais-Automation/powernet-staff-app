@@ -80,7 +80,7 @@ class _CustomerSignupScreenState extends State<CustomerSignupScreen> {
       if (_areas.isNotEmpty) _areaId = _areas.first.id;
       if (_packages.isNotEmpty) _packageId = _packages.first.id;
     } catch (e) {
-      _error = 'Signup options load nahi ho sakin. Internet check karein.';
+      _error = 'Signup options could not be loaded. Please check your internet connection.';
     } finally {
       _loadingLookups = false;
       if (mounted) setState(() {});
@@ -162,7 +162,7 @@ class _CustomerSignupScreenState extends State<CustomerSignupScreen> {
 
   Future<void> _submit() async {
     if (_areaId == null || _packageId == null) {
-      setState(() => _error = 'Area aur package select karein.');
+      setState(() => _error = 'Please select both an area and a package plan.');
       return;
     }
     setState(() {
@@ -192,7 +192,7 @@ class _CustomerSignupScreenState extends State<CustomerSignupScreen> {
     } catch (e) {
       setState(
         () => _error =
-            'Signup submit nahi ho saka. Duplicate house ID ya network issue ho sakta hai.',
+            'Signup submission failed. A duplicate house ID or network connectivity issue may have occurred.',
       );
     } finally {
       if (mounted) setState(() => _submitting = false);

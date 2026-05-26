@@ -123,7 +123,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
         title: const Text('Staff Profile'),
         leading: IconButton(
           icon: Icon(Icons.arrow_back_rounded, color: pn.text),
-          onPressed: () => context.pop(),
+          onPressed: () {
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              context.go('/home');
+            }
+          },
         ),
       ),
       body: SingleChildScrollView(

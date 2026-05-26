@@ -376,7 +376,7 @@ class _LoginScreenState extends State<LoginScreen> {
           autocorrect: false,
           enableSuggestions: false,
           textCapitalization: TextCapitalization.none,
-          keyboardType: isStaff ? TextInputType.text : TextInputType.phone,
+          keyboardType: TextInputType.text,
           style: TextStyle(color: pn.text, fontSize: 15, fontWeight: FontWeight.w700),
           decoration: InputDecoration(
             hintText: isStaff ? 'e.g. technician_ahmed' : 'e.g. house_102b',

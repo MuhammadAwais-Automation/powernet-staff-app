@@ -47,7 +47,7 @@ class CustomerPortalProvider extends ChangeNotifier {
       _bills = await _repo.fetchBills(customer.id);
       _complaints = await _repo.fetchComplaints(customer.id);
     } catch (e) {
-      _error = 'Customer portal data load nahi ho saka. Retry karein.';
+      _error = 'Customer portal data could not be loaded. Please retry.';
       debugPrint('CustomerPortalProvider load failed: $e');
     } finally {
       _loading = false;
@@ -85,7 +85,7 @@ class CustomerPortalProvider extends ChangeNotifier {
       return true;
     } catch (e) {
       _error =
-          'Complaint submit nahi ho saki. Admin se customer complaint setup/RLS check karwayein.';
+          'Complaint could not be submitted. Please contact the administrator to verify setup and row-level security permissions.';
       debugPrint('CustomerPortalProvider createComplaint failed: $e');
       notifyListeners();
       return false;

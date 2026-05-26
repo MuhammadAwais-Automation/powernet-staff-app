@@ -65,7 +65,7 @@ class _CollectPaymentScreenState extends State<CollectPaymentScreen> {
       if (_bill == null) {
         debugPrint('POWERNET_DEBUG: collect bill load failed: $e');
         _error =
-            'Internet band hai. Bill detail open karne ke liye pehle Recovery Console se synced/cached bill select karein.';
+            'No internet connection. To view bill details, please select a cached bill from the Recovery Console first.';
       }
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -80,7 +80,7 @@ class _CollectPaymentScreenState extends State<CollectPaymentScreen> {
       if (isRecovery &&
           (staff.areaIds.isEmpty ||
               !staff.areaIds.contains(bill.customerAreaId))) {
-        _error = 'Access Denied: Yeh bill aapke assigned area ka nahi hai.';
+        _error = 'Access Denied: This bill does not belong to your assigned service area.';
         _bill = null;
         return;
       }
@@ -159,7 +159,7 @@ class _CollectPaymentScreenState extends State<CollectPaymentScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(
-              'Saved offline. Internet on hotay hi auto sync ho jayega.',
+              'Saved offline. Will auto-sync when internet connection is restored.',
             ),
             backgroundColor: warning,
           ),
@@ -194,7 +194,13 @@ class _CollectPaymentScreenState extends State<CollectPaymentScreen> {
         elevation: 0,
         leading: IconButton(
           icon: Icon(Icons.arrow_back, color: pn.text),
-          onPressed: () => context.pop(),
+          onPressed: () {
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              context.go('/collector/bills');
+            }
+          },
         ),
         title: Text(
           'Collect Payment',
