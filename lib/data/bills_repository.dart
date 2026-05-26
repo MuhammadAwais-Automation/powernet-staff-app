@@ -97,11 +97,12 @@ class QueuedBillVisit {
 }
 
 class BillsRepository {
-  Future<List<Bill>> fetchPendingByArea(String areaId) async {
+  Future<List<Bill>> fetchPendingByAreas(List<String> areaIds) async {
+    if (areaIds.isEmpty) return [];
     final res = await supabase
         .from('bills')
         .select(billAreaSelect)
-        .eq('customer.area_id', areaId)
+        .inFilter('customer.area_id', areaIds)
         .inFilter('status', ['pending', 'overdue'])
         .order('created_at', ascending: false);
     return (res as List)
@@ -165,16 +166,17 @@ class BillsRepository {
   }
 
   Future<void> cacheRecoverySnapshot({
-    required String areaId,
+    required List<String> areaIds,
     required String collectorId,
     required List<Bill> pending,
     required List<Bill> collectedToday,
     required List<Bill> visitedToday,
   }) async {
     final prefs = await SharedPreferences.getInstance();
+    final areasKey = areaIds.join('-');
     await Future.wait([
       prefs.setString(
-        _cacheKey(_cachedPendingPrefix, areaId),
+        _cacheKey(_cachedPendingPrefix, areasKey),
         _encodeBills(pending),
       ),
       prefs.setString(
@@ -188,8 +190,8 @@ class BillsRepository {
     ]);
   }
 
-  Future<List<Bill>> getCachedPendingByArea(String areaId) async {
-    return _readCachedBills(_cacheKey(_cachedPendingPrefix, areaId));
+  Future<List<Bill>> getCachedPendingByAreas(List<String> areaIds) async {
+    return _readCachedBills(_cacheKey(_cachedPendingPrefix, areaIds.join('-')));
   }
 
   Future<List<Bill>> getCachedCollectedToday(String collectorId) async {

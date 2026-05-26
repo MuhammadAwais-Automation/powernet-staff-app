@@ -16,7 +16,7 @@ class BillsProvider extends ChangeNotifier {
   final bool _enableRealtime;
   RealtimeChannel? _billsChannel;
   StreamSubscription<bool>? _onlineSubscription;
-  String? _activeAreaId;
+  List<String> _activeAreaIds = const [];
   String? _activeCollectorId;
   DateTime? _lastRealtimeReloadAt;
   late bool _isOnline;
@@ -52,8 +52,8 @@ class BillsProvider extends ChangeNotifier {
     _listenForConnectivity();
   }
 
-  Future<void> loadPendingByArea(String areaId, String collectorId) async {
-    _activeAreaId = areaId;
+  Future<void> loadPendingByAreas(List<String> areaIds, String collectorId) async {
+    _activeAreaIds = areaIds;
     _activeCollectorId = collectorId;
     _ensureRealtimeSubscription();
     _loading = true;
@@ -66,7 +66,7 @@ class BillsProvider extends ChangeNotifier {
         _pendingSyncCount = await _repo.countQueuedOperations();
       }
       final results = await Future.wait([
-        _repo.fetchPendingByArea(areaId),
+        _repo.fetchPendingByAreas(areaIds),
         _repo.fetchCollectedToday(collectorId),
         _repo.fetchVisitedToday(collectorId),
       ]);
@@ -74,14 +74,14 @@ class BillsProvider extends ChangeNotifier {
       _collectedToday = results[1];
       _visitedToday = results[2];
       await _repo.cacheRecoverySnapshot(
-        areaId: areaId,
+        areaIds: areaIds,
         collectorId: collectorId,
         pending: _bills,
         collectedToday: _collectedToday,
         visitedToday: _visitedToday,
       );
     } catch (e) {
-      await _loadCachedSnapshot(areaId, collectorId);
+      await _loadCachedSnapshot(areaIds, collectorId);
       _error =
           _bills.isEmpty && _collectedToday.isEmpty && _visitedToday.isEmpty
           ? 'Internet band hai. Pehli dafa data load karne ke liye internet on karein.'
@@ -209,10 +209,10 @@ class BillsProvider extends ChangeNotifier {
   }
 
   Future<void> refreshActive() async {
-    final areaId = _activeAreaId;
+    final areaIds = _activeAreaIds;
     final collectorId = _activeCollectorId;
-    if (areaId == null || collectorId == null) return;
-    await loadPendingByArea(areaId, collectorId);
+    if (areaIds.isEmpty || collectorId == null) return;
+    await loadPendingByAreas(areaIds, collectorId);
   }
 
   Bill? findBillById(String billId) {
@@ -231,11 +231,11 @@ class BillsProvider extends ChangeNotifier {
       await _repo.syncQueuedOperations();
       _pendingSyncCount = await _repo.countQueuedOperations();
       if (refreshAfterSync) {
-        final areaId = _activeAreaId;
+        final areaIds = _activeAreaIds;
         final collectorId = _activeCollectorId;
-        if (areaId != null && collectorId != null) {
+        if (areaIds.isNotEmpty && collectorId != null) {
           final results = await Future.wait([
-            _repo.fetchPendingByArea(areaId),
+            _repo.fetchPendingByAreas(areaIds),
             _repo.fetchCollectedToday(collectorId),
             _repo.fetchVisitedToday(collectorId),
           ]);
@@ -243,7 +243,7 @@ class BillsProvider extends ChangeNotifier {
           _collectedToday = results[1];
           _visitedToday = results[2];
           await _repo.cacheRecoverySnapshot(
-            areaId: areaId,
+            areaIds: areaIds,
             collectorId: collectorId,
             pending: _bills,
             collectedToday: _collectedToday,
@@ -260,8 +260,8 @@ class BillsProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> _loadCachedSnapshot(String areaId, String collectorId) async {
-    _bills = await _repo.getCachedPendingByArea(areaId);
+  Future<void> _loadCachedSnapshot(List<String> areaIds, String collectorId) async {
+    _bills = await _repo.getCachedPendingByAreas(areaIds);
     _collectedToday = await _repo.getCachedCollectedToday(collectorId);
     _visitedToday = await _repo.getCachedVisitedToday(collectorId);
     _pendingSyncCount = await _repo.countQueuedOperations();

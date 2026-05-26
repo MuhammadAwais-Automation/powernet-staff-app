@@ -8,29 +8,30 @@ const _cols =
     'created_at, area:areas(id, code, name, type, is_active)';
 
 class CustomersRepository {
-  Future<List<Customer>> fetchByArea(String areaId) async {
+  Future<List<Customer>> fetchByAreas(List<String> areaIds) async {
+    if (areaIds.isEmpty) return [];
     final res = await supabase
         .from('customers')
         .select(_cols)
-        .eq('area_id', areaId)
+        .inFilter('area_id', areaIds)
         .order('full_name');
     return (res as List).map((j) => Customer.fromJson(j as Map<String, dynamic>)).toList();
   }
 
-  Future<List<Customer>> fetchDue({String? areaId}) async {
+  Future<List<Customer>> fetchDue({List<String>? areaIds}) async {
     var q = supabase
         .from('customers')
         .select(_cols)
         .gt('due_amount', 0)
         .eq('status', 'active');
-    if (areaId != null) q = q.eq('area_id', areaId);
+    if (areaIds != null && areaIds.isNotEmpty) q = q.inFilter('area_id', areaIds);
     final res = await q.order('due_amount', ascending: false);
     return (res as List).map((j) => Customer.fromJson(j as Map<String, dynamic>)).toList();
   }
 
-  Future<List<Customer>> search(String query, {String? areaId}) async {
+  Future<List<Customer>> search(String query, {List<String>? areaIds}) async {
     var q = supabase.from('customers').select(_cols);
-    if (areaId != null) q = q.eq('area_id', areaId);
+    if (areaIds != null && areaIds.isNotEmpty) q = q.inFilter('area_id', areaIds);
     final res = await q
         .or('full_name.ilike.%$query%,customer_code.ilike.%$query%,username.ilike.%$query%,phone.ilike.%$query%')
         .order('full_name')

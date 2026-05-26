@@ -14,6 +14,12 @@ const _customerComplaintSelect =
     'customer:customers(id, full_name, area_id, customer_code, address_value, phone), '
     'technician:staff(id, full_name)';
 
+const _customerComplaintLegacySelect =
+    'id, complaint_code, customer_id, issue, type, priority, status, '
+    'assigned_to, opened_at, resolved_at, '
+    'customer:customers(id, full_name, area_id, customer_code, address_value, phone), '
+    'technician:staff(id, full_name)';
+
 class CustomerPortalRepository {
   Future<List<Bill>> fetchBills(String customerId) async {
     final res = await supabase
@@ -27,14 +33,46 @@ class CustomerPortalRepository {
   }
 
   Future<List<Complaint>> fetchComplaints(String customerId) async {
-    final res = await supabase
+    final res = await _fetchComplaints(customerId, _customerComplaintSelect);
+    return res;
+  }
+
+  Future<List<Complaint>> _fetchComplaints(
+    String customerId,
+    String select,
+  ) async {
+    try {
+      final res = await supabase
+          .from('complaints')
+          .select(select)
+          .eq('customer_id', customerId)
+          .order('opened_at', ascending: false);
+      return (res as List)
+          .map((j) => Complaint.fromJson(j as Map<String, dynamic>))
+          .toList();
+    } catch (e) {
+      if (select == _customerComplaintLegacySelect ||
+          !_isMissingResolutionColumns(e)) {
+        rethrow;
+      }
+      return _fetchComplaints(customerId, _customerComplaintLegacySelect);
+    }
+  }
+
+  Future<Complaint> _insertComplaint(Map<String, dynamic> payload) async {
+    final data = await supabase
         .from('complaints')
-        .select(_customerComplaintSelect)
-        .eq('customer_id', customerId)
-        .order('opened_at', ascending: false);
-    return (res as List)
-        .map((j) => Complaint.fromJson(j as Map<String, dynamic>))
-        .toList();
+        .insert(payload)
+        .select(_customerComplaintLegacySelect)
+        .single();
+    return Complaint.fromJson(data);
+  }
+
+  bool _isMissingResolutionColumns(Object error) {
+    final text = error.toString();
+    return text.contains('42703') ||
+        text.contains('resolution_notes') ||
+        text.contains('hardware_used');
   }
 
   Future<Complaint> createComplaint({
@@ -42,18 +80,13 @@ class CustomerPortalRepository {
     required String issue,
     required String type,
   }) async {
-    final data = await supabase
-        .from('complaints')
-        .insert({
-          'customer_id': customer.id,
-          'issue': issue.trim(),
-          'type': type,
-          'priority': 'medium',
-          'status': 'open',
-          'assigned_to': null,
-        })
-        .select(_customerComplaintSelect)
-        .single();
-    return Complaint.fromJson(data);
+    return _insertComplaint({
+      'customer_id': customer.id,
+      'issue': issue.trim(),
+      'type': type,
+      'priority': 'medium',
+      'status': 'open',
+      'assigned_to': null,
+    });
   }
 }

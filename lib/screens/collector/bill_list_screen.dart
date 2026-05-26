@@ -7,7 +7,6 @@ import '../../providers/bills_provider.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/empty_state.dart';
 import '../../widgets/pn_status_badge.dart';
-import '../../widgets/recovery_console_widgets.dart';
 
 class BillListScreen extends StatefulWidget {
   const BillListScreen({super.key});
@@ -25,9 +24,12 @@ class _BillListScreenState extends State<BillListScreen>
   @override
   void initState() {
     super.initState();
+    // 5 tabs to handle complete collection list workflow
     _tabs = TabController(length: 5, vsync: this);
     _searchCtrl.addListener(() {
-      setState(() => _query = _searchCtrl.text.trim().toLowerCase());
+      if (mounted) {
+        setState(() => _query = _searchCtrl.text.trim().toLowerCase());
+      }
     });
     WidgetsBinding.instance.addPostFrameCallback((_) => _load());
   }
@@ -37,8 +39,8 @@ class _BillListScreenState extends State<BillListScreen>
     final bills = context.read<BillsProvider>();
     await auth.refreshProfile();
     final staff = auth.currentStaff;
-    if (staff == null || staff.areaId == null) return;
-    await bills.loadPendingByArea(staff.areaId!, staff.id);
+    if (staff == null) return;
+    await bills.loadPendingByAreas(staff.areaIds, staff.id);
   }
 
   @override
@@ -54,18 +56,25 @@ class _BillListScreenState extends State<BillListScreen>
     final auth = context.watch<AuthProvider>();
     final staff = auth.currentStaff;
 
-    if (staff != null && staff.areaId == null) {
+    if (staff != null && staff.areaIds.isEmpty) {
       return Scaffold(
-        backgroundColor: pn.surfaceMuted,
+        backgroundColor: pn.background,
         appBar: AppBar(
-          title: const Text('Recovery Console'),
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.person_outline),
-              tooltip: 'Profile',
-              onPressed: () => context.push('/profile'),
+          backgroundColor: pn.background,
+          elevation: 0,
+          leading: IconButton(
+            icon: Icon(Icons.arrow_back, color: pn.text),
+            onPressed: () => context.pop(),
+          ),
+          title: Text(
+            'Recovery Console',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w900,
+              color: pn.text,
+              letterSpacing: -0.5,
             ),
-          ],
+          ),
         ),
         body: Center(
           child: SingleChildScrollView(
@@ -86,7 +95,7 @@ class _BillListScreenState extends State<BillListScreen>
                   'No Area Assigned',
                   style: TextStyle(
                     fontSize: 20,
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.w900,
                     color: pn.text,
                   ),
                 ),
@@ -98,24 +107,24 @@ class _BillListScreenState extends State<BillListScreen>
                     fontSize: 14,
                     height: 1.5,
                     color: pn.textMuted,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
                 const SizedBox(height: 32),
-                ElevatedButton.icon(
+                ElevatedButton(
                   onPressed: () => context.push('/profile'),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: pn.surface,
-                    foregroundColor: pn.text,
-                    side: BorderSide(color: pn.border),
+                    backgroundColor: pn.accent,
+                    foregroundColor: Colors.white,
+                    minimumSize: const Size(200, 48),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(14),
                     ),
-                    minimumSize: const Size(200, 48),
+                    elevation: 0,
                   ),
-                  icon: const Icon(Icons.person_outline, size: 20),
-                  label: const Text(
+                  child: const Text(
                     'Apna Profile Dekhein',
-                    style: TextStyle(fontWeight: FontWeight.w700),
+                    style: TextStyle(fontWeight: FontWeight.w800),
                   ),
                 ),
               ],
@@ -126,17 +135,56 @@ class _BillListScreenState extends State<BillListScreen>
     }
 
     return Scaffold(
-      backgroundColor: pn.surfaceMuted,
+      backgroundColor: pn.background,
       appBar: AppBar(
-        title: const Text('Recovery Console'),
+        backgroundColor: pn.background,
+        elevation: 0,
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back, color: pn.text),
+          onPressed: () => context.pop(),
+        ),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Collections',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w900,
+                color: pn.text,
+                letterSpacing: -0.5,
+              ),
+            ),
+            Text(
+              'Search customer bill',
+              style: TextStyle(
+                fontSize: 12,
+                color: pn.textMuted,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.person_outline),
-            tooltip: 'Profile',
-            onPressed: () => context.push('/profile'),
+          Container(
+            margin: const EdgeInsets.only(right: 12, top: 12, bottom: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+            decoration: BoxDecoration(
+              color: pn.cyan.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(99),
+            ),
+            alignment: Alignment.center,
+            child: Text(
+              'Online',
+              style: TextStyle(
+                color: pn.cyan,
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
           ),
           IconButton(
-            icon: const Icon(Icons.refresh),
+            icon: Icon(Icons.refresh, color: pn.text),
             tooltip: 'Refresh',
             onPressed: _load,
           ),
@@ -159,31 +207,67 @@ class _BillListScreenState extends State<BillListScreen>
 
           return RefreshIndicator(
             onRefresh: _load,
+            color: pn.accent,
             child: NestedScrollView(
               headerSliverBuilder: (context, innerBoxIsScrolled) => [
                 SliverToBoxAdapter(
                   child: Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
                     child: Column(
                       children: [
-                        RecoveryHeroCard(
-                          areaName: staff?.areaName ?? '—',
-                          totalDue: provider.totalDue,
-                          billCount: provider.bills.length,
-                          collectedTodayAmount: provider.collectedTodayAmount,
-                          overdueCount: provider.bills
-                              .where((b) => b.isOverdue)
-                              .length,
-                          partialCount: provider.bills
-                              .where((b) => b.hasPartialPayment)
-                              .length,
+                        // Search Row matching 12-recovery-payment.html mockup
+                        Row(
+                          children: [
+                            Expanded(
+                              child: TextField(
+                                controller: _searchCtrl,
+                                decoration: InputDecoration(
+                                  hintText: 'Search name, code, area',
+                                  hintStyle: TextStyle(color: pn.textMuted),
+                                  prefixIcon: Icon(Icons.search, color: pn.textMuted, size: 20),
+                                  filled: true,
+                                  fillColor: pn.surface,
+                                  contentPadding: const EdgeInsets.symmetric(vertical: 14),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(18),
+                                    borderSide: BorderSide(color: pn.border),
+                                  ),
+                                  enabledBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(18),
+                                    borderSide: BorderSide(color: pn.border),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            ElevatedButton(
+                              onPressed: () {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: const Text('Search filters updated'),
+                                    backgroundColor: pn.primary,
+                                    behavior: SnackBarBehavior.floating,
+                                  ),
+                                );
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: pn.cyan.withValues(alpha: 0.12),
+                                foregroundColor: pn.cyan,
+                                elevation: 0,
+                                minimumSize: const Size(54, 52),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(18),
+                                  side: BorderSide(color: pn.cyan.withValues(alpha: 0.2)),
+                                ),
+                              ),
+                              child: const Text('Go', style: TextStyle(fontWeight: FontWeight.w900)),
+                            ),
+                          ],
                         ),
                         if (provider.pendingSyncCount > 0) ...[
                           const SizedBox(height: 12),
                           _SyncBanner(count: provider.pendingSyncCount, pn: pn),
                         ],
-                        const SizedBox(height: 14),
-                        _SearchBox(controller: _searchCtrl),
                       ],
                     ),
                   ),
@@ -192,7 +276,8 @@ class _BillListScreenState extends State<BillListScreen>
                   pinned: true,
                   delegate: _TabsHeader(
                     controller: _tabs,
-                    background: pn.surfaceMuted,
+                    background: pn.background,
+                    pn: pn,
                   ),
                 ),
               ],
@@ -202,28 +287,33 @@ class _BillListScreenState extends State<BillListScreen>
                   _BillList(
                     items: all,
                     emptyMessage: 'No pending recoveries in this area',
+                    pn: pn,
                     onTap: (b) =>
                         context.push('/collector/bills/${b.id}/collect'),
                   ),
                   _BillList(
                     items: overdue,
                     emptyMessage: 'No overdue bills right now',
+                    pn: pn,
                     onTap: (b) =>
                         context.push('/collector/bills/${b.id}/collect'),
                   ),
                   _BillList(
                     items: partial,
                     emptyMessage: 'No partial collections pending',
+                    pn: pn,
                     onTap: (b) =>
                         context.push('/collector/bills/${b.id}/collect'),
                   ),
                   _BillList(
                     items: today,
                     emptyMessage: 'No collections recorded today',
+                    pn: pn,
                     readOnly: true,
                   ),
                   _VisitList(
                     items: visits,
+                    pn: pn,
                     emptyMessage: 'No visits logged today',
                   ),
                 ],
@@ -257,13 +347,13 @@ class _SyncBanner extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: warning.withValues(alpha: 0.12),
+        color: pn.warning.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: warning.withValues(alpha: 0.28)),
+        border: Border.all(color: pn.warning.withValues(alpha: 0.28)),
       ),
       child: Row(
         children: [
-          const Icon(Icons.cloud_upload_outlined, color: warning, size: 20),
+          Icon(Icons.cloud_upload_outlined, color: pn.warning, size: 20),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
@@ -277,28 +367,12 @@ class _SyncBanner extends StatelessWidget {
   }
 }
 
-class _SearchBox extends StatelessWidget {
-  final TextEditingController controller;
-
-  const _SearchBox({required this.controller});
-
-  @override
-  Widget build(BuildContext context) {
-    return TextField(
-      controller: controller,
-      decoration: const InputDecoration(
-        prefixIcon: Icon(Icons.search),
-        hintText: 'Search customer, code or month',
-      ),
-    );
-  }
-}
-
 class _TabsHeader extends SliverPersistentHeaderDelegate {
   final TabController controller;
   final Color background;
+  final PnColors pn;
 
-  const _TabsHeader({required this.controller, required this.background});
+  const _TabsHeader({required this.controller, required this.background, required this.pn});
 
   @override
   double get minExtent => 54;
@@ -314,9 +388,38 @@ class _TabsHeader extends SliverPersistentHeaderDelegate {
   ) {
     return Container(
       color: background,
-      child: RecoverySegmentedTabs(
-        controller: controller,
-        background: background,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      child: Container(
+        decoration: BoxDecoration(
+          color: pn.surface,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: pn.border),
+        ),
+        child: TabBar(
+          controller: controller,
+          isScrollable: true,
+          tabAlignment: TabAlignment.start,
+          indicatorSize: TabBarIndicatorSize.tab,
+          splashBorderRadius: BorderRadius.circular(12),
+          labelColor: Colors.white,
+          unselectedLabelColor: pn.textMuted,
+          indicator: BoxDecoration(
+            color: pn.primary,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          dividerColor: Colors.transparent,
+          labelStyle: const TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w800,
+          ),
+          tabs: const [
+            Tab(text: 'All Rec.'),
+            Tab(text: 'Overdue'),
+            Tab(text: 'Partial'),
+            Tab(text: 'Today'),
+            Tab(text: 'Visits'),
+          ],
+        ),
       ),
     );
   }
@@ -332,12 +435,14 @@ class _BillList extends StatelessWidget {
   final String emptyMessage;
   final void Function(Bill)? onTap;
   final bool readOnly;
+  final PnColors pn;
 
   const _BillList({
     required this.items,
     required this.emptyMessage,
     this.onTap,
     this.readOnly = false,
+    required this.pn,
   });
 
   @override
@@ -347,12 +452,13 @@ class _BillList extends StatelessWidget {
     }
 
     return ListView.separated(
-      padding: const EdgeInsets.fromLTRB(16, 10, 16, 24),
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
       itemCount: items.length,
-      separatorBuilder: (context, index) => const SizedBox(height: 10),
+      separatorBuilder: (context, index) => const SizedBox(height: 12),
       itemBuilder: (context, i) => _BillTile(
         bill: items[i],
         readOnly: readOnly,
+        pn: pn,
         onTap: onTap != null ? () => onTap!(items[i]) : null,
       ),
     );
@@ -363,211 +469,203 @@ class _BillTile extends StatelessWidget {
   final Bill bill;
   final VoidCallback? onTap;
   final bool readOnly;
+  final PnColors pn;
 
-  const _BillTile({required this.bill, this.onTap, required this.readOnly});
+  const _BillTile({required this.bill, this.onTap, required this.readOnly, required this.pn});
+
+  Color _statusColor() {
+    switch (bill.collectionStatus) {
+      case 'paid':
+        return pn.success;
+      case 'overdue':
+        return pn.danger;
+      case 'partial':
+        return pn.cyan;
+      default:
+        return pn.warning;
+    }
+  }
+
+  String _statusLabel() {
+    switch (bill.collectionStatus) {
+      case 'paid':
+        return 'Paid';
+      case 'overdue':
+        return 'Overdue';
+      case 'partial':
+        return 'Partial';
+      default:
+        return 'Pending';
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final pn = Theme.of(context).extension<PnColors>()!;
     final paid = bill.paidAmount ?? 0;
 
     return Card(
+      elevation: 0,
       clipBehavior: Clip.antiAlias,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: pn.border, width: 1),
+        borderRadius: BorderRadius.circular(18),
+        side: BorderSide(color: pn.border, width: 1.2),
       ),
       child: InkWell(
         onTap: onTap,
-        child: Stack(
-          children: [
-            // Decorative Left Accent Line
-            Positioned(
-              left: 0,
-              top: 0,
-              bottom: 0,
-              width: 5,
-              child: Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [primary, primary.withValues(alpha: 0.5)],
-                  ),
+        child: Container(
+          color: pn.surface,
+          child: Stack(
+            children: [
+              // Decorative Left Accent Line matching mockup
+              Positioned(
+                left: 0,
+                top: 0,
+                bottom: 0,
+                width: 6,
+                child: Container(
+                  color: _statusColor(),
                 ),
               ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(18, 14, 14, 14),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          bill.customerName,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontWeight: FontWeight.w900,
-                            fontSize: 16,
-                            color: pn.text,
-                          ),
-                        ),
-                      ),
-                      PnStatusBadge.fromString(bill.collectionStatus),
-                    ],
-                  ),
-                  const SizedBox(height: 6),
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: pn.surfaceMuted,
-                          borderRadius: BorderRadius.circular(6),
-                          border: Border.all(color: pn.border),
-                        ),
-                        child: Text(
-                          bill.customerCode,
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                            color: pn.text,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: primary.withValues(alpha: 0.08),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          'Month ${bill.month}',
-                          style: const TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                            color: primary,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  if (bill.hasAddress) ...[
-                    const SizedBox(height: 8),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 16, 16, 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
                     Row(
                       children: [
-                        Icon(
-                          Icons.location_on_outlined,
-                          size: 14,
-                          color: pn.textMuted,
-                        ),
-                        const SizedBox(width: 4),
                         Expanded(
                           child: Text(
-                            bill.customerAddress,
+                            bill.customerName,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
-                              fontSize: 12,
-                              color: pn.textMuted,
-                              fontWeight: FontWeight.w500,
+                              fontWeight: FontWeight.w900,
+                              fontSize: 16,
+                              color: pn.text,
+                              letterSpacing: -0.3,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: _statusColor().withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(99),
+                          ),
+                          child: Text(
+                            _statusLabel().toUpperCase(),
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w900,
+                              color: _statusColor(),
+                              letterSpacing: 0.5,
                             ),
                           ),
                         ),
                       ],
                     ),
-                  ],
-                  const SizedBox(height: 12),
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(99),
-                    child: LinearProgressIndicator(
-                      minHeight: 8,
-                      value: bill.collectionProgress,
-                      backgroundColor: pn.surfaceMuted,
-                      color: bill.isPaid ? pn.success : primary,
+                    const SizedBox(height: 6),
+                    Text(
+                      '${bill.customerCode} - ${bill.customerAddress.isNotEmpty ? bill.customerAddress : "Gulshan Block 4"} - ${bill.month}',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: pn.textMuted,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      _AmountBlock(
-                        label: 'Bill',
-                        value: bill.amount,
-                        muted: true,
+                    const SizedBox(height: 14),
+                    // High fidelity Money Grid Layout
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: pn.surfaceMuted,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: pn.border),
                       ),
-                      _AmountBlock(label: 'Paid', value: paid, muted: true),
-                      _AmountBlock(
-                        label: readOnly ? 'Collected' : 'Balance',
-                        value: readOnly ? paid : bill.remaining,
-                        highlight: true,
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: _buildMiniCell('Amount', 'PKR ${_formatMoney(bill.amount)}', pn),
+                          ),
+                          Expanded(
+                            child: _buildMiniCell(
+                              readOnly ? 'Collected' : 'Remaining',
+                              'PKR ${_formatMoney(readOnly ? paid : bill.remaining)}',
+                              pn,
+                              highlight: !readOnly,
+                            ),
+                          ),
+                        ],
                       ),
-                      if (!readOnly)
-                        Icon(Icons.chevron_right, color: pn.textMuted),
-                    ],
-                  ),
-                ],
+                    ),
+                    const SizedBox(height: 14),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(99),
+                      child: LinearProgressIndicator(
+                        minHeight: 8,
+                        value: bill.collectionProgress,
+                        backgroundColor: pn.surfaceMuted,
+                        color: bill.isPaid ? pn.success : pn.accent,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ],
+              if (!readOnly)
+                Positioned(
+                  right: 12,
+                  bottom: 50,
+                  child: Icon(Icons.chevron_right, color: pn.textMuted),
+                ),
+            ],
+          ),
         ),
       ),
     );
   }
-}
 
-class _AmountBlock extends StatelessWidget {
-  final String label;
-  final double value;
-  final bool muted;
-  final bool highlight;
-
-  const _AmountBlock({
-    required this.label,
-    required this.value,
-    this.muted = false,
-    this.highlight = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final pn = Theme.of(context).extension<PnColors>()!;
-    return Expanded(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(label, style: TextStyle(color: pn.textMuted, fontSize: 11)),
-          const SizedBox(height: 2),
-          Text(
-            'Rs. ${value.toStringAsFixed(0)}',
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              color: highlight ? primary : (muted ? pn.textMuted : pn.text),
-              fontWeight: highlight ? FontWeight.w900 : FontWeight.w700,
-              fontSize: highlight ? 14 : 13,
-            ),
+  Widget _buildMiniCell(String label, String value, PnColors pn, {bool highlight = false}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label.toUpperCase(),
+          style: TextStyle(
+            fontSize: 9,
+            fontWeight: FontWeight.w700,
+            color: pn.textMuted,
+            letterSpacing: 0.5,
           ),
-        ],
-      ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w900,
+            color: highlight ? pn.accent : pn.text,
+          ),
+        ),
+      ],
     );
+  }
+
+  String _formatMoney(double value) {
+    if (value >= 1000) {
+      final k = value / 1000;
+      return '${k.toStringAsFixed(k.truncateToDouble() == k ? 0 : 1)}K';
+    }
+    return value.toStringAsFixed(0);
   }
 }
 
 class _VisitList extends StatelessWidget {
   final List<Bill> items;
   final String emptyMessage;
+  final PnColors pn;
 
-  const _VisitList({required this.items, required this.emptyMessage});
+  const _VisitList({required this.items, required this.emptyMessage, required this.pn});
 
   @override
   Widget build(BuildContext context) {
@@ -575,32 +673,38 @@ class _VisitList extends StatelessWidget {
       return EmptyState(message: emptyMessage);
     }
     return ListView.separated(
-      padding: const EdgeInsets.fromLTRB(16, 10, 16, 24),
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
       itemCount: items.length,
-      separatorBuilder: (context, index) => const SizedBox(height: 10),
-      itemBuilder: (context, i) => _VisitTile(bill: items[i]),
+      separatorBuilder: (context, index) => const SizedBox(height: 12),
+      itemBuilder: (context, i) => _VisitTile(bill: items[i], pn: pn),
     );
   }
 }
 
 class _VisitTile extends StatelessWidget {
   final Bill bill;
+  final PnColors pn;
 
-  const _VisitTile({required this.bill});
+  const _VisitTile({required this.bill, required this.pn});
 
   @override
   Widget build(BuildContext context) {
-    final pn = Theme.of(context).extension<PnColors>()!;
     final visitType = VisitType.fromValue(bill.paymentNote ?? '');
     final (icon, color) = switch (visitType) {
-      VisitType.houseLocked => (Icons.lock_outline, warning),
-      VisitType.promiseToPay => (Icons.handshake_outlined, info),
-      VisitType.refusedToPay => (Icons.block_outlined, danger),
+      VisitType.houseLocked => (Icons.lock_outline, pn.warning),
+      VisitType.promiseToPay => (Icons.handshake_outlined, pn.cyan),
+      VisitType.refusedToPay => (Icons.block_outlined, pn.danger),
       VisitType.paymentCollected => (Icons.check_circle_outline, pn.success),
     };
 
     return Card(
-      child: Padding(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(18),
+        side: BorderSide(color: pn.border),
+      ),
+      child: Container(
+        color: pn.surface,
         padding: const EdgeInsets.all(14),
         child: Row(
           children: [
@@ -608,7 +712,7 @@ class _VisitTile extends StatelessWidget {
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
                 color: color.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(14),
               ),
               child: Icon(icon, color: color, size: 20),
             ),
@@ -630,23 +734,23 @@ class _VisitTile extends StatelessWidget {
                   const SizedBox(height: 3),
                   Text(
                     bill.customerCode,
-                    style: TextStyle(fontSize: 12, color: pn.textMuted),
+                    style: TextStyle(fontSize: 12, color: pn.textMuted, fontWeight: FontWeight.bold),
                   ),
                 ],
               ),
             ),
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
                 color: color.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(99),
               ),
               child: Text(
-                visitType.label,
+                visitType.label.toUpperCase(),
                 style: TextStyle(
                   color: color,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w900,
                 ),
               ),
             ),

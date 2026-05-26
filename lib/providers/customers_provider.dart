@@ -21,12 +21,12 @@ class CustomersProvider extends ChangeNotifier {
   int get suspendedCount => _customers.where((c) => c.status == 'suspended').length;
   int get disconnectedCount => _customers.where((c) => c.status == 'disconnected').length;
 
-  Future<void> loadByArea(String areaId) async {
+  Future<void> loadByAreas(List<String> areaIds) async {
     _loading = true;
     _error = null;
     notifyListeners();
     try {
-      _customers = await _repo.fetchByArea(areaId);
+      _customers = await _repo.fetchByAreas(areaIds);
     } catch (e) {
       _error = e.toString();
     } finally {
@@ -35,7 +35,7 @@ class CustomersProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> search(String query, {String? areaId}) async {
+  Future<void> search(String query, {List<String>? areaIds}) async {
     if (query.trim().isEmpty) {
       _searchResults = [];
       notifyListeners();
@@ -44,7 +44,7 @@ class CustomersProvider extends ChangeNotifier {
     _searching = true;
     notifyListeners();
     try {
-      _searchResults = await _repo.search(query, areaId: areaId);
+      _searchResults = await _repo.search(query, areaIds: areaIds);
     } catch (e) {
       _searchResults = [];
       _error = e.toString();

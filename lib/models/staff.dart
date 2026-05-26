@@ -5,6 +5,8 @@ class Staff {
   final String? phone;
   final String? areaId;
   final String? areaName;
+  final List<String> areaIds;
+  final List<String> areaNames;
   final String? username;
   final String? authUserId;
 
@@ -15,6 +17,8 @@ class Staff {
     this.phone,
     this.areaId,
     this.areaName,
+    this.areaIds = const [],
+    this.areaNames = const [],
     this.username,
     this.authUserId,
   });
@@ -24,6 +28,15 @@ class Staff {
     if (resolvedAreaName == null && json['area'] is Map) {
       resolvedAreaName = (json['area'] as Map)['name'] as String?;
     }
+    List<String> resolvedAreaNames = [];
+    if (json['areas'] is List) {
+      resolvedAreaNames = (json['areas'] as List)
+          .map((a) => (a as Map)['name'] as String)
+          .toList();
+    } else if (resolvedAreaName != null) {
+      resolvedAreaNames = [resolvedAreaName];
+    }
+
     return Staff(
       id: json['id'] as String,
       fullName: json['full_name'] as String,
@@ -31,6 +44,9 @@ class Staff {
       phone: json['phone'] as String?,
       areaId: json['area_id'] as String?,
       areaName: resolvedAreaName,
+      areaIds: (json['area_ids'] as List?)?.cast<String>() ??
+          (json['area_id'] != null ? [json['area_id'] as String] : []),
+      areaNames: resolvedAreaNames,
       username: json['username'] as String?,
       authUserId: json['auth_user_id'] as String?,
     );
@@ -44,6 +60,8 @@ class Staff {
       'phone': phone,
       'area_id': areaId,
       'area_name': areaName,
+      'area_ids': areaIds,
+      'area_names': areaNames,
       'username': username,
       'auth_user_id': authUserId,
     };

@@ -36,7 +36,7 @@ void main() {
         enableRealtime: false,
       );
 
-      await provider.loadPendingByArea('area-1', 'staff-1');
+      await provider.loadPendingByAreas(const ['area-1'], 'staff-1');
       expect(provider.pendingSyncCount, 1);
 
       online.add(true);
@@ -55,7 +55,7 @@ void main() {
         enableRealtime: false,
       );
 
-      await provider.loadPendingByArea('area-1', 'staff-1');
+      await provider.loadPendingByAreas(const ['area-1'], 'staff-1');
 
       expect(provider.findBillById(_bill.id), isNotNull);
       expect(provider.findBillById('missing'), isNull);
@@ -106,7 +106,7 @@ class _FakeBillsRepository extends BillsRepository {
   }
 
   @override
-  Future<List<Bill>> fetchPendingByArea(String areaId) async => [_bill];
+  Future<List<Bill>> fetchPendingByAreas(List<String> areaIds) async => [_bill];
 
   @override
   Future<List<Bill>> fetchCollectedToday(String collectorId) async => [];
@@ -161,7 +161,7 @@ class _FakeBillsRepository extends BillsRepository {
 
   @override
   Future<void> cacheRecoverySnapshot({
-    required String areaId,
+    required List<String> areaIds,
     required String collectorId,
     required List<Bill> pending,
     required List<Bill> collectedToday,

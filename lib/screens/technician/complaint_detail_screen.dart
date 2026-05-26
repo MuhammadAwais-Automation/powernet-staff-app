@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../data/complaints_repository.dart';
 import '../../models/complaint.dart';
@@ -83,7 +84,7 @@ class _ComplaintDetailScreenState extends State<ComplaintDetailScreen> {
           content: Text(
             queue.pendingSyncCount > 0
                 ? 'Saved offline. Internet on hotay hi auto sync ho jayega.'
-                : 'Complaint updated.',
+                : 'Complaint status updated.',
           ),
           backgroundColor: queue.pendingSyncCount > 0 ? warning : success,
         ),
@@ -122,13 +123,29 @@ class _ComplaintDetailScreenState extends State<ComplaintDetailScreen> {
   Widget build(BuildContext context) {
     final pn = Theme.of(context).extension<PnColors>()!;
     return Scaffold(
-      backgroundColor: pn.surfaceMuted,
+      backgroundColor: pn.background,
       appBar: AppBar(
-        title: Text(_complaint?.complaintCode ?? 'Complaint Details'),
-        backgroundColor: pn.surfaceMuted,
+        backgroundColor: pn.background,
+        elevation: 0,
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back, color: pn.text),
+          onPressed: () => context.pop(),
+        ),
+        title: Text(
+          _complaint?.complaintCode ?? 'Complaint Details',
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.w900,
+            color: pn.text,
+            letterSpacing: -0.5,
+          ),
+        ),
         actions: [
           if (_complaint != null && !_complaint!.isResolved)
-            IconButton(icon: const Icon(Icons.refresh), onPressed: _load),
+            IconButton(
+              icon: Icon(Icons.refresh, color: pn.text),
+              onPressed: _load,
+            ),
         ],
       ),
       body: _loading
@@ -180,9 +197,9 @@ class _Body extends StatelessWidget {
       builder: (context) {
         return Padding(
           padding: EdgeInsets.fromLTRB(
-            16,
-            16,
-            16,
+            20,
+            12,
+            20,
             MediaQuery.of(context).viewInsets.bottom + 24,
           ),
           child: Form(
@@ -196,22 +213,95 @@ class _Body extends StatelessWidget {
                     child: Container(
                       width: 48,
                       height: 5,
+                      margin: const EdgeInsets.only(bottom: 20),
                       decoration: BoxDecoration(
                         color: pn.border,
                         borderRadius: BorderRadius.circular(10),
                       ),
                     ),
                   ),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'Resolve Complaint',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Resolve Complaint',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w900,
+                          color: pn.text,
+                          letterSpacing: -0.5,
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: Text(
+                          'Close',
+                          style: TextStyle(
+                            color: pn.textMuted,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 18),
+                  // Client Card inside sheet
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: pn.surfaceMuted,
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(color: pn.border),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              complaint.customerName,
+                              style: TextStyle(
+                                fontWeight: FontWeight.w900,
+                                fontSize: 16,
+                                color: pn.text,
+                              ),
+                            ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: pn.warning.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(99),
+                              ),
+                              child: Text(
+                                complaint.status.toUpperCase(),
+                                style: TextStyle(
+                                  color: pn.warning,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          '${complaint.customerCode} - ${complaint.customerAddress} - ${complaint.customerPhone}',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: pn.textMuted,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 20),
                   Text(
-                    'Resolution Details',
+                    'Resolution Notes',
                     style: TextStyle(
-                      fontWeight: FontWeight.bold,
+                      fontWeight: FontWeight.w800,
                       fontSize: 13,
                       color: pn.text,
                     ),
@@ -220,8 +310,19 @@ class _Body extends StatelessWidget {
                   TextFormField(
                     controller: notesCtrl,
                     maxLines: 3,
-                    decoration: const InputDecoration(
+                    decoration: InputDecoration(
                       hintText: 'Describe how this issue was resolved...',
+                      hintStyle: TextStyle(color: pn.textMuted),
+                      filled: true,
+                      fillColor: pn.input,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        borderSide: BorderSide(color: pn.border),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        borderSide: BorderSide(color: pn.border),
+                      ),
                     ),
                     validator: (v) {
                       if (v == null || v.trim().isEmpty) {
@@ -230,11 +331,11 @@ class _Body extends StatelessWidget {
                       return null;
                     },
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 20),
                   Text(
                     'Hardware Log (Equipment Used)',
                     style: TextStyle(
-                      fontWeight: FontWeight.bold,
+                      fontWeight: FontWeight.w800,
                       fontSize: 13,
                       color: pn.text,
                     ),
@@ -246,9 +347,16 @@ class _Body extends StatelessWidget {
                         child: TextFormField(
                           controller: cableCtrl,
                           keyboardType: TextInputType.number,
-                          decoration: const InputDecoration(
+                          decoration: InputDecoration(
                             labelText: 'Cable Wire (Mtrs)',
+                            labelStyle: TextStyle(color: pn.textSoft, fontWeight: FontWeight.bold, fontSize: 13),
                             hintText: '0',
+                            filled: true,
+                            fillColor: pn.input,
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(14),
+                              borderSide: BorderSide(color: pn.border),
+                            ),
                           ),
                           validator: (v) {
                             if (v == null || int.tryParse(v) == null) {
@@ -263,9 +371,16 @@ class _Body extends StatelessWidget {
                         child: TextFormField(
                           controller: connectorsCtrl,
                           keyboardType: TextInputType.number,
-                          decoration: const InputDecoration(
+                          decoration: InputDecoration(
                             labelText: 'RJ45 Connectors',
+                            labelStyle: TextStyle(color: pn.textSoft, fontWeight: FontWeight.bold, fontSize: 13),
                             hintText: '0',
+                            filled: true,
+                            fillColor: pn.input,
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(14),
+                              borderSide: BorderSide(color: pn.border),
+                            ),
                           ),
                           validator: (v) {
                             if (v == null || int.tryParse(v) == null) {
@@ -277,35 +392,50 @@ class _Body extends StatelessWidget {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 14),
                   TextFormField(
                     controller: routerCtrl,
-                    decoration: const InputDecoration(
+                    decoration: InputDecoration(
                       labelText: 'Replaced Router/ONT (Optional)',
+                      labelStyle: TextStyle(color: pn.textSoft, fontWeight: FontWeight.bold, fontSize: 13),
                       hintText: 'e.g. Netis WF2419, ZTE ONT...',
+                      filled: true,
+                      fillColor: pn.input,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide(color: pn.border),
+                      ),
                     ),
                   ),
                   const SizedBox(height: 24),
-                  SizedBox(
-                    height: 52,
-                    child: ElevatedButton(
-                      onPressed: () {
-                        if (!formKey.currentState!.validate()) return;
-                        final hardwareLog = {
-                          'cables_meter': int.tryParse(cableCtrl.text) ?? 0,
-                          'rj45_connectors':
-                              int.tryParse(connectorsCtrl.text) ?? 0,
-                          'router_replaced': routerCtrl.text.trim(),
-                        };
-                        onResolveWithDetails(
-                          notesCtrl.text.trim(),
-                          jsonEncode(hardwareLog),
-                        );
-                        Navigator.pop(context);
-                      },
-                      child: const Text(
-                        'SUBMIT RESOLUTION',
-                        style: TextStyle(fontWeight: FontWeight.w800),
+                  ElevatedButton(
+                    onPressed: () {
+                      if (!formKey.currentState!.validate()) return;
+                      final hardwareLog = {
+                        'cables_meter': int.tryParse(cableCtrl.text) ?? 0,
+                        'rj45_connectors': int.tryParse(connectorsCtrl.text) ?? 0,
+                        'router_replaced': routerCtrl.text.trim(),
+                      };
+                      onResolveWithDetails(
+                        notesCtrl.text.trim(),
+                        jsonEncode(hardwareLog),
+                      );
+                      Navigator.pop(context);
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: pn.accent,
+                      foregroundColor: Colors.white,
+                      minimumSize: const Size(double.infinity, 54),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(18),
+                      ),
+                      elevation: 0,
+                    ),
+                    child: const Text(
+                      'Resolve Complaint',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w900,
                       ),
                     ),
                   ),
@@ -321,55 +451,55 @@ class _Body extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _StepperProgress(status: complaint.status, pn: pn),
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
           _CustomerInfoCard(complaint: complaint, pn: pn),
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
           _IssueDetailsCard(complaint: complaint, pn: pn),
           if (complaint.isResolved && complaint.resolutionNotes != null) ...[
-            const SizedBox(height: 12),
+            const SizedBox(height: 14),
             _ResolutionResultsCard(complaint: complaint, pn: pn),
           ],
-          const SizedBox(height: 24),
+          const SizedBox(height: 28),
           if (!complaint.isResolved) ...[
             if (complaint.isOpen)
               _ActionBtn(
-                label: 'Start Working Onsite',
+                label: 'Start Work',
                 icon: Icons.play_arrow_rounded,
-                color: const Color(0xFF2563EB),
+                color: pn.cyan,
                 loading: updating,
                 onTap: () => onUpdateStatus('in_progress'),
               ),
             if (complaint.isInProgress)
               _ActionBtn(
-                label: 'Log Work & Resolve',
+                label: 'Resolve Complaint',
                 icon: Icons.verified_outlined,
-                color: const Color(0xFF16A34A),
+                color: pn.accent,
                 loading: updating,
                 onTap: () => _showResolveBottomSheet(context),
               ),
           ] else
             Container(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(18),
               decoration: BoxDecoration(
                 color: pn.success.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(18),
                 border: Border.all(color: pn.success.withValues(alpha: 0.28)),
               ),
               child: Row(
                 children: [
-                  Icon(Icons.check_circle_rounded, color: pn.success, size: 24),
-                  const SizedBox(width: 12),
-                  const Expanded(
+                  Icon(Icons.check_circle_rounded, color: pn.success, size: 26),
+                  const SizedBox(width: 14),
+                  Expanded(
                     child: Text(
                       'Complaint Successfully Resolved & Logged',
                       style: TextStyle(
-                        color: Color(0xFF16A34A),
-                        fontWeight: FontWeight.w800,
+                        color: pn.success,
+                        fontWeight: FontWeight.w900,
                         fontSize: 14,
                       ),
                     ),
@@ -399,8 +529,14 @@ class _StepperProgress extends StatelessWidget {
     };
 
     return Card(
+      elevation: 0,
+      color: pn.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(18),
+        side: BorderSide(color: pn.border),
+      ),
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+        padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
         child: Row(
           children: [
             _Step(
@@ -409,14 +545,14 @@ class _StepperProgress extends StatelessWidget {
               isCurrent: activeIndex == 0,
               color: pn.warning,
             ),
-            _Line(isActive: activeIndex >= 1),
+            _Line(isActive: activeIndex >= 1, pn: pn),
             _Step(
               title: 'Working',
               isActive: activeIndex >= 1,
               isCurrent: activeIndex == 1,
-              color: primary,
+              color: pn.cyan,
             ),
-            _Line(isActive: activeIndex >= 2),
+            _Line(isActive: activeIndex >= 2, pn: pn),
             _Step(
               title: 'Resolved',
               isActive: activeIndex >= 2,
@@ -449,18 +585,18 @@ class _Step extends StatelessWidget {
       children: [
         AnimatedContainer(
           duration: const Duration(milliseconds: 300),
-          width: 32,
-          height: 32,
+          width: 34,
+          height: 34,
           decoration: BoxDecoration(
             color: isCurrent
                 ? color
                 : isActive
-                ? color.withValues(alpha: 0.16)
+                ? color.withValues(alpha: 0.14)
                 : Colors.grey.withValues(alpha: 0.12),
             shape: BoxShape.circle,
             border: Border.all(
               color: isActive ? color : Colors.grey.withValues(alpha: 0.28),
-              width: 2,
+              width: 2.2,
             ),
           ),
           child: Icon(
@@ -478,9 +614,7 @@ class _Step extends StatelessWidget {
           title,
           style: TextStyle(
             fontSize: 11,
-            fontWeight: isCurrent || isActive
-                ? FontWeight.bold
-                : FontWeight.w500,
+            fontWeight: isCurrent || isActive ? FontWeight.w800 : FontWeight.w500,
             color: isCurrent || isActive ? color : Colors.grey,
           ),
         ),
@@ -491,7 +625,8 @@ class _Step extends StatelessWidget {
 
 class _Line extends StatelessWidget {
   final bool isActive;
-  const _Line({required this.isActive});
+  final PnColors pn;
+  const _Line({required this.isActive, required this.pn});
 
   @override
   Widget build(BuildContext context) {
@@ -500,7 +635,7 @@ class _Line extends StatelessWidget {
         duration: const Duration(milliseconds: 300),
         height: 3,
         decoration: BoxDecoration(
-          color: isActive ? primary : Colors.grey.withValues(alpha: 0.2),
+          color: isActive ? pn.cyan : pn.border,
           borderRadius: BorderRadius.circular(10),
         ),
       ),
@@ -519,7 +654,7 @@ class _CustomerInfoCard extends StatelessWidget {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('$title copied to clipboard!'),
-        backgroundColor: success,
+        backgroundColor: pn.success,
       ),
     );
   }
@@ -530,25 +665,23 @@ class _CustomerInfoCard extends StatelessWidget {
     return Card(
       elevation: 0,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(18),
         side: BorderSide(color: pn.border),
       ),
-      child: Padding(
+      child: Container(
+        color: pn.surface,
         padding: const EdgeInsets.all(18),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                Text(
-                  'Customer Details',
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w800,
-                    color: pn.text,
-                  ),
-                ),
-              ],
+            Text(
+              'Customer Details',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w900,
+                color: pn.text,
+                letterSpacing: -0.3,
+              ),
             ),
             const SizedBox(height: 16),
             _DetailTileRow(
@@ -619,7 +752,7 @@ class _DetailTileRow extends StatelessWidget {
               color: pn.surfaceMuted,
               borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(icon, color: primary, size: 20),
+            child: Icon(icon, color: pn.accent, size: 20),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -628,15 +761,15 @@ class _DetailTileRow extends StatelessWidget {
               children: [
                 Text(
                   label,
-                  style: TextStyle(color: pn.textMuted, fontSize: 11),
+                  style: TextStyle(color: pn.textMuted, fontSize: 11, fontWeight: FontWeight.bold),
                 ),
-                const SizedBox(height: 2),
+                const SizedBox(height: 3),
                 Text(
                   value,
                   style: TextStyle(
                     color: pn.text,
                     fontSize: 14,
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w800,
                   ),
                 ),
               ],
@@ -659,11 +792,12 @@ class _IssueDetailsCard extends StatelessWidget {
   Color _priorityColor() {
     switch (complaint.priority) {
       case 'high':
-        return const Color(0xFFDC2626);
+      case 'urgent':
+        return pn.danger;
       case 'medium':
-        return const Color(0xFFF59E0B);
+        return pn.warning;
       default:
-        return const Color(0xFF6B7280);
+        return pn.textMuted;
     }
   }
 
@@ -681,48 +815,46 @@ class _IssueDetailsCard extends StatelessWidget {
     return Card(
       elevation: 0,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(18),
         side: BorderSide(color: pn.border),
       ),
-      child: Padding(
+      child: Container(
+        color: pn.surface,
         padding: const EdgeInsets.all(18),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                Text(
-                  'Complaint & Issue Details',
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w800,
-                    color: pn.text,
-                  ),
-                ),
-              ],
+            Text(
+              'Complaint & Issue Details',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w900,
+                color: pn.text,
+                letterSpacing: -0.3,
+              ),
             ),
             const SizedBox(height: 16),
             Row(
               children: [
                 Text(
                   'Category Type',
-                  style: TextStyle(color: pn.textMuted, fontSize: 12),
+                  style: TextStyle(color: pn.textMuted, fontSize: 12, fontWeight: FontWeight.bold),
                 ),
                 const Spacer(),
                 Container(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 2,
+                    horizontal: 10,
+                    vertical: 3,
                   ),
                   decoration: BoxDecoration(
-                    color: primary.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(6),
+                    color: pn.primary.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
                     complaint.type,
-                    style: const TextStyle(
-                      color: primary,
-                      fontWeight: FontWeight.bold,
+                    style: TextStyle(
+                      color: pn.primary,
+                      fontWeight: FontWeight.w900,
                       fontSize: 12,
                     ),
                   ),
@@ -734,23 +866,23 @@ class _IssueDetailsCard extends StatelessWidget {
               children: [
                 Text(
                   'Priority Level',
-                  style: TextStyle(color: pn.textMuted, fontSize: 12),
+                  style: TextStyle(color: pn.textMuted, fontSize: 12, fontWeight: FontWeight.bold),
                 ),
                 const Spacer(),
                 Container(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 2,
+                    horizontal: 10,
+                    vertical: 3,
                   ),
                   decoration: BoxDecoration(
                     color: _priorityColor().withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(6),
+                    borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
                     complaint.priority.toUpperCase(),
                     style: TextStyle(
                       color: _priorityColor(),
-                      fontWeight: FontWeight.bold,
+                      fontWeight: FontWeight.w900,
                       fontSize: 12,
                     ),
                   ),
@@ -762,14 +894,14 @@ class _IssueDetailsCard extends StatelessWidget {
               children: [
                 Text(
                   'Opened Date',
-                  style: TextStyle(color: pn.textMuted, fontSize: 12),
+                  style: TextStyle(color: pn.textMuted, fontSize: 12, fontWeight: FontWeight.bold),
                 ),
                 const Spacer(),
                 Text(
                   _formatDate(complaint.openedAt),
                   style: TextStyle(
                     color: pn.text,
-                    fontWeight: FontWeight.w600,
+                    fontWeight: FontWeight.w800,
                     fontSize: 13,
                   ),
                 ),
@@ -777,24 +909,25 @@ class _IssueDetailsCard extends StatelessWidget {
             ),
             const Divider(height: 24),
             Text(
-              'Reported Issue',
+              'Reported Issue Description',
               style: TextStyle(
                 color: pn.textMuted,
                 fontSize: 12,
-                fontWeight: FontWeight.w700,
+                fontWeight: FontWeight.w800,
               ),
             ),
             const SizedBox(height: 8),
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
                 color: pn.surfaceMuted,
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: pn.border),
               ),
               child: Text(
                 complaint.issue,
-                style: TextStyle(color: pn.text, fontSize: 13, height: 1.45),
+                style: TextStyle(color: pn.text, fontSize: 13, height: 1.45, fontWeight: FontWeight.w500),
               ),
             ),
           ],
@@ -827,10 +960,11 @@ class _ResolutionResultsCard extends StatelessWidget {
     return Card(
       elevation: 0,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(18),
         side: BorderSide(color: pn.border),
       ),
-      child: Padding(
+      child: Container(
+        color: pn.surface,
         padding: const EdgeInsets.all(18),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -838,45 +972,46 @@ class _ResolutionResultsCard extends StatelessWidget {
             Text(
               'Resolution Summary & Log',
               style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w800,
+                fontSize: 16,
+                fontWeight: FontWeight.w900,
                 color: pn.text,
+                letterSpacing: -0.3,
               ),
             ),
             const SizedBox(height: 16),
             Text(
-              'Resolution Note',
+              'Resolution Notes',
               style: TextStyle(
                 color: pn.textMuted,
                 fontSize: 11,
-                fontWeight: FontWeight.w700,
+                fontWeight: FontWeight.w800,
               ),
             ),
             const SizedBox(height: 6),
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
                 color: pn.success.withValues(alpha: 0.05),
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(14),
                 border: Border.all(color: pn.success.withValues(alpha: 0.12)),
               ),
               child: Text(
                 complaint.resolutionNotes ?? '—',
-                style: TextStyle(color: pn.text, fontSize: 13, height: 1.4),
+                style: TextStyle(color: pn.text, fontSize: 13, height: 1.45, fontWeight: FontWeight.w500),
               ),
             ),
             if (mtr > 0 || rj > 0 || router.isNotEmpty) ...[
-              const SizedBox(height: 16),
+              const SizedBox(height: 18),
               Text(
                 'Materials Replaced / Installed',
                 style: TextStyle(
                   color: pn.textMuted,
                   fontSize: 11,
-                  fontWeight: FontWeight.w700,
+                  fontWeight: FontWeight.w800,
                 ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 10),
               if (mtr > 0)
                 _InventoryRow(
                   label: 'Cable Wire Used',
@@ -913,19 +1048,19 @@ class _InventoryRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 6),
+      padding: const EdgeInsets.only(bottom: 8),
       child: Row(
         children: [
           Icon(Icons.inventory_2_outlined, size: 14, color: pn.textMuted),
           const SizedBox(width: 8),
-          Text(label, style: TextStyle(fontSize: 12, color: pn.text)),
+          Text(label, style: TextStyle(fontSize: 13, color: pn.text, fontWeight: FontWeight.w500)),
           const Spacer(),
           Text(
             value,
-            style: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.bold,
-              color: primary,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w900,
+              color: pn.primary,
             ),
           ),
         ],
@@ -953,13 +1088,13 @@ class _ActionBtn extends StatelessWidget {
   Widget build(BuildContext context) {
     return SizedBox(
       width: double.infinity,
-      height: 52,
+      height: 54,
       child: ElevatedButton.icon(
         style: ElevatedButton.styleFrom(
           backgroundColor: color,
           foregroundColor: Colors.white,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(18),
           ),
           elevation: 0,
         ),
@@ -973,10 +1108,10 @@ class _ActionBtn extends StatelessWidget {
                   color: Colors.white,
                 ),
               )
-            : Icon(icon),
+            : Icon(icon, size: 20),
         label: Text(
           label,
-          style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15),
+          style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 15, letterSpacing: 0.2),
         ),
       ),
     );

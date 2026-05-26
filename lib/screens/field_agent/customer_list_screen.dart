@@ -29,8 +29,8 @@ class _FieldAgentCustomerListScreenState
 
   void _load() {
     final staff = context.read<AuthProvider>().currentStaff;
-    if (staff?.areaId != null) {
-      context.read<CustomersProvider>().loadByArea(staff!.areaId!);
+    if (staff != null) {
+      context.read<CustomersProvider>().loadByAreas(staff.areaIds);
     }
   }
 
@@ -57,7 +57,7 @@ class _FieldAgentCustomerListScreenState
                 ),
                 onChanged: (v) {
                   final staff = context.read<AuthProvider>().currentStaff;
-                  context.read<CustomersProvider>().search(v, areaId: staff?.areaId);
+                  context.read<CustomersProvider>().search(v, areaIds: staff?.areaIds);
                 },
               )
             : const Text('Customers'),

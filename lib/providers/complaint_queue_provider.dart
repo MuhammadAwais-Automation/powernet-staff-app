@@ -15,7 +15,7 @@ class ComplaintQueueProvider extends ChangeNotifier {
   RealtimeChannel? _channel;
   StreamSubscription<bool>? _onlineSubscription;
   String? _activeTechnicianId;
-  String? _activeAreaId;
+  List<String> _activeAreaIds = const [];
   DateTime? _lastRealtimeReloadAt;
   late bool _isOnline;
   bool _syncing = false;
@@ -57,18 +57,18 @@ class ComplaintQueueProvider extends ChangeNotifier {
   }
 
   Future<void> loadForTechnician(String technicianId) async {
-    await loadForTechnicianAndArea(technicianId, null);
+    await loadForTechnicianAndAreas(technicianId, const []);
   }
 
-  Future<void> loadForArea(String areaId) async {
+  Future<void> loadForAreas(List<String> areaIds) async {
     _loading = true;
     _error = null;
     notifyListeners();
     try {
-      _complaints = await _repo.fetchByArea(areaId);
+      _complaints = await _repo.fetchByAreas(areaIds);
       _sortComplaints();
     } catch (e) {
-      debugPrint('POWERNET_DEBUG: loadForArea failed: $e');
+      debugPrint('POWERNET_DEBUG: loadForAreas failed: $e');
       _error = 'Internet band hai. Complaints load nahi ho sakin.';
     } finally {
       _loading = false;
@@ -76,12 +76,12 @@ class ComplaintQueueProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> loadForTechnicianAndArea(
+  Future<void> loadForTechnicianAndAreas(
     String technicianId,
-    String? areaId,
+    List<String> areaIds,
   ) async {
     _activeTechnicianId = technicianId;
-    _activeAreaId = areaId;
+    _activeAreaIds = areaIds;
     _loading = true;
     _error = null;
     notifyListeners();
@@ -92,8 +92,8 @@ class ComplaintQueueProvider extends ChangeNotifier {
         _pendingSyncCount = await _repo.countQueuedActions();
       }
       final assigned = await _repo.fetchAssigned(technicianId);
-      if (areaId != null) {
-        final areaComplaints = await _repo.fetchByArea(areaId);
+      if (areaIds.isNotEmpty) {
+        final areaComplaints = await _repo.fetchByAreas(areaIds);
         _complaints = _mergeComplaints(assigned, areaComplaints);
       } else {
         _complaints = assigned;
@@ -101,14 +101,14 @@ class ComplaintQueueProvider extends ChangeNotifier {
       _sortComplaints();
       await _repo.cacheTechnicianSnapshot(
         technicianId: technicianId,
-        areaId: areaId,
+        areaIds: areaIds,
         complaints: _complaints,
       );
     } catch (e) {
       debugPrint('POWERNET_DEBUG: complaint load failed: $e');
       _complaints = await _repo.getCachedTechnicianSnapshot(
         technicianId,
-        areaId,
+        areaIds,
       );
       _pendingSyncCount = await _repo.countQueuedActions();
       _sortComplaints();
@@ -162,7 +162,7 @@ class ComplaintQueueProvider extends ChangeNotifier {
       if (refreshAfterSync) {
         final technicianId = _activeTechnicianId;
         if (technicianId != null) {
-          await loadForTechnicianAndArea(technicianId, _activeAreaId);
+          await loadForTechnicianAndAreas(technicianId, _activeAreaIds);
         }
       }
     } catch (e) {
@@ -277,12 +277,12 @@ class ComplaintQueueProvider extends ChangeNotifier {
     if (technicianId == null) return;
     await _repo.cacheTechnicianSnapshot(
       technicianId: technicianId,
-      areaId: _activeAreaId,
+      areaIds: _activeAreaIds,
       complaints: _complaints,
     );
   }
 
-  void listenToComplaints(String technicianId, String? areaId) {
+  void listenToComplaints(String technicianId, List<String> areaIds) {
     if (!_enableRealtime) return;
     stopListening();
     _channel = supabase
@@ -292,7 +292,7 @@ class ComplaintQueueProvider extends ChangeNotifier {
           schema: 'public',
           table: 'complaints',
           callback: (_) {
-            unawaited(_handleRealtimeChange(technicianId, areaId));
+            unawaited(_handleRealtimeChange(technicianId, areaIds));
           },
         )
         .subscribe();
@@ -300,7 +300,7 @@ class ComplaintQueueProvider extends ChangeNotifier {
 
   Future<void> _handleRealtimeChange(
     String technicianId,
-    String? areaId,
+    List<String> areaIds,
   ) async {
     final now = DateTime.now();
     if (_lastRealtimeReloadAt != null &&
@@ -308,7 +308,7 @@ class ComplaintQueueProvider extends ChangeNotifier {
       return;
     }
     _lastRealtimeReloadAt = now;
-    await loadForTechnicianAndArea(technicianId, areaId);
+    await loadForTechnicianAndAreas(technicianId, areaIds);
   }
 
   void _listenForConnectivity() {

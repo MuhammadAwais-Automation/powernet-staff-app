@@ -84,7 +84,8 @@ class CustomerPortalProvider extends ChangeNotifier {
       notifyListeners();
       return true;
     } catch (e) {
-      _error = 'Complaint submit nahi ho saki. Dobara try karein.';
+      _error =
+          'Complaint submit nahi ho saki. Admin se customer complaint setup/RLS check karwayein.';
       debugPrint('CustomerPortalProvider createComplaint failed: $e');
       notifyListeners();
       return false;

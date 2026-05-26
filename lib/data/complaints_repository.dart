@@ -80,12 +80,12 @@ class ComplaintsRepository {
     }
   }
 
-  Future<List<Complaint>> fetchByArea(String areaId) async {
+  Future<List<Complaint>> fetchByAreas(List<String> areaIds) async {
     try {
-      return await _fetchByArea(areaId, complaintAreaSelect);
+      return await _fetchByAreas(areaIds, complaintAreaSelect);
     } catch (e) {
       if (!_isMissingResolutionColumns(e)) rethrow;
-      return _fetchByArea(areaId, complaintLegacyAreaSelect);
+      return _fetchByAreas(areaIds, complaintLegacyAreaSelect);
     }
   }
 
@@ -208,22 +208,22 @@ class ComplaintsRepository {
 
   Future<void> cacheTechnicianSnapshot({
     required String technicianId,
-    required String? areaId,
+    required List<String> areaIds,
     required List<Complaint> complaints,
   }) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(
-      _cacheKey(technicianId, areaId),
+      _cacheKey(technicianId, areaIds),
       jsonEncode(complaints.map((c) => c.toJson()).toList()),
     );
   }
 
   Future<List<Complaint>> getCachedTechnicianSnapshot(
     String technicianId,
-    String? areaId,
+    List<String> areaIds,
   ) async {
     final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getString(_cacheKey(technicianId, areaId));
+    final raw = prefs.getString(_cacheKey(technicianId, areaIds));
     if (raw == null || raw.isEmpty) return [];
     final decoded = jsonDecode(raw) as List<dynamic>;
     return decoded
@@ -239,8 +239,8 @@ class ComplaintsRepository {
     );
   }
 
-  String _cacheKey(String technicianId, String? areaId) =>
-      '$_cachedTechnicianPrefix$technicianId-${areaId ?? 'none'}';
+  String _cacheKey(String technicianId, List<String> areaIds) =>
+      '$_cachedTechnicianPrefix$technicianId-${areaIds.isEmpty ? 'none' : areaIds.join('-')}';
 
   Future<List<Complaint>> _fetchAssigned(
     String technicianId,
@@ -255,11 +255,12 @@ class ComplaintsRepository {
     return _parseComplaintList(res);
   }
 
-  Future<List<Complaint>> _fetchByArea(String areaId, String select) async {
+  Future<List<Complaint>> _fetchByAreas(List<String> areaIds, String select) async {
+    if (areaIds.isEmpty) return [];
     final res = await supabase
         .from('complaints')
         .select(select)
-        .eq('customer.area_id', areaId)
+        .inFilter('customer.area_id', areaIds)
         .inFilter('status', ['open', 'in_progress'])
         .order('opened_at', ascending: false);
     return _parseComplaintList(res);

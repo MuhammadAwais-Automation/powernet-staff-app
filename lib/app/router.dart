@@ -22,14 +22,7 @@ import '../screens/cable_operator/co_customer_list_screen.dart';
 import '../screens/cable_operator/co_customer_detail_screen.dart';
 
 String _defaultLocationForRole(String? role) {
-  switch (normalizeStaffRole(role)) {
-    case 'recovery_agent':
-      return '/collector/bills';
-    case 'technician':
-      return '/technician/complaints';
-    default:
-      return '/home';
-  }
+  return '/home';
 }
 
 GoRouter buildRouter(AuthProvider auth, CustomerAuthProvider customerAuth) {

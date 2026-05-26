@@ -7,7 +7,6 @@ import '../../providers/complaint_queue_provider.dart';
 import '../../models/complaint.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/empty_state.dart';
-import '../../widgets/pn_status_badge.dart';
 
 class ComplaintListScreen extends StatefulWidget {
   const ComplaintListScreen({super.key});
@@ -25,7 +24,8 @@ class _ComplaintListScreenState extends State<ComplaintListScreen>
   @override
   void initState() {
     super.initState();
-    _tabs = TabController(length: 2, vsync: this);
+    // 3 tabs: Open, In Progress, Resolved matching 10-technician-complaints.html
+    _tabs = TabController(length: 3, vsync: this);
     _searchCtrl.addListener(() {
       if (mounted) {
         setState(() => _query = _searchCtrl.text.trim().toLowerCase());
@@ -39,8 +39,8 @@ class _ComplaintListScreenState extends State<ComplaintListScreen>
     final queue = context.read<ComplaintQueueProvider>();
     final staff = auth.currentStaff;
     if (staff == null) return;
-    queue.loadForTechnicianAndArea(staff.id, staff.areaId);
-    queue.listenToComplaints(staff.id, staff.areaId);
+    queue.loadForTechnicianAndAreas(staff.id, staff.areaIds);
+    queue.listenToComplaints(staff.id, staff.areaIds);
   }
 
   @override
@@ -66,21 +66,57 @@ class _ComplaintListScreenState extends State<ComplaintListScreen>
   @override
   Widget build(BuildContext context) {
     final pn = Theme.of(context).extension<PnColors>()!;
+    final auth = context.watch<AuthProvider>();
+    final staff = auth.currentStaff;
+
     return Scaffold(
-      backgroundColor: pn.surfaceMuted,
+      backgroundColor: pn.background,
       appBar: AppBar(
-        title: const Text('Complaints Console'),
-        backgroundColor: pn.surfaceMuted,
+        backgroundColor: pn.background,
+        elevation: 0,
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back, color: pn.text),
+          onPressed: () => context.pop(),
+        ),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Complaints',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w900,
+                color: pn.text,
+                letterSpacing: -0.5,
+              ),
+            ),
+            Text(
+              staff?.areaName ?? 'Gulshan Block 4',
+              style: TextStyle(
+                fontSize: 12,
+                color: pn.textMuted,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.person_outline),
-            tooltip: 'Profile',
-            onPressed: () => context.push('/profile'),
-          ),
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            tooltip: 'Refresh',
-            onPressed: _load,
+          Container(
+            margin: const EdgeInsets.only(right: 16, top: 12, bottom: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+            decoration: BoxDecoration(
+              color: pn.cyan.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(99),
+            ),
+            alignment: Alignment.center,
+            child: Text(
+              'Online',
+              style: TextStyle(
+                color: pn.cyan,
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
           ),
         ],
       ),
@@ -95,26 +131,43 @@ class _ComplaintListScreenState extends State<ComplaintListScreen>
 
           final filteredOpen = _filter(queue.open);
           final filteredWorking = _filter(queue.inProgress);
+          // Show all resolved complaints in the third tab
+          final filteredResolved = _filter(queue.complaints.where((c) => c.isResolved).toList());
 
           return NestedScrollView(
             headerSliverBuilder: (context, innerBoxIsScrolled) => [
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
                   child: Column(
                     children: [
-                      _KPIHeroCard(
-                        openCount: queue.open.length,
-                        workingCount: queue.inProgress.length,
-                        resolvedCount: queue.resolvedToday.length,
-                        pn: pn,
+                      // Styled Search Bar matching input system
+                      TextField(
+                        controller: _searchCtrl,
+                        decoration: InputDecoration(
+                          hintText: 'Search name, code, area',
+                          prefixIcon: Icon(Icons.search, color: pn.textMuted, size: 20),
+                          filled: true,
+                          fillColor: pn.surface,
+                          contentPadding: const EdgeInsets.symmetric(vertical: 14),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(18),
+                            borderSide: BorderSide(color: pn.border),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(18),
+                            borderSide: BorderSide(color: pn.border),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(18),
+                            borderSide: BorderSide(color: pn.accent),
+                          ),
+                        ),
                       ),
                       if (queue.pendingSyncCount > 0) ...[
                         const SizedBox(height: 12),
                         _SyncBanner(count: queue.pendingSyncCount, pn: pn),
                       ],
-                      const SizedBox(height: 14),
-                      _SearchBox(controller: _searchCtrl),
                     ],
                   ),
                 ),
@@ -123,7 +176,7 @@ class _ComplaintListScreenState extends State<ComplaintListScreen>
                 pinned: true,
                 delegate: _PersistentTabsHeader(
                   controller: _tabs,
-                  background: pn.surfaceMuted,
+                  background: pn.background,
                   pn: pn,
                 ),
               ),
@@ -134,13 +187,19 @@ class _ComplaintListScreenState extends State<ComplaintListScreen>
                 _ComplaintList(
                   items: filteredOpen,
                   pn: pn,
-                  emptyMsg: 'No pending complaints assigned.',
+                  emptyMsg: 'No open complaints assigned.',
                   onRefresh: _load,
                 ),
                 _ComplaintList(
                   items: filteredWorking,
                   pn: pn,
                   emptyMsg: 'No complaints in progress.',
+                  onRefresh: _load,
+                ),
+                _ComplaintList(
+                  items: filteredResolved,
+                  pn: pn,
+                  emptyMsg: 'No resolved complaints today.',
                   onRefresh: _load,
                 ),
               ],
@@ -164,13 +223,13 @@ class _SyncBanner extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: warning.withValues(alpha: 0.12),
+        color: pn.warning.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: warning.withValues(alpha: 0.28)),
+        border: Border.all(color: pn.warning.withValues(alpha: 0.28)),
       ),
       child: Row(
         children: [
-          const Icon(Icons.cloud_upload_outlined, color: warning, size: 20),
+          Icon(Icons.cloud_upload_outlined, color: pn.warning, size: 20),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
@@ -179,162 +238,6 @@ class _SyncBanner extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _KPIHeroCard extends StatelessWidget {
-  final int openCount;
-  final int workingCount;
-  final int resolvedCount;
-  final PnColors pn;
-
-  const _KPIHeroCard({
-    required this.openCount,
-    required this.workingCount,
-    required this.resolvedCount,
-    required this.pn,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF1E3A8A), Color(0xFF0F172A)],
-        ),
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.15),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: const Icon(
-                  Icons.handyman_outlined,
-                  color: Colors.blueAccent,
-                  size: 20,
-                ),
-              ),
-              const SizedBox(width: 10),
-              const Text(
-                'Technician Command Center',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w900,
-                  fontSize: 15,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 18),
-          Row(
-            children: [
-              _KPITile(
-                label: 'New Assigned',
-                value: '$openCount',
-                color: pn.warning,
-              ),
-              const SizedBox(width: 10),
-              _KPITile(
-                label: 'Working',
-                value: '$workingCount',
-                color: primary,
-              ),
-              const SizedBox(width: 10),
-              _KPITile(
-                label: 'Resolved Today',
-                value: '$resolvedCount',
-                color: pn.success,
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _KPITile extends StatelessWidget {
-  final String label;
-  final String value;
-  final Color color;
-
-  const _KPITile({
-    required this.label,
-    required this.value,
-    required this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.06),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: Colors.white54,
-                fontSize: 10,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              value,
-              style: TextStyle(
-                color: color,
-                fontSize: 22,
-                fontWeight: FontWeight.w900,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _SearchBox extends StatelessWidget {
-  final TextEditingController controller;
-  const _SearchBox({required this.controller});
-
-  @override
-  Widget build(BuildContext context) {
-    return TextField(
-      controller: controller,
-      decoration: const InputDecoration(
-        prefixIcon: Icon(Icons.search),
-        hintText: 'Search complaints, code or customers...',
       ),
     );
   }
@@ -365,7 +268,7 @@ class _PersistentTabsHeader extends SliverPersistentHeaderDelegate {
     return Container(
       color: background,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-      child: DecoratedBox(
+      child: Container(
         decoration: BoxDecoration(
           color: pn.surface,
           borderRadius: BorderRadius.circular(16),
@@ -378,7 +281,7 @@ class _PersistentTabsHeader extends SliverPersistentHeaderDelegate {
           labelColor: Colors.white,
           unselectedLabelColor: pn.textMuted,
           indicator: BoxDecoration(
-            color: primary,
+            color: pn.primary,
             borderRadius: BorderRadius.circular(12),
           ),
           dividerColor: Colors.transparent,
@@ -387,8 +290,9 @@ class _PersistentTabsHeader extends SliverPersistentHeaderDelegate {
             fontWeight: FontWeight.w800,
           ),
           tabs: const [
-            Tab(text: 'Open Assigned'),
-            Tab(text: 'Active Working'),
+            Tab(text: 'Open'),
+            Tab(text: 'In Progress'),
+            Tab(text: 'Resolved'),
           ],
         ),
       ),
@@ -421,10 +325,11 @@ class _ComplaintList extends StatelessWidget {
     }
     return RefreshIndicator(
       onRefresh: () async => onRefresh(),
+      color: pn.accent,
       child: ListView.separated(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
         itemCount: items.length,
-        separatorBuilder: (context, index) => const SizedBox(height: 10),
+        separatorBuilder: (context, index) => const SizedBox(height: 12),
         itemBuilder: (context, i) => _ComplaintTile(
           complaint: items[i],
           pn: pn,
@@ -449,11 +354,24 @@ class _ComplaintTile extends StatelessWidget {
   Color _priorityColor() {
     switch (complaint.priority) {
       case 'high':
-        return const Color(0xFFDC2626);
+      case 'urgent':
+        return pn.danger;
       case 'medium':
-        return const Color(0xFFF59E0B);
+        return pn.warning;
       default:
-        return const Color(0xFF6B7280);
+        return pn.textMuted;
+    }
+  }
+
+  String _priorityLabel() {
+    switch (complaint.priority) {
+      case 'high':
+      case 'urgent':
+        return 'Urgent';
+      case 'medium':
+        return 'Medium';
+      default:
+        return 'Normal';
     }
   }
 
@@ -461,9 +379,9 @@ class _ComplaintTile extends StatelessWidget {
     final phone = complaint.customerPhone;
     if (phone.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Customer phone number not available'),
-          backgroundColor: danger,
+        SnackBar(
+          content: const Text('Customer phone number not available'),
+          backgroundColor: pn.danger,
         ),
       );
       return;
@@ -472,14 +390,15 @@ class _ComplaintTile extends StatelessWidget {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        backgroundColor: pn.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20), side: BorderSide(color: pn.border)),
         title: Row(
           children: [
-            const Icon(Icons.phone_outlined, color: primary),
+            Icon(Icons.phone_outlined, color: pn.primary),
             const SizedBox(width: 10),
-            const Text(
-              'Dialer Options',
-              style: TextStyle(fontWeight: FontWeight.bold),
+            Text(
+              'Call Customer',
+              style: TextStyle(fontWeight: FontWeight.w900, color: pn.text, fontSize: 18),
             ),
           ],
         ),
@@ -489,17 +408,17 @@ class _ComplaintTile extends StatelessWidget {
           children: [
             Text(
               complaint.customerName,
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: pn.text),
             ),
             const SizedBox(height: 4),
             Text(
               'Phone: $phone',
-              style: TextStyle(color: pn.textMuted, fontSize: 14),
+              style: TextStyle(color: pn.textMuted, fontSize: 14, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 12),
-            const Text(
+            Text(
               'Aap is number ko copy kar sakte hain ya onsite calling simulate kar sakte hain.',
-              style: TextStyle(fontSize: 12, height: 1.4),
+              style: TextStyle(fontSize: 13, height: 1.4, color: pn.textSoft),
             ),
           ],
         ),
@@ -509,13 +428,13 @@ class _ComplaintTile extends StatelessWidget {
               Clipboard.setData(ClipboardData(text: phone));
               Navigator.pop(context);
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Phone number copied to clipboard!'),
-                  backgroundColor: success,
+                SnackBar(
+                  content: const Text('Phone number copied to clipboard!'),
+                  backgroundColor: pn.success,
                 ),
               );
             },
-            child: const Text('Copy Number'),
+            child: Text('Copy Number', style: TextStyle(color: pn.textSoft, fontWeight: FontWeight.bold)),
           ),
           ElevatedButton(
             onPressed: () {
@@ -523,18 +442,20 @@ class _ComplaintTile extends StatelessWidget {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                   content: Text('Simulating call to $phone...'),
-                  backgroundColor: primary,
+                  backgroundColor: pn.primary,
                   duration: const Duration(seconds: 3),
                 ),
               );
             },
             style: ElevatedButton.styleFrom(
-              minimumSize: const Size(120, 36),
+              backgroundColor: pn.primary,
+              foregroundColor: Colors.white,
+              minimumSize: const Size(110, 38),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(12),
               ),
             ),
-            child: const Text('Call Now'),
+            child: const Text('Call Now', style: TextStyle(fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -543,178 +464,201 @@ class _ComplaintTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final statusColor = complaint.isResolved
+        ? pn.success
+        : (complaint.isInProgress ? pn.cyan : pn.warning);
+
     return Card(
+      elevation: 0,
       clipBehavior: Clip.antiAlias,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: pn.border, width: 1),
+        borderRadius: BorderRadius.circular(18),
+        side: BorderSide(color: pn.border, width: 1.2),
       ),
       child: InkWell(
         onTap: onTap,
-        child: Stack(
-          children: [
-            // Decorative Left Accent Line (Priority based)
-            Positioned(
-              left: 0,
-              top: 0,
-              bottom: 0,
-              width: 5,
-              child: Container(color: _priorityColor()),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(18, 14, 14, 14),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: pn.surfaceMuted,
-                          borderRadius: BorderRadius.circular(6),
-                          border: Border.all(color: pn.border),
-                        ),
-                        child: Text(
-                          complaint.complaintCode,
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                            color: pn.text,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: _priorityColor().withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          complaint.priority.toUpperCase(),
-                          style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                            color: _priorityColor(),
-                            letterSpacing: 0.5,
-                          ),
-                        ),
-                      ),
-                      const Spacer(),
-                      PnStatusBadge.fromString(complaint.status),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    complaint.issue,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                      color: pn.text,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  Row(
-                    children: [
-                      Icon(Icons.person_outline, size: 14, color: pn.textMuted),
-                      const SizedBox(width: 4),
-                      Expanded(
-                        child: Text(
-                          complaint.customerName,
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: pn.textMuted,
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
-                  ),
-                  if (complaint.hasAddress) ...[
-                    const SizedBox(height: 6),
+        child: Container(
+          color: pn.surface,
+          child: Stack(
+            children: [
+              // Left Accent line indicator matching high-fidelity layout
+              Positioned(
+                left: 0,
+                top: 0,
+                bottom: 0,
+                width: 6,
+                child: Container(color: _priorityColor()),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 16, 16, 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
                     Row(
                       children: [
-                        Icon(
-                          Icons.location_on_outlined,
-                          size: 14,
-                          color: pn.textMuted,
+                        Text(
+                          complaint.complaintCode,
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w900,
+                            color: pn.text,
+                            letterSpacing: -0.3,
+                          ),
                         ),
-                        const SizedBox(width: 4),
-                        Expanded(
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 3,
+                          ),
+                          decoration: BoxDecoration(
+                            color: _priorityColor().withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(99),
+                          ),
                           child: Text(
-                            complaint.customerAddress,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+                            _priorityLabel(),
                             style: TextStyle(
-                              fontSize: 12,
-                              color: pn.textMuted,
-                              fontWeight: FontWeight.w500,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w800,
+                              color: _priorityColor(),
+                            ),
+                          ),
+                        ),
+                        const Spacer(),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: statusColor.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(99),
+                          ),
+                          child: Text(
+                            complaint.status.toUpperCase(),
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w900,
+                              color: statusColor,
+                              letterSpacing: 0.5,
                             ),
                           ),
                         ),
                       ],
                     ),
-                  ],
-                  const Divider(height: 20),
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 3,
-                        ),
-                        decoration: BoxDecoration(
-                          color: primary.withValues(alpha: 0.08),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          complaint.type,
-                          style: const TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                            color: primary,
-                          ),
-                        ),
+                    const SizedBox(height: 12),
+                    Text(
+                      '${complaint.customerName} - ${complaint.customerCode}',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                        color: pn.text,
                       ),
-                      const Spacer(),
-                      if (complaint.customerPhone.isNotEmpty)
-                        Material(
-                          color: Colors.transparent,
-                          child: InkWell(
-                            onTap: () => _showCallDialerModal(context),
-                            borderRadius: BorderRadius.circular(99),
-                            child: Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: pn.success.withValues(alpha: 0.1),
-                                shape: BoxShape.circle,
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      complaint.issue,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: pn.textSoft,
+                        height: 1.35,
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    // High-fidelity Mini Grid matching the mockup
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: pn.surfaceMuted,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: pn.border),
+                      ),
+                      child: Column(
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _buildMiniCell('Address', complaint.customerAddress.isNotEmpty ? complaint.customerAddress : 'No Address', pn),
                               ),
-                              child: Icon(
-                                Icons.phone_enabled_outlined,
-                                color: pn.success,
-                                size: 18,
+                              Expanded(
+                                child: _buildMiniCell('Type', complaint.type, pn),
                               ),
-                            ),
+                            ],
                           ),
-                        ),
-                    ],
-                  ),
-                ],
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                      child: _buildMiniCell('Phone', complaint.customerPhone.isNotEmpty ? complaint.customerPhone : 'No Number', pn),
+                                    ),
+                                    if (complaint.customerPhone.isNotEmpty)
+                                      IconButton(
+                                        icon: Icon(Icons.phone_enabled_outlined, color: pn.success, size: 16),
+                                        padding: EdgeInsets.zero,
+                                        constraints: const BoxConstraints(),
+                                        onPressed: () => _showCallDialerModal(context),
+                                      ),
+                                  ],
+                                ),
+                              ),
+                              Expanded(
+                                child: _buildMiniCell('Opened', _formatTime(complaint.openedAt), pn),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
+  }
+
+  Widget _buildMiniCell(String label, String value, PnColors pn) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label.toUpperCase(),
+          style: TextStyle(
+            fontSize: 9,
+            fontWeight: FontWeight.w700,
+            color: pn.textMuted,
+            letterSpacing: 0.5,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          value,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w800,
+            color: pn.text,
+          ),
+        ),
+      ],
+    );
+  }
+
+  String _formatTime(String? dateStr) {
+    if (dateStr == null || dateStr.isEmpty) return 'Recent';
+    try {
+      final dt = DateTime.parse(dateStr);
+      final diff = DateTime.now().difference(dt);
+      if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
+      if (diff.inHours < 24) return '${diff.inHours}h ago';
+      return '${diff.inDays}d ago';
+    } catch (_) {
+      return 'Recent';
+    }
   }
 }

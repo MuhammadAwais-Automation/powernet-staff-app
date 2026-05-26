@@ -28,29 +28,23 @@ class _HomeScreenState extends State<HomeScreen> {
     if (staff == null) return;
     switch (staff.normalizedRole) {
       case 'technician':
-        context.read<ComplaintQueueProvider>().loadForTechnicianAndArea(
-          staff.id,
-          staff.areaId,
-        );
+        context.read<ComplaintQueueProvider>().loadForTechnicianAndAreas(
+              staff.id,
+              staff.areaIds,
+            );
         break;
       case 'recovery_agent':
-        if (staff.areaId != null) {
-          context.read<BillsProvider>().loadPendingByArea(
-            staff.areaId!,
-            staff.id,
-          );
-        }
+        context.read<BillsProvider>().loadPendingByAreas(
+              staff.areaIds,
+              staff.id,
+            );
         break;
       case 'field_agent':
-        if (staff.areaId != null) {
-          context.read<CustomersProvider>().loadByArea(staff.areaId!);
-        }
+        context.read<CustomersProvider>().loadByAreas(staff.areaIds);
         break;
       case 'cable_operator':
-        if (staff.areaId != null) {
-          context.read<CustomersProvider>().loadByArea(staff.areaId!);
-          context.read<ComplaintQueueProvider>().loadForArea(staff.areaId!);
-        }
+        context.read<CustomersProvider>().loadByAreas(staff.areaIds);
+        context.read<ComplaintQueueProvider>().loadForAreas(staff.areaIds);
         break;
     }
   }
@@ -61,130 +55,754 @@ class _HomeScreenState extends State<HomeScreen> {
     final staff = auth.currentStaff;
     if (staff == null) return const SizedBox.shrink();
 
+    // Deep navy background for full-screen premium visual styling
+    final pn = Theme.of(context).extension<PnColors>()!;
+
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('PowerNet Staff'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.person_outline),
-            onPressed: () => context.push('/profile'),
-          ),
-        ],
+      backgroundColor: pn.background,
+      body: SafeArea(
+        child: _RoleHome(
+          role: staff.normalizedRole,
+          onRefresh: _loadData,
+        ),
       ),
-      body: _RoleHome(role: staff.normalizedRole),
     );
   }
 }
 
 class _RoleHome extends StatelessWidget {
   final String role;
-  const _RoleHome({required this.role});
+  final VoidCallback onRefresh;
+
+  const _RoleHome({
+    required this.role,
+    required this.onRefresh,
+  });
 
   @override
   Widget build(BuildContext context) {
     final pn = Theme.of(context).extension<PnColors>()!;
-    final staff = context.watch<AuthProvider>().currentStaff!;
+    final auth = context.watch<AuthProvider>();
+    final staff = auth.currentStaff;
 
-    if (staff.normalizedRole == 'recovery_agent') {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (context.mounted) context.go('/collector/bills');
-      });
-      return const Center(child: CircularProgressIndicator());
+    if (staff == null) return const SizedBox.shrink();
+
+    if (role == 'technician') {
+      return _buildTechnicianHome(context, staff, pn);
+    } else if (role == 'recovery_agent') {
+      return _buildRecoveryHome(context, staff, pn);
     }
 
-    if (staff.normalizedRole == 'technician') {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (context.mounted) context.go('/technician/complaints');
-      });
-      return const Center(child: CircularProgressIndicator());
-    }
-
-    return ListView(
-      padding: const EdgeInsets.all(16),
+    // Default layout for Field Agent and Cable Operator, upgraded with premium visual elements
+    return Column(
       children: [
-        _WelcomeCard(staff: staff, pn: pn),
-        const SizedBox(height: 24),
-        Text(
-          'Quick Overview',
-          style: TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.w600,
-            color: pn.text,
+        _buildAppBar(context, staff.fullName, staff.roleLabel, pn),
+        Expanded(
+          child: ListView(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+            children: [
+              _buildGeneralWelcomeCard(staff, pn),
+              const SizedBox(height: 24),
+              Text(
+                'Today Overview',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  color: pn.text,
+                  letterSpacing: -0.3,
+                ),
+              ),
+              const SizedBox(height: 12),
+              _KpiGrid(role: role, pn: pn),
+              const SizedBox(height: 28),
+              _QuickActions(role: role),
+            ],
           ),
         ),
-        const SizedBox(height: 12),
-        _KpiGrid(role: role, pn: pn),
-        const SizedBox(height: 24),
-        _QuickActions(role: role),
+        _buildBottomNav(context, 'home', pn, showComplaints: role == 'cable_operator', showCollections: false),
       ],
     );
   }
-}
 
-class _WelcomeCard extends StatelessWidget {
-  final dynamic staff;
-  final PnColors pn;
-  const _WelcomeCard({required this.staff, required this.pn});
+  // --- Technician Home Design Overhaul (09-technician-home.html) ---
+  Widget _buildTechnicianHome(BuildContext context, dynamic staff, PnColors pn) {
+    final q = context.watch<ComplaintQueueProvider>();
+    final loading = q.loading;
 
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: primary.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: primary.withValues(alpha: 0.2)),
-      ),
-      child: Row(
-        children: [
-          CircleAvatar(
-            radius: 24,
-            backgroundColor: primary,
-            child: Text(
-              staff.fullName.isNotEmpty ? staff.fullName[0].toUpperCase() : '?',
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w700,
-                fontSize: 18,
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+    return Column(
+      children: [
+        _buildAppBar(context, staff.fullName, 'Technician', pn),
+        Expanded(
+          child: RefreshIndicator(
+            onRefresh: () async => onRefresh(),
+            color: pn.accent,
+            backgroundColor: pn.surface,
+            child: ListView(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+              physics: const AlwaysScrollableScrollPhysics(),
               children: [
-                Text(
-                  staff.fullName,
-                  style: TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 16,
-                    color: pn.text,
+                // Live Sync Banner container matching the premium layout
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: pn.surfaceMuted,
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(color: pn.border),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              loading ? 'Syncing...' : 'Online Sync',
+                              style: TextStyle(
+                                color: pn.text,
+                                fontWeight: FontWeight.w900,
+                                fontSize: 15,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Assigned area: ${staff.areaName ?? "Gulshan Block 4"}',
+                              style: TextStyle(
+                                color: pn.textMuted,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      ElevatedButton(
+                        onPressed: () {
+                          onRefresh();
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: const Text('Data synced successfully!'),
+                              backgroundColor: pn.success,
+                              behavior: SnackBarBehavior.floating,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                            ),
+                          );
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: pn.cyan.withValues(alpha: 0.12),
+                          foregroundColor: pn.cyan,
+                          elevation: 0,
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          minimumSize: Size.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: Text(
+                          'Sync',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w800,
+                            fontSize: 12,
+                            color: pn.cyan,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 24),
+                Text(
+                  'Today',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: pn.text,
+                    letterSpacing: -0.3,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                // Today Stats Grid
+                GridView.count(
+                  crossAxisCount: 2,
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  crossAxisSpacing: 12,
+                  mainAxisSpacing: 12,
+                  childAspectRatio: 1.4,
+                  children: [
+                    _buildKpiCard(
+                      label: 'Assigned',
+                      value: loading ? '…' : '${q.complaints.length}',
+                      pn: pn,
+                      onTap: () => context.push('/technician/complaints'),
+                    ),
+                    _buildKpiCard(
+                      label: 'Open',
+                      value: loading ? '…' : '${q.open.length}',
+                      valueColor: pn.warning,
+                      pn: pn,
+                      onTap: () => context.push('/technician/complaints'),
+                    ),
+                    _buildKpiCard(
+                      label: 'In Progress',
+                      value: loading ? '…' : '${q.inProgress.length}',
+                      valueColor: pn.cyan,
+                      pn: pn,
+                      onTap: () => context.push('/technician/complaints'),
+                    ),
+                    _buildKpiCard(
+                      label: 'Resolved Today',
+                      value: loading ? '…' : '${q.resolvedToday.length}',
+                      valueColor: pn.success,
+                      pn: pn,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                // Queued Offline Actions Card
                 Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 2,
-                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                   decoration: BoxDecoration(
-                    color: primary.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(99),
+                    color: pn.surface,
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(color: pn.border),
                   ),
-                  child: Text(
-                    staff.roleLabel,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                      color: primary,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Queued Offline Actions',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: pn.textSoft,
+                        ),
+                      ),
+                      Text(
+                        '${q.pendingSyncCount}',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w900,
+                          color: pn.text,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 24),
+                // View Complaints Core CTA styled orange button
+                ElevatedButton(
+                  onPressed: () => context.push('/technician/complaints'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: pn.accent,
+                    foregroundColor: Colors.white,
+                    minimumSize: const Size(double.infinity, 54),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(18),
+                    ),
+                    elevation: 0,
+                  ),
+                  child: const Text(
+                    'View Complaints',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 0.2,
                     ),
                   ),
                 ),
               ],
             ),
           ),
+        ),
+        _buildBottomNav(context, 'home', pn, showComplaints: true, showCollections: false),
+      ],
+    );
+  }
+
+  // --- Recovery Agent Home Design Overhaul (11-recovery-home.html) ---
+  Widget _buildRecoveryHome(BuildContext context, dynamic staff, PnColors pn) {
+    final bills = context.watch<BillsProvider>();
+    final loading = bills.loading;
+
+    return Column(
+      children: [
+        _buildAppBar(context, staff.fullName, 'Recovery Agent', pn),
+        Expanded(
+          child: RefreshIndicator(
+            onRefresh: () async => onRefresh(),
+            color: pn.accent,
+            backgroundColor: pn.surface,
+            child: ListView(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+              physics: const AlwaysScrollableScrollPhysics(),
+              children: [
+                // Collection Route sync banner
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: pn.surfaceMuted,
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(color: pn.border),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Collection route',
+                              style: TextStyle(
+                                color: pn.text,
+                                fontWeight: FontWeight.w900,
+                                fontSize: 15,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              '${staff.areaName ?? "North Zone"} - ${bills.bills.length} pending visits',
+                              style: TextStyle(
+                                color: pn.textMuted,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      // Live indicator dot matching mockup
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: pn.success.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(99),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              width: 6,
+                              height: 6,
+                              decoration: BoxDecoration(
+                                color: pn.success,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              'Live',
+                              style: TextStyle(
+                                color: pn.success,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 24),
+                Text(
+                  'Payments',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: pn.text,
+                    letterSpacing: -0.3,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                // Payments KPI Grid
+                GridView.count(
+                  crossAxisCount: 2,
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  crossAxisSpacing: 12,
+                  mainAxisSpacing: 12,
+                  childAspectRatio: 1.4,
+                  children: [
+                    _buildKpiCard(
+                      label: 'Pending Bills',
+                      value: loading ? '…' : '${bills.bills.length}',
+                      pn: pn,
+                      onTap: () => context.push('/collector/bills'),
+                    ),
+                    _buildKpiCard(
+                      label: 'Overdue Bills',
+                      value: loading ? '…' : '${bills.bills.where((b) => b.isOverdue).length}',
+                      valueColor: pn.warning,
+                      pn: pn,
+                      onTap: () => context.push('/collector/bills'),
+                    ),
+                    _buildKpiCard(
+                      label: 'Collected Today',
+                      value: loading
+                          ? '…'
+                          : 'PKR ${_formatShortAmount(bills.collectedTodayAmount)}',
+                      valueColor: pn.success,
+                      pn: pn,
+                    ),
+                    _buildKpiCard(
+                      label: 'Visits Logged',
+                      value: loading ? '…' : '${bills.visitedToday.length}',
+                      valueColor: pn.cyan,
+                      pn: pn,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                // Offline Actions Card
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  decoration: BoxDecoration(
+                    color: pn.surface,
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(color: pn.border),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Offline Queue',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: pn.textSoft,
+                        ),
+                      ),
+                      Text(
+                        '${bills.pendingSyncCount}',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w900,
+                          color: pn.text,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 24),
+                // Primary CTA button to open collection list
+                ElevatedButton(
+                  onPressed: () => context.push('/collector/bills'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: pn.accent,
+                    foregroundColor: Colors.white,
+                    minimumSize: const Size(double.infinity, 54),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(18),
+                    ),
+                    elevation: 0,
+                  ),
+                  child: const Text(
+                    'Open Collection List',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 0.2,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        _buildBottomNav(context, 'home', pn, showComplaints: false, showCollections: true),
+      ],
+    );
+  }
+
+  // --- Supporting Reusable Widgets matching HTML layouts ---
+  Widget _buildAppBar(BuildContext context, String name, String subtitle, PnColors pn) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
+      decoration: BoxDecoration(
+        color: pn.background,
+        border: Border(bottom: BorderSide(color: pn.border.withValues(alpha: 0.5))),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  subtitle,
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: pn.textMuted,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w900,
+                    color: pn.text,
+                    letterSpacing: -0.5,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () => context.push('/profile'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: pn.surfaceMuted,
+              foregroundColor: pn.text,
+              elevation: 0,
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              minimumSize: Size.zero,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(99),
+                side: BorderSide(color: pn.border),
+              ),
+            ),
+            child: Text(
+              'Profile',
+              style: TextStyle(
+                fontWeight: FontWeight.w700,
+                fontSize: 12,
+                color: pn.text,
+              ),
+            ),
+          ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildKpiCard({
+    required String label,
+    required String value,
+    Color? valueColor,
+    required PnColors pn,
+    VoidCallback? onTap,
+  }) {
+    final block = Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: pn.surface,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: pn.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: pn.textMuted,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.w900,
+              color: valueColor ?? pn.text,
+              letterSpacing: -0.5,
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (onTap == null) return block;
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(18),
+      child: block,
+    );
+  }
+
+  Widget _buildGeneralWelcomeCard(dynamic staff, PnColors pn) {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: pn.surfaceMuted,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: pn.border),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: pn.primary,
+              shape: BoxShape.circle,
+            ),
+            alignment: Alignment.center,
+            child: Text(
+              staff.fullName.isNotEmpty ? staff.fullName[0].toUpperCase() : '?',
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w900,
+                fontSize: 20,
+              ),
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Khushamdeed,',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: pn.textMuted,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                Text(
+                  staff.fullName,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 16,
+                    color: pn.text,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBottomNav(
+    BuildContext context,
+    String activeTab,
+    PnColors pn, {
+    required bool showComplaints,
+    required bool showCollections,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      decoration: BoxDecoration(
+        color: pn.surface,
+        border: Border(top: BorderSide(color: pn.border)),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: [
+          _BottomNavItem(
+            icon: Icons.home_filled,
+            label: 'Home',
+            isActive: activeTab == 'home',
+            pn: pn,
+            onTap: () {}, // Already here
+          ),
+          if (showComplaints)
+            _BottomNavItem(
+              icon: Icons.assignment_outlined,
+              label: 'Complaints',
+              isActive: activeTab == 'complaints',
+              pn: pn,
+              onTap: () => context.push('/technician/complaints'),
+            ),
+          if (showCollections)
+            _BottomNavItem(
+              icon: Icons.payments_outlined,
+              label: 'Collections',
+              isActive: activeTab == 'collections',
+              pn: pn,
+              onTap: () => context.push('/collector/bills'),
+            ),
+          _BottomNavItem(
+            icon: Icons.notifications_none_outlined,
+            label: 'Alerts',
+            isActive: activeTab == 'alerts',
+            pn: pn,
+            onTap: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: const Text('Notifications are up-to-date'),
+                  backgroundColor: pn.primary,
+                  behavior: SnackBarBehavior.floating,
+                ),
+              );
+            },
+          ),
+          _BottomNavItem(
+            icon: Icons.person_outline,
+            label: 'Profile',
+            isActive: activeTab == 'profile',
+            pn: pn,
+            onTap: () => context.push('/profile'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatShortAmount(double amount) {
+    if (amount >= 1000) {
+      return '${(amount / 1000).toStringAsFixed(0)}K';
+    }
+    return amount.toStringAsFixed(0);
+  }
+}
+
+class _BottomNavItem extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final bool isActive;
+  final PnColors pn;
+  final VoidCallback onTap;
+
+  const _BottomNavItem({
+    required this.icon,
+    required this.label,
+    required this.isActive,
+    required this.pn,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final activeColor = pn.accent;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              color: isActive ? activeColor : pn.textMuted,
+              size: 24,
+            ),
+            const SizedBox(height: 3),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: isActive ? FontWeight.w800 : FontWeight.w500,
+                color: isActive ? activeColor : pn.textMuted,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -237,7 +855,7 @@ class _KpiGrid extends StatelessWidget {
             label: 'In Progress',
             value: loading ? '…' : '${q.inProgress.length}',
             icon: Icons.schedule,
-            valueColor: pn.info,
+            valueColor: pn.cyan,
             onTap: () => context.push('/technician/complaints'),
           ),
         ];
@@ -364,9 +982,10 @@ class _QuickActions extends StatelessWidget {
         Text(
           'Quick Actions',
           style: TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.w600,
+            fontSize: 16,
+            fontWeight: FontWeight.w800,
             color: pn.text,
+            letterSpacing: -0.3,
           ),
         ),
         const SizedBox(height: 12),
@@ -428,19 +1047,25 @@ class _ActionTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
+      elevation: 0,
+      color: pn.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(18),
+        side: BorderSide(color: pn.border),
+      ),
       child: InkWell(
         onTap: () => context.push(route),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(18),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
           child: Row(
             children: [
-              Icon(icon, color: primary, size: 22),
+              Icon(icon, color: pn.accent, size: 22),
               const SizedBox(width: 12),
               Text(
                 label,
                 style: TextStyle(
-                  fontWeight: FontWeight.w500,
+                  fontWeight: FontWeight.w700,
                   fontSize: 14,
                   color: pn.text,
                 ),

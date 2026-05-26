@@ -1,0 +1,771 @@
+{
+  "nodes": [
+    {
+      "id": "models_area_Area",
+      "label": "Area Model",
+      "file_type": "code",
+      "source_file": "lib/models/area.dart",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "models_customer_Customer",
+      "label": "Customer Model",
+      "file_type": "code",
+      "source_file": "lib/models/customer.dart",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "splash_screen_SplashScreen",
+      "label": "SplashScreen",
+      "file_type": "code",
+      "source_file": "lib/screens/splash_screen.dart",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "cable_operator_customer_detail_CoCustomerDetailScreen",
+      "label": "CoCustomerDetailScreen (Cable Operator)",
+      "file_type": "code",
+      "source_file": "lib/screens/cable_operator/co_customer_detail_screen.dart",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "cable_operator_customer_list_CoCustomerListScreen",
+      "label": "CoCustomerListScreen (Cable Operator)",
+      "file_type": "code",
+      "source_file": "lib/screens/cable_operator/co_customer_list_screen.dart",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "field_agent_customer_detail_CustomerDetailScreen",
+      "label": "CustomerDetailScreen (Field Agent)",
+      "file_type": "code",
+      "source_file": "lib/screens/field_agent/customer_detail_screen.dart",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "arch_DirectRepoAccess",
+      "label": "Direct Repository Access Pattern (bypassing provider for detail screens)",
+      "file_type": "rationale",
+      "source_file": "lib/screens/field_agent/customer_detail_screen.dart",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "field_agent_customer_list_FieldAgentCustomerListScreen",
+      "label": "FieldAgentCustomerListScreen",
+      "file_type": "code",
+      "source_file": "lib/screens/field_agent/customer_list_screen.dart",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "theme_app_theme_PnColors",
+      "label": "PnColors ThemeExtension",
+      "file_type": "code",
+      "source_file": "lib/theme/app_theme.dart",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "theme_app_theme_buildLightTheme",
+      "label": "buildLightTheme",
+      "file_type": "code",
+      "source_file": "lib/theme/app_theme.dart",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "theme_app_theme_buildDarkTheme",
+      "label": "buildDarkTheme",
+      "file_type": "code",
+      "source_file": "lib/theme/app_theme.dart",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "widgets_empty_state_EmptyState",
+      "label": "EmptyState Widget",
+      "file_type": "code",
+      "source_file": "lib/widgets/empty_state.dart",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "widgets_empty_state_ErrorState",
+      "label": "ErrorState Widget",
+      "file_type": "code",
+      "source_file": "lib/widgets/empty_state.dart",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "widgets_pn_card_PnCard",
+      "label": "PnCard Widget",
+      "file_type": "code",
+      "source_file": "lib/widgets/pn_card.dart",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "widgets_pn_kpi_card_PnKpiCard",
+      "label": "PnKpiCard Widget",
+      "file_type": "code",
+      "source_file": "lib/widgets/pn_kpi_card.dart",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "widgets_pn_status_badge_PnStatusBadge",
+      "label": "PnStatusBadge Widget",
+      "file_type": "code",
+      "source_file": "lib/widgets/pn_status_badge.dart",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "web_manifest_json",
+      "label": "Web App PWA Manifest",
+      "file_type": "document",
+      "source_file": "web/manifest.json",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "concept_pwa_support",
+      "label": "Progressive Web App (PWA) Support",
+      "file_type": "document",
+      "source_file": "web/manifest.json",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "analysis_options_flutter_lints",
+      "label": "Flutter Lints Analysis Options",
+      "file_type": "document",
+      "source_file": "analysis_options.yaml",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "flutter_lints_package",
+      "label": "flutter_lints Package",
+      "file_type": "document",
+      "source_file": "analysis_options.yaml",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "pubspec_yaml",
+      "label": "pubspec.yaml \u2014 Project Manifest",
+      "file_type": "document",
+      "source_file": "pubspec.yaml",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "supabase_flutter_pkg",
+      "label": "supabase_flutter Package",
+      "file_type": "document",
+      "source_file": "pubspec.yaml",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "provider_pkg",
+      "label": "provider Package",
+      "file_type": "document",
+      "source_file": "pubspec.yaml",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "go_router_pkg",
+      "label": "go_router Package",
+      "file_type": "document",
+      "source_file": "pubspec.yaml",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "flutter_secure_storage_pkg",
+      "label": "flutter_secure_storage Package",
+      "file_type": "document",
+      "source_file": "pubspec.yaml",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "google_fonts_pkg",
+      "label": "google_fonts Package",
+      "file_type": "document",
+      "source_file": "pubspec.yaml",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "flutter_dotenv_pkg",
+      "label": "flutter_dotenv Package",
+      "file_type": "document",
+      "source_file": "pubspec.yaml",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "connectivity_plus_pkg",
+      "label": "connectivity_plus Package",
+      "file_type": "document",
+      "source_file": "pubspec.yaml",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "readme_powernet_staff_app",
+      "label": "PowerNet Staff App README",
+      "file_type": "document",
+      "source_file": "README.md",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "concept_multi_platform",
+      "label": "Multi-Platform Flutter Target (Android, iOS, Web, macOS, Linux, Windows)",
+      "file_type": "document",
+      "source_file": "README.md",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "web_index_html",
+      "label": "Web App Entry HTML",
+      "file_type": "document",
+      "source_file": "web/index.html",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "concept_flutter_web_bootstrap",
+      "label": "Flutter Web Bootstrap Loader",
+      "file_type": "document",
+      "source_file": "web/index.html",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    }
+  ],
+  "edges": [
+    {
+      "source": "models_customer_Customer",
+      "target": "models_area_Area",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "lib/models/customer.dart",
+      "source_location": "line 1",
+      "weight": 1.0
+    },
+    {
+      "source": "cable_operator_customer_detail_CoCustomerDetailScreen",
+      "target": "customers_provider_CustomersRepository",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "lib/screens/cable_operator/co_customer_detail_screen.dart",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "cable_operator_customer_detail_CoCustomerDetailScreen",
+      "target": "complaint_queue_provider_ComplaintsRepository",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "lib/screens/cable_operator/co_customer_detail_screen.dart",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "arch_DirectRepoAccess",
+      "target": "cable_operator_customer_detail_CoCustomerDetailScreen",
+      "relation": "rationale_for",
+      "confidence": "INFERRED",
+      "confidence_score": 0.85,
+      "source_file": "lib/screens/cable_operator/co_customer_detail_screen.dart",
+      "source_location": null,
+      "weight": 0.7
+    },
+    {
+      "source": "cable_operator_customer_list_CoCustomerListScreen",
+      "target": "auth_provider_AuthProvider",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "lib/screens/cable_operator/co_customer_list_screen.dart",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "cable_operator_customer_list_CoCustomerListScreen",
+      "target": "customers_provider_CustomersProvider",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "lib/screens/cable_operator/co_customer_list_screen.dart",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "field_agent_customer_detail_CustomerDetailScreen",
+      "target": "customers_provider_CustomersRepository",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "lib/screens/field_agent/customer_detail_screen.dart",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "field_agent_customer_detail_CustomerDetailScreen",
+      "target": "complaint_queue_provider_ComplaintsRepository",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "lib/screens/field_agent/customer_detail_screen.dart",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "arch_DirectRepoAccess",
+      "target": "field_agent_customer_detail_CustomerDetailScreen",
+      "relation": "rationale_for",
+      "confidence": "INFERRED",
+      "confidence_score": 0.85,
+      "source_file": "lib/screens/field_agent/customer_detail_screen.dart",
+      "source_location": null,
+      "weight": 0.7
+    },
+    {
+      "source": "field_agent_customer_detail_CustomerDetailScreen",
+      "target": "cable_operator_customer_detail_CoCustomerDetailScreen",
+      "relation": "semantically_similar_to",
+      "confidence": "INFERRED",
+      "confidence_score": 0.95,
+      "source_file": "lib/screens/field_agent/customer_detail_screen.dart",
+      "source_location": null,
+      "weight": 0.9
+    },
+    {
+      "source": "field_agent_customer_list_FieldAgentCustomerListScreen",
+      "target": "auth_provider_AuthProvider",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "lib/screens/field_agent/customer_list_screen.dart",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "field_agent_customer_list_FieldAgentCustomerListScreen",
+      "target": "customers_provider_CustomersProvider",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "lib/screens/field_agent/customer_list_screen.dart",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "field_agent_customer_list_FieldAgentCustomerListScreen",
+      "target": "cable_operator_customer_list_CoCustomerListScreen",
+      "relation": "semantically_similar_to",
+      "confidence": "INFERRED",
+      "confidence_score": 0.95,
+      "source_file": "lib/screens/field_agent/customer_list_screen.dart",
+      "source_location": null,
+      "weight": 0.9
+    },
+    {
+      "source": "theme_app_theme_buildLightTheme",
+      "target": "theme_app_theme_PnColors",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "lib/theme/app_theme.dart",
+      "source_location": "line 111",
+      "weight": 1.0
+    },
+    {
+      "source": "theme_app_theme_buildDarkTheme",
+      "target": "theme_app_theme_PnColors",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "lib/theme/app_theme.dart",
+      "source_location": "line 112",
+      "weight": 1.0
+    },
+    {
+      "source": "theme_app_theme_PnColors",
+      "target": "google_fonts_pkg",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "lib/theme/app_theme.dart",
+      "source_location": "line 2",
+      "weight": 1.0
+    },
+    {
+      "source": "widgets_empty_state_EmptyState",
+      "target": "theme_app_theme_PnColors",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "lib/widgets/empty_state.dart",
+      "source_location": "line 2",
+      "weight": 1.0
+    },
+    {
+      "source": "widgets_empty_state_ErrorState",
+      "target": "theme_app_theme_PnColors",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "lib/widgets/empty_state.dart",
+      "source_location": "line 2",
+      "weight": 1.0
+    },
+    {
+      "source": "widgets_pn_card_PnCard",
+      "target": "theme_app_theme_PnColors",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "lib/widgets/pn_card.dart",
+      "source_location": "line 2",
+      "weight": 1.0
+    },
+    {
+      "source": "widgets_pn_kpi_card_PnKpiCard",
+      "target": "theme_app_theme_PnColors",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "lib/widgets/pn_kpi_card.dart",
+      "source_location": "line 2",
+      "weight": 1.0
+    },
+    {
+      "source": "widgets_pn_kpi_card_PnKpiCard",
+      "target": "widgets_pn_card_PnCard",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "lib/widgets/pn_kpi_card.dart",
+      "source_location": "line 3",
+      "weight": 1.0
+    },
+    {
+      "source": "widgets_pn_status_badge_PnStatusBadge",
+      "target": "theme_app_theme_PnColors",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "lib/widgets/pn_status_badge.dart",
+      "source_location": "line 2",
+      "weight": 1.0
+    },
+    {
+      "source": "widgets_pn_status_badge_PnStatusBadge",
+      "target": "models_complaint_Complaint",
+      "relation": "conceptually_related_to",
+      "confidence": "INFERRED",
+      "confidence_score": 0.75,
+      "source_file": "lib/widgets/pn_status_badge.dart",
+      "source_location": "line 4",
+      "weight": 0.75
+    },
+    {
+      "source": "widgets_pn_status_badge_PnStatusBadge",
+      "target": "models_bill_Bill",
+      "relation": "conceptually_related_to",
+      "confidence": "INFERRED",
+      "confidence_score": 0.75,
+      "source_file": "lib/widgets/pn_status_badge.dart",
+      "source_location": "line 4",
+      "weight": 0.75
+    },
+    {
+      "source": "widgets_pn_status_badge_PnStatusBadge",
+      "target": "models_customer_Customer",
+      "relation": "conceptually_related_to",
+      "confidence": "INFERRED",
+      "confidence_score": 0.75,
+      "source_file": "lib/widgets/pn_status_badge.dart",
+      "source_location": "line 4",
+      "weight": 0.75
+    },
+    {
+      "source": "web_manifest_json",
+      "target": "concept_pwa_support",
+      "relation": "implements",
+      "confidence": "INFERRED",
+      "confidence_score": 0.95,
+      "source_file": "web/manifest.json",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "concept_pwa_support",
+      "target": "concept_multi_platform",
+      "relation": "conceptually_related_to",
+      "confidence": "INFERRED",
+      "confidence_score": 0.75,
+      "source_file": "web/manifest.json",
+      "source_location": null,
+      "weight": 0.75
+    },
+    {
+      "source": "analysis_options_flutter_lints",
+      "target": "flutter_lints_package",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "analysis_options.yaml",
+      "source_location": "line 10",
+      "weight": 1.0
+    },
+    {
+      "source": "pubspec_yaml",
+      "target": "supabase_flutter_pkg",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "pubspec.yaml",
+      "source_location": "line 13",
+      "weight": 1.0
+    },
+    {
+      "source": "pubspec_yaml",
+      "target": "provider_pkg",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "pubspec.yaml",
+      "source_location": "line 14",
+      "weight": 1.0
+    },
+    {
+      "source": "pubspec_yaml",
+      "target": "go_router_pkg",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "pubspec.yaml",
+      "source_location": "line 16",
+      "weight": 1.0
+    },
+    {
+      "source": "pubspec_yaml",
+      "target": "flutter_secure_storage_pkg",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "pubspec.yaml",
+      "source_location": "line 17",
+      "weight": 1.0
+    },
+    {
+      "source": "pubspec_yaml",
+      "target": "google_fonts_pkg",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "pubspec.yaml",
+      "source_location": "line 19",
+      "weight": 1.0
+    },
+    {
+      "source": "pubspec_yaml",
+      "target": "flutter_dotenv_pkg",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "pubspec.yaml",
+      "source_location": "line 15",
+      "weight": 1.0
+    },
+    {
+      "source": "pubspec_yaml",
+      "target": "connectivity_plus_pkg",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "pubspec.yaml",
+      "source_location": "line 18",
+      "weight": 1.0
+    },
+    {
+      "source": "readme_powernet_staff_app",
+      "target": "concept_multi_platform",
+      "relation": "conceptually_related_to",
+      "confidence": "INFERRED",
+      "confidence_score": 0.85,
+      "source_file": "README.md",
+      "source_location": null,
+      "weight": 0.85
+    },
+    {
+      "source": "web_index_html",
+      "target": "web_manifest_json",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "web/index.html",
+      "source_location": "line 33",
+      "weight": 1.0
+    },
+    {
+      "source": "web_index_html",
+      "target": "concept_flutter_web_bootstrap",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "web/index.html",
+      "source_location": "line 44",
+      "weight": 1.0
+    }
+  ],
+  "hyperedges": [
+    {
+      "id": "core_flutter_deps",
+      "label": "Core Flutter Package Dependencies",
+      "nodes": [
+        "supabase_flutter_pkg",
+        "provider_pkg",
+        "go_router_pkg",
+        "flutter_secure_storage_pkg",
+        "google_fonts_pkg",
+        "flutter_dotenv_pkg",
+        "connectivity_plus_pkg"
+      ],
+      "relation": "participate_in",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "pubspec.yaml"
+    },
+    {
+      "id": "flutter_web_pwa_bundle",
+      "label": "Flutter Web PWA deployment bundle (index.html + manifest.json)",
+      "nodes": [
+        "web_index_html",
+        "web_manifest_json",
+        "concept_pwa_support",
+        "concept_flutter_web_bootstrap"
+      ],
+      "relation": "implement",
+      "confidence": "EXTRACTED",
+      "confidence_score": 0.95,
+      "source_file": "web/index.html"
+    }
+  ]
+}

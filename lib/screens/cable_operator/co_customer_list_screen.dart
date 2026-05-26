@@ -33,8 +33,8 @@ class _CoCustomerListScreenState extends State<CoCustomerListScreen>
 
   void _load() {
     final staff = context.read<AuthProvider>().currentStaff;
-    if (staff?.areaId != null) {
-      context.read<CustomersProvider>().loadByArea(staff!.areaId!);
+    if (staff != null) {
+      context.read<CustomersProvider>().loadByAreas(staff.areaIds);
     }
   }
 
@@ -62,7 +62,7 @@ class _CoCustomerListScreenState extends State<CoCustomerListScreen>
                 autofocus: true,
                 style: TextStyle(color: pn.text),
                 decoration: InputDecoration(
-                  hintText: 'Search name, code, ONU…',
+                   hintText: 'Search name, code, ONU…',
                   hintStyle: TextStyle(color: pn.textMuted),
                   border: InputBorder.none,
                 ),
@@ -70,7 +70,7 @@ class _CoCustomerListScreenState extends State<CoCustomerListScreen>
                   final staff = context.read<AuthProvider>().currentStaff;
                   context
                       .read<CustomersProvider>()
-                      .search(v, areaId: staff?.areaId);
+                      .search(v, areaIds: staff?.areaIds);
                 },
               )
             : const Text('Customers'),

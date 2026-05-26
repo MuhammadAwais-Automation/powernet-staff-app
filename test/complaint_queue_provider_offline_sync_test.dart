@@ -15,7 +15,7 @@ void main() {
         enableRealtime: false,
       );
 
-      await provider.loadForTechnicianAndArea('tech-1', 'area-1');
+      await provider.loadForTechnicianAndAreas('tech-1', const ['area-1']);
       final ok = await provider.startComplaint(_complaint.id);
 
       expect(ok, isTrue);
@@ -33,7 +33,7 @@ void main() {
         enableRealtime: false,
       );
 
-      await provider.loadForTechnicianAndArea('tech-1', 'area-1');
+      await provider.loadForTechnicianAndAreas('tech-1', const ['area-1']);
       await provider.startComplaint(_complaint.id);
       final ok = await provider.resolveComplaintWithOptions(
         _complaint.id,
@@ -62,7 +62,7 @@ void main() {
           enableRealtime: false,
         );
 
-        await provider.loadForTechnicianAndArea('tech-1', 'area-1');
+        await provider.loadForTechnicianAndAreas('tech-1', const ['area-1']);
         expect(provider.pendingSyncCount, 1);
 
         online.add(true);
@@ -82,7 +82,7 @@ void main() {
         enableRealtime: false,
       );
 
-      await provider.loadForTechnicianAndArea('tech-1', 'area-1');
+      await provider.loadForTechnicianAndAreas('tech-1', const ['area-1']);
 
       expect(provider.findComplaintById(_complaint.id), isNotNull);
       expect(provider.findComplaintById('missing'), isNull);
@@ -143,7 +143,7 @@ class _FakeComplaintsRepository extends ComplaintsRepository {
   ];
 
   @override
-  Future<List<Complaint>> fetchByArea(String areaId) async => [_complaint];
+  Future<List<Complaint>> fetchByAreas(List<String> areaIds) async => [_complaint];
 
   @override
   Future<void> updateStatus(String id, String status) async {
@@ -195,7 +195,7 @@ class _FakeComplaintsRepository extends ComplaintsRepository {
   @override
   Future<void> cacheTechnicianSnapshot({
     required String technicianId,
-    required String? areaId,
+    required List<String> areaIds,
     required List<Complaint> complaints,
   }) async {}
 }
