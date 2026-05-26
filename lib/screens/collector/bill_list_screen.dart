@@ -35,6 +35,7 @@ class _BillListScreenState extends State<BillListScreen>
   Future<void> _load() async {
     final auth = context.read<AuthProvider>();
     final bills = context.read<BillsProvider>();
+    await auth.refreshProfile();
     final staff = auth.currentStaff;
     if (staff == null || staff.areaId == null) return;
     await bills.loadPendingByArea(staff.areaId!, staff.id);
@@ -50,12 +51,95 @@ class _BillListScreenState extends State<BillListScreen>
   @override
   Widget build(BuildContext context) {
     final pn = Theme.of(context).extension<PnColors>()!;
+    final auth = context.watch<AuthProvider>();
+    final staff = auth.currentStaff;
+
+    if (staff != null && staff.areaId == null) {
+      return Scaffold(
+        backgroundColor: pn.surfaceMuted,
+        appBar: AppBar(
+          title: const Text('Recovery Console'),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.person_outline),
+              tooltip: 'Profile',
+              onPressed: () => context.push('/profile'),
+            ),
+          ],
+        ),
+        body: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: pn.warning.withValues(alpha: 0.12),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(Icons.map_outlined, color: pn.warning, size: 64),
+                ),
+                const SizedBox(height: 24),
+                Text(
+                  'No Area Assigned',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                    color: pn.text,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'Aapko koi service area assign nahi kiya gaya hai.\nApne administrator se rabta karein taake aap recovery details dekh sakein.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 14,
+                    height: 1.5,
+                    color: pn.textMuted,
+                  ),
+                ),
+                const SizedBox(height: 32),
+                ElevatedButton.icon(
+                  onPressed: () => context.push('/profile'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: pn.surface,
+                    foregroundColor: pn.text,
+                    side: BorderSide(color: pn.border),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    minimumSize: const Size(200, 48),
+                  ),
+                  icon: const Icon(Icons.person_outline, size: 20),
+                  label: const Text(
+                    'Apna Profile Dekhein',
+                    style: TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: pn.surfaceMuted,
       appBar: AppBar(
         title: const Text('Recovery Console'),
         actions: [
-          IconButton(icon: const Icon(Icons.refresh), onPressed: _load),
+          IconButton(
+            icon: const Icon(Icons.person_outline),
+            tooltip: 'Profile',
+            onPressed: () => context.push('/profile'),
+          ),
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            tooltip: 'Refresh',
+            onPressed: _load,
+          ),
         ],
       ),
       body: Consumer<BillsProvider>(
@@ -80,9 +164,10 @@ class _BillListScreenState extends State<BillListScreen>
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
-                      child: Column(
+                    child: Column(
                       children: [
                         RecoveryHeroCard(
+                          areaName: staff?.areaName ?? '—',
                           totalDue: provider.totalDue,
                           billCount: provider.bills.length,
                           collectedTodayAmount: provider.collectedTodayAmount,
@@ -158,7 +243,6 @@ class _BillListScreenState extends State<BillListScreen>
       return haystack.contains(_query);
     }).toList();
   }
-
 }
 
 class _SyncBanner extends StatelessWidget {
@@ -183,7 +267,7 @@ class _SyncBanner extends StatelessWidget {
           const SizedBox(width: 10),
           Expanded(
             child: Text(
-              '$count payment${count == 1 ? '' : 's'} locally saved. They will sync on refresh when internet is back.',
+              '$count item${count == 1 ? '' : 's'} locally saved. Internet on hotay hi auto sync ho jayega.',
               style: TextStyle(color: pn.text, fontSize: 12, height: 1.35),
             ),
           ),
@@ -288,70 +372,153 @@ class _BillTile extends StatelessWidget {
     final paid = bill.paidAmount ?? 0;
 
     return Card(
+      clipBehavior: Clip.antiAlias,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: pn.border, width: 1),
+      ),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(14),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      bill.customerName,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontWeight: FontWeight.w800,
-                        fontSize: 15,
-                        color: pn.text,
-                      ),
-                    ),
+        child: Stack(
+          children: [
+            // Decorative Left Accent Line
+            Positioned(
+              left: 0,
+              top: 0,
+              bottom: 0,
+              width: 5,
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [primary, primary.withValues(alpha: 0.5)],
                   ),
-                  PnStatusBadge.fromString(bill.collectionStatus),
-                ],
-              ),
-              const SizedBox(height: 5),
-              Row(
-                children: [
-                  Text(
-                    bill.customerCode,
-                    style: TextStyle(fontSize: 12, color: pn.textMuted),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Month ${bill.month}',
-                    style: TextStyle(fontSize: 12, color: pn.textMuted),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(99),
-                child: LinearProgressIndicator(
-                  minHeight: 7,
-                  value: bill.collectionProgress,
-                  backgroundColor: pn.surfaceMuted,
-                  color: bill.isPaid ? pn.success : primary,
                 ),
               ),
-              const SizedBox(height: 10),
-              Row(
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(18, 14, 14, 14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _AmountBlock(label: 'Bill', value: bill.amount, muted: true),
-                  _AmountBlock(label: 'Paid', value: paid, muted: true),
-                  _AmountBlock(
-                    label: readOnly ? 'Collected' : 'Balance',
-                    value: readOnly ? paid : bill.remaining,
-                    highlight: true,
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          bill.customerName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontWeight: FontWeight.w900,
+                            fontSize: 16,
+                            color: pn.text,
+                          ),
+                        ),
+                      ),
+                      PnStatusBadge.fromString(bill.collectionStatus),
+                    ],
                   ),
-                  if (!readOnly) Icon(Icons.chevron_right, color: pn.textMuted),
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: pn.surfaceMuted,
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: pn.border),
+                        ),
+                        child: Text(
+                          bill.customerCode,
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: pn.text,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: primary.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          'Month ${bill.month}',
+                          style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: primary,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (bill.hasAddress) ...[
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.location_on_outlined,
+                          size: 14,
+                          color: pn.textMuted,
+                        ),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            bill.customerAddress,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: pn.textMuted,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                  const SizedBox(height: 12),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(99),
+                    child: LinearProgressIndicator(
+                      minHeight: 8,
+                      value: bill.collectionProgress,
+                      backgroundColor: pn.surfaceMuted,
+                      color: bill.isPaid ? pn.success : primary,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      _AmountBlock(
+                        label: 'Bill',
+                        value: bill.amount,
+                        muted: true,
+                      ),
+                      _AmountBlock(label: 'Paid', value: paid, muted: true),
+                      _AmountBlock(
+                        label: readOnly ? 'Collected' : 'Balance',
+                        value: readOnly ? paid : bill.remaining,
+                        highlight: true,
+                      ),
+                      if (!readOnly)
+                        Icon(Icons.chevron_right, color: pn.textMuted),
+                    ],
+                  ),
                 ],
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -410,7 +577,7 @@ class _VisitList extends StatelessWidget {
     return ListView.separated(
       padding: const EdgeInsets.fromLTRB(16, 10, 16, 24),
       itemCount: items.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 10),
+      separatorBuilder: (context, index) => const SizedBox(height: 10),
       itemBuilder: (context, i) => _VisitTile(bill: items[i]),
     );
   }
@@ -426,9 +593,9 @@ class _VisitTile extends StatelessWidget {
     final pn = Theme.of(context).extension<PnColors>()!;
     final visitType = VisitType.fromValue(bill.paymentNote ?? '');
     final (icon, color) = switch (visitType) {
-      VisitType.houseLocked    => (Icons.lock_outline, warning),
-      VisitType.promiseToPay   => (Icons.handshake_outlined, info),
-      VisitType.refusedToPay   => (Icons.block_outlined, danger),
+      VisitType.houseLocked => (Icons.lock_outline, warning),
+      VisitType.promiseToPay => (Icons.handshake_outlined, info),
+      VisitType.refusedToPay => (Icons.block_outlined, danger),
       VisitType.paymentCollected => (Icons.check_circle_outline, pn.success),
     };
 

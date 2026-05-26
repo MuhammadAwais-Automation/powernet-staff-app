@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter/foundation.dart';
 
 import '../models/bill.dart';
 import '../config/supabase_config.dart';
@@ -8,7 +9,7 @@ import '../config/supabase_config.dart';
 const billBaseSelect =
     'id, customer_id, amount, paid_amount, month, status, collected_by, '
     'paid_at, receipt_no, payment_method, payment_note, created_at, '
-    'customer:customers(id, customer_code, full_name, address_type, address_value)';
+    'customer:customers(id, customer_code, full_name, address_type, address_value, area_id)';
 
 const billAreaSelect =
     'id, customer_id, amount, paid_amount, month, status, collected_by, '
@@ -16,6 +17,10 @@ const billAreaSelect =
     'customer:customers!inner(id, customer_code, full_name, address_type, address_value, area_id)';
 
 const _queuedPaymentsKey = 'queued_bill_payments';
+const _queuedVisitsKey = 'queued_bill_visits';
+const _cachedPendingPrefix = 'cached_pending_bills_';
+const _cachedCollectedPrefix = 'cached_collected_bills_';
+const _cachedVisitedPrefix = 'cached_visited_bills_';
 
 class QueuedBillPayment {
   final String id;
@@ -54,6 +59,39 @@ class QueuedBillPayment {
     'collector_id': collectorId,
     'payment_method': paymentMethod,
     'payment_note': paymentNote,
+    'queued_at': queuedAt,
+  };
+}
+
+class QueuedBillVisit {
+  final String id;
+  final String billId;
+  final String collectorId;
+  final String visitType;
+  final String queuedAt;
+
+  const QueuedBillVisit({
+    required this.id,
+    required this.billId,
+    required this.collectorId,
+    required this.visitType,
+    required this.queuedAt,
+  });
+
+  factory QueuedBillVisit.fromJson(Map<String, dynamic> json) =>
+      QueuedBillVisit(
+        id: json['id'] as String,
+        billId: json['bill_id'] as String,
+        collectorId: json['collector_id'] as String,
+        visitType: json['visit_type'] as String,
+        queuedAt: json['queued_at'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'bill_id': billId,
+    'collector_id': collectorId,
+    'visit_type': visitType,
     'queued_at': queuedAt,
   };
 }
@@ -126,17 +164,56 @@ class BillsRepository {
     return Bill.fromJson(res);
   }
 
+  Future<void> cacheRecoverySnapshot({
+    required String areaId,
+    required String collectorId,
+    required List<Bill> pending,
+    required List<Bill> collectedToday,
+    required List<Bill> visitedToday,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    await Future.wait([
+      prefs.setString(
+        _cacheKey(_cachedPendingPrefix, areaId),
+        _encodeBills(pending),
+      ),
+      prefs.setString(
+        _cacheKey(_cachedCollectedPrefix, collectorId),
+        _encodeBills(collectedToday),
+      ),
+      prefs.setString(
+        _cacheKey(_cachedVisitedPrefix, collectorId),
+        _encodeBills(visitedToday),
+      ),
+    ]);
+  }
+
+  Future<List<Bill>> getCachedPendingByArea(String areaId) async {
+    return _readCachedBills(_cacheKey(_cachedPendingPrefix, areaId));
+  }
+
+  Future<List<Bill>> getCachedCollectedToday(String collectorId) async {
+    return _readCachedBills(_cacheKey(_cachedCollectedPrefix, collectorId));
+  }
+
+  Future<List<Bill>> getCachedVisitedToday(String collectorId) async {
+    return _readCachedBills(_cacheKey(_cachedVisitedPrefix, collectorId));
+  }
+
   Future<void> recordVisit({
     required String billId,
     required String collectorId,
     required String visitType,
   }) async {
-    await supabase.from('bills').update({
-      'payment_method': 'visit',
-      'payment_note': visitType,
-      'collected_by': collectorId,
-      'paid_at': DateTime.now().toUtc().toIso8601String(),
-    }).eq('id', billId);
+    await supabase
+        .from('bills')
+        .update({
+          'payment_method': 'visit',
+          'payment_note': visitType,
+          'collected_by': collectorId,
+          'paid_at': DateTime.now().toUtc().toIso8601String(),
+        })
+        .eq('id', billId);
   }
 
   Future<void> recordPayment({
@@ -168,6 +245,16 @@ class BillsRepository {
         .toList();
   }
 
+  Future<List<QueuedBillVisit>> getQueuedVisits() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_queuedVisitsKey);
+    if (raw == null || raw.isEmpty) return [];
+    final decoded = jsonDecode(raw) as List<dynamic>;
+    return decoded
+        .map((j) => QueuedBillVisit.fromJson(j as Map<String, dynamic>))
+        .toList();
+  }
+
   Future<void> queuePayment({
     required String billId,
     required double paidAmount,
@@ -188,6 +275,22 @@ class BillsRepository {
     await _saveQueuedPayments([...queued, draft]);
   }
 
+  Future<void> queueVisit({
+    required String billId,
+    required String collectorId,
+    required String visitType,
+  }) async {
+    final queued = await getQueuedVisits();
+    final draft = QueuedBillVisit(
+      id: '${DateTime.now().microsecondsSinceEpoch}-$billId',
+      billId: billId,
+      collectorId: collectorId,
+      visitType: visitType,
+      queuedAt: DateTime.now().toUtc().toIso8601String(),
+    );
+    await _saveQueuedVisits([...queued, draft]);
+  }
+
   Future<int> syncQueuedPayments() async {
     final queued = await getQueuedPayments();
     if (queued.isEmpty) return 0;
@@ -204,7 +307,10 @@ class BillsRepository {
           paymentNote: payment.paymentNote,
         );
         synced++;
-      } catch (_) {
+      } catch (e) {
+        debugPrint(
+          'POWERNET_DEBUG: syncQueuedPayments failed for bill ${payment.billId}: $e',
+        );
         remaining.add(payment);
       }
     }
@@ -212,9 +318,69 @@ class BillsRepository {
     return synced;
   }
 
+  Future<int> syncQueuedVisits() async {
+    final queued = await getQueuedVisits();
+    if (queued.isEmpty) return 0;
+
+    final remaining = <QueuedBillVisit>[];
+    var synced = 0;
+    for (final visit in queued) {
+      try {
+        await recordVisit(
+          billId: visit.billId,
+          collectorId: visit.collectorId,
+          visitType: visit.visitType,
+        );
+        synced++;
+      } catch (e) {
+        debugPrint(
+          'POWERNET_DEBUG: syncQueuedVisits failed for bill '
+          '${visit.billId}: $e',
+        );
+        remaining.add(visit);
+      }
+    }
+    await _saveQueuedVisits(remaining);
+    return synced;
+  }
+
+  Future<int> syncQueuedOperations() async {
+    final syncedPayments = await syncQueuedPayments();
+    final syncedVisits = await syncQueuedVisits();
+    return syncedPayments + syncedVisits;
+  }
+
+  Future<int> countQueuedOperations() async {
+    final payments = await getQueuedPayments();
+    final visits = await getQueuedVisits();
+    return payments.length + visits.length;
+  }
+
   Future<void> _saveQueuedPayments(List<QueuedBillPayment> payments) async {
     final prefs = await SharedPreferences.getInstance();
     final encoded = jsonEncode(payments.map((p) => p.toJson()).toList());
     await prefs.setString(_queuedPaymentsKey, encoded);
   }
+
+  Future<void> _saveQueuedVisits(List<QueuedBillVisit> visits) async {
+    final prefs = await SharedPreferences.getInstance();
+    final encoded = jsonEncode(visits.map((v) => v.toJson()).toList());
+    await prefs.setString(_queuedVisitsKey, encoded);
+  }
+
+  Future<List<Bill>> _readCachedBills(String key) async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(key);
+    if (raw == null || raw.isEmpty) return [];
+    final decoded = jsonDecode(raw) as List<dynamic>;
+    return decoded
+        .map((j) => Bill.fromJson(j as Map<String, dynamic>))
+        .toList();
+  }
+
+  String _encodeBills(List<Bill> bills) {
+    return jsonEncode(bills.map((bill) => bill.toJson()).toList());
+  }
+
+  String _cacheKey(String prefix, String value) => '$prefix$value';
 }

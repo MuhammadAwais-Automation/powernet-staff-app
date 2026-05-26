@@ -1,4 +1,4 @@
-package com.powernet.powernet_staff
+package com.powernet.staff
 
 import io.flutter.embedding.android.FlutterActivity
 

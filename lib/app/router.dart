@@ -1,9 +1,17 @@
+import 'package:flutter/foundation.dart';
 import 'package:go_router/go_router.dart';
+import '../models/staff.dart';
 import '../providers/auth_provider.dart';
+import '../providers/customer_auth_provider.dart';
 import '../screens/splash_screen.dart';
 import '../screens/login_screen.dart';
 import '../screens/home_screen.dart';
 import '../screens/profile_screen.dart';
+import '../screens/customer/customer_bills_screen.dart';
+import '../screens/customer/customer_complaints_screen.dart';
+import '../screens/customer/customer_home_screen.dart';
+import '../screens/customer/customer_profile_screen.dart';
+import '../screens/customer/customer_signup_screen.dart';
 import '../screens/technician/complaint_list_screen.dart';
 import '../screens/technician/complaint_detail_screen.dart';
 import '../screens/collector/bill_list_screen.dart';
@@ -13,25 +21,78 @@ import '../screens/field_agent/customer_detail_screen.dart';
 import '../screens/cable_operator/co_customer_list_screen.dart';
 import '../screens/cable_operator/co_customer_detail_screen.dart';
 
-GoRouter buildRouter(AuthProvider auth) {
+String _defaultLocationForRole(String? role) {
+  switch (normalizeStaffRole(role)) {
+    case 'recovery_agent':
+      return '/collector/bills';
+    case 'technician':
+      return '/technician/complaints';
+    default:
+      return '/home';
+  }
+}
+
+GoRouter buildRouter(AuthProvider auth, CustomerAuthProvider customerAuth) {
   return GoRouter(
     initialLocation: '/',
-    refreshListenable: auth,
+    refreshListenable: Listenable.merge([auth, customerAuth]),
     redirect: (context, state) {
-      if (auth.loading) return null;
-      final loggedIn = auth.isLoggedIn;
+      if (auth.loading || customerAuth.loading) return null;
+      final staffLoggedIn = auth.isLoggedIn;
+      final customerLoggedIn = customerAuth.isLoggedIn;
       final loc = state.matchedLocation;
       final onLogin = loc == '/login';
       final onSplash = loc == '/';
-      if (!loggedIn && !onLogin) return '/login';
-      if (loggedIn && (onLogin || onSplash)) return '/home';
+      final onCustomerSignup = loc == '/customer/signup';
+      final onCustomerRoute = loc.startsWith('/customer/') && !onCustomerSignup;
+      final defaultLocation = _defaultLocationForRole(auth.currentStaff?.role);
+      if (!staffLoggedIn &&
+          !customerLoggedIn &&
+          !onLogin &&
+          !onCustomerSignup) {
+        return '/login';
+      }
+      if (customerLoggedIn && (onLogin || onSplash || !onCustomerRoute)) {
+        return '/customer/home';
+      }
+      if (staffLoggedIn &&
+          (onLogin || onSplash || onCustomerRoute || onCustomerSignup)) {
+        return defaultLocation;
+      }
+      if (staffLoggedIn && loc == '/home' && defaultLocation != '/home') {
+        return defaultLocation;
+      }
       return null;
     },
     routes: [
       GoRoute(path: '/', builder: (context, state) => const SplashScreen()),
       GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
+      GoRoute(
+        path: '/customer/signup',
+        builder: (context, state) => const CustomerSignupScreen(),
+      ),
       GoRoute(path: '/home', builder: (context, state) => const HomeScreen()),
-      GoRoute(path: '/profile', builder: (context, state) => const ProfileScreen()),
+      GoRoute(
+        path: '/profile',
+        builder: (context, state) => const ProfileScreen(),
+      ),
+
+      GoRoute(
+        path: '/customer/home',
+        builder: (context, state) => const CustomerHomeScreen(),
+      ),
+      GoRoute(
+        path: '/customer/bills',
+        builder: (context, state) => const CustomerBillsScreen(),
+      ),
+      GoRoute(
+        path: '/customer/complaints',
+        builder: (context, state) => const CustomerComplaintsScreen(),
+      ),
+      GoRoute(
+        path: '/customer/profile',
+        builder: (context, state) => const CustomerProfileScreen(),
+      ),
 
       // Technician routes
       GoRoute(
@@ -40,9 +101,8 @@ GoRouter buildRouter(AuthProvider auth) {
         routes: [
           GoRoute(
             path: ':id',
-            builder: (context, state) => ComplaintDetailScreen(
-              complaintId: state.pathParameters['id']!,
-            ),
+            builder: (context, state) =>
+                ComplaintDetailScreen(complaintId: state.pathParameters['id']!),
           ),
         ],
       ),
@@ -54,9 +114,8 @@ GoRouter buildRouter(AuthProvider auth) {
         routes: [
           GoRoute(
             path: ':id',
-            builder: (context, state) => CustomerDetailScreen(
-              customerId: state.pathParameters['id']!,
-            ),
+            builder: (context, state) =>
+                CustomerDetailScreen(customerId: state.pathParameters['id']!),
           ),
         ],
       ),
@@ -68,9 +127,8 @@ GoRouter buildRouter(AuthProvider auth) {
         routes: [
           GoRoute(
             path: ':id',
-            builder: (context, state) => CoCustomerDetailScreen(
-              customerId: state.pathParameters['id']!,
-            ),
+            builder: (context, state) =>
+                CoCustomerDetailScreen(customerId: state.pathParameters['id']!),
           ),
         ],
       ),
@@ -82,9 +140,8 @@ GoRouter buildRouter(AuthProvider auth) {
         routes: [
           GoRoute(
             path: ':id/collect',
-            builder: (context, state) => CollectPaymentScreen(
-              billId: state.pathParameters['id']!,
-            ),
+            builder: (context, state) =>
+                CollectPaymentScreen(billId: state.pathParameters['id']!),
           ),
         ],
       ),

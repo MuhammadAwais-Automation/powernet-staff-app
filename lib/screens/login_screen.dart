@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
+import '../providers/customer_auth_provider.dart';
 import '../theme/app_theme.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -13,6 +15,7 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final _usernameCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
+  String _mode = 'staff';
   bool _obscure = true;
   bool _loading = false;
 
@@ -32,10 +35,16 @@ class _LoginScreenState extends State<LoginScreen> {
     FocusScope.of(context).unfocus();
     setState(() => _loading = true);
     final auth = context.read<AuthProvider>();
-    final result = await auth.login(
-      _usernameCtrl.text.trim().toLowerCase(),
-      _passwordCtrl.text,
-    );
+    final customerAuth = context.read<CustomerAuthProvider>();
+    final result = _mode == 'staff'
+        ? await auth.login(
+            _usernameCtrl.text.trim().toLowerCase(),
+            _passwordCtrl.text,
+          )
+        : await customerAuth.login(
+            _usernameCtrl.text.trim(),
+            _passwordCtrl.text,
+          );
     if (!mounted) return;
     setState(() => _loading = false);
     if (!result.ok) {
@@ -67,7 +76,7 @@ class _LoginScreenState extends State<LoginScreen> {
               const Icon(Icons.wifi_tethering, size: 64, color: primary),
               const SizedBox(height: 12),
               Text(
-                'PowerNet Staff',
+                _mode == 'staff' ? 'PowerNet Staff' : 'PowerNet Customer',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 24,
@@ -77,20 +86,47 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               const SizedBox(height: 8),
               Text(
-                'Sign in to continue',
+                _mode == 'staff'
+                    ? 'Sign in to continue'
+                    : 'Use your house ID or phone after approval',
                 textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 14, color: pn.textMuted),
               ),
-              const SizedBox(height: 40),
+              const SizedBox(height: 28),
+              SegmentedButton<String>(
+                segments: const [
+                  ButtonSegment(
+                    value: 'staff',
+                    label: Text('Staff'),
+                    icon: Icon(Icons.badge_outlined),
+                  ),
+                  ButtonSegment(
+                    value: 'customer',
+                    label: Text('Customer'),
+                    icon: Icon(Icons.home_outlined),
+                  ),
+                ],
+                selected: {_mode},
+                onSelectionChanged: (selection) {
+                  setState(() {
+                    _mode = selection.first;
+                    _usernameCtrl.clear();
+                    _passwordCtrl.clear();
+                  });
+                },
+              ),
+              const SizedBox(height: 24),
               TextField(
                 controller: _usernameCtrl,
                 textInputAction: TextInputAction.next,
                 autocorrect: false,
                 enableSuggestions: false,
                 textCapitalization: TextCapitalization.none,
-                decoration: const InputDecoration(
-                  labelText: 'Username',
-                  prefixIcon: Icon(Icons.person_outline),
+                decoration: InputDecoration(
+                  labelText: _mode == 'staff'
+                      ? 'Username'
+                      : 'House ID or phone',
+                  prefixIcon: const Icon(Icons.person_outline),
                 ),
                 onChanged: (_) => setState(() {}),
               ),
@@ -104,9 +140,11 @@ class _LoginScreenState extends State<LoginScreen> {
                   labelText: 'Password',
                   prefixIcon: const Icon(Icons.lock_outline),
                   suffixIcon: IconButton(
-                    icon: Icon(_obscure
-                        ? Icons.visibility_off_outlined
-                        : Icons.visibility_outlined),
+                    icon: Icon(
+                      _obscure
+                          ? Icons.visibility_off_outlined
+                          : Icons.visibility_outlined,
+                    ),
                     onPressed: () => setState(() => _obscure = !_obscure),
                   ),
                 ),
@@ -124,8 +162,18 @@ class _LoginScreenState extends State<LoginScreen> {
                           valueColor: AlwaysStoppedAnimation(Colors.white),
                         ),
                       )
-                    : const Text('LOGIN'),
+                    : Text(_mode == 'staff' ? 'LOGIN' : 'CUSTOMER LOGIN'),
               ),
+              if (_mode == 'customer') ...[
+                const SizedBox(height: 12),
+                OutlinedButton.icon(
+                  onPressed: _loading
+                      ? null
+                      : () => context.push('/customer/signup'),
+                  icon: const Icon(Icons.person_add_alt_1_outlined),
+                  label: const Text('Create new customer request'),
+                ),
+              ],
             ],
           ),
         ),

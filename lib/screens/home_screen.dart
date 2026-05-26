@@ -26,21 +26,19 @@ class _HomeScreenState extends State<HomeScreen> {
     final auth = context.read<AuthProvider>();
     final staff = auth.currentStaff;
     if (staff == null) return;
-
-    switch (staff.role) {
+    switch (staff.normalizedRole) {
       case 'technician':
-      case 'helper_technician':
-      case 'helper':
-        final q = context.read<ComplaintQueueProvider>();
-        if (staff.areaId != null) {
-          q.loadForArea(staff.areaId!);
-        } else {
-          q.loadForTechnician(staff.id);
-        }
+        context.read<ComplaintQueueProvider>().loadForTechnicianAndArea(
+          staff.id,
+          staff.areaId,
+        );
         break;
       case 'recovery_agent':
         if (staff.areaId != null) {
-          context.read<BillsProvider>().loadPendingByArea(staff.areaId!, staff.id);
+          context.read<BillsProvider>().loadPendingByArea(
+            staff.areaId!,
+            staff.id,
+          );
         }
         break;
       case 'field_agent':
@@ -73,7 +71,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
-      body: _RoleHome(role: staff.role),
+      body: _RoleHome(role: staff.normalizedRole),
     );
   }
 }
@@ -87,6 +85,20 @@ class _RoleHome extends StatelessWidget {
     final pn = Theme.of(context).extension<PnColors>()!;
     final staff = context.watch<AuthProvider>().currentStaff!;
 
+    if (staff.normalizedRole == 'recovery_agent') {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (context.mounted) context.go('/collector/bills');
+      });
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (staff.normalizedRole == 'technician') {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (context.mounted) context.go('/technician/complaints');
+      });
+      return const Center(child: CircularProgressIndicator());
+    }
+
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
@@ -95,7 +107,10 @@ class _RoleHome extends StatelessWidget {
         Text(
           'Quick Overview',
           style: TextStyle(
-              fontSize: 15, fontWeight: FontWeight.w600, color: pn.text),
+            fontSize: 15,
+            fontWeight: FontWeight.w600,
+            color: pn.text,
+          ),
         ),
         const SizedBox(height: 12),
         _KpiGrid(role: role, pn: pn),
@@ -126,9 +141,7 @@ class _WelcomeCard extends StatelessWidget {
             radius: 24,
             backgroundColor: primary,
             child: Text(
-              staff.fullName.isNotEmpty
-                  ? staff.fullName[0].toUpperCase()
-                  : '?',
+              staff.fullName.isNotEmpty ? staff.fullName[0].toUpperCase() : '?',
               style: const TextStyle(
                 color: Colors.white,
                 fontWeight: FontWeight.w700,
@@ -151,8 +164,10 @@ class _WelcomeCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 2,
+                  ),
                   decoration: BoxDecoration(
                     color: primary.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(99),
@@ -196,8 +211,6 @@ class _KpiGrid extends StatelessWidget {
   List<Widget> _cards(BuildContext context) {
     switch (role) {
       case 'technician':
-      case 'helper_technician':
-      case 'helper':
         final q = context.watch<ComplaintQueueProvider>();
         final loading = q.loading;
         return [
@@ -240,9 +253,7 @@ class _KpiGrid extends StatelessWidget {
           ),
           PnKpiCard(
             label: 'Total Due',
-            value: loading
-                ? '…'
-                : 'Rs.${bills.totalDue.toStringAsFixed(0)}',
+            value: loading ? '…' : 'Rs.${bills.totalDue.toStringAsFixed(0)}',
             icon: Icons.account_balance_wallet_outlined,
             valueColor: pn.warning,
             onTap: () => context.push('/collector/bills'),
@@ -257,7 +268,7 @@ class _KpiGrid extends StatelessWidget {
           ),
           PnKpiCard(
             label: 'Visited Today',
-            value: loading ? '…' : '${bills.collectedToday.length}',
+            value: loading ? '…' : '${bills.visitedToday.length}',
             icon: Icons.location_on_outlined,
           ),
         ];
@@ -325,12 +336,12 @@ class _KpiGrid extends StatelessWidget {
         ];
       default:
         return [
+          PnKpiCard(label: 'Customers', value: '—', icon: Icons.people_outline),
           PnKpiCard(
-              label: 'Customers', value: '—', icon: Icons.people_outline),
-          PnKpiCard(
-              label: 'Complaints',
-              value: '—',
-              icon: Icons.report_problem_outlined),
+            label: 'Complaints',
+            value: '—',
+            icon: Icons.report_problem_outlined,
+          ),
         ];
     }
   }
@@ -353,13 +364,18 @@ class _QuickActions extends StatelessWidget {
         Text(
           'Quick Actions',
           style: TextStyle(
-              fontSize: 15, fontWeight: FontWeight.w600, color: pn.text),
+            fontSize: 15,
+            fontWeight: FontWeight.w600,
+            color: pn.text,
+          ),
         ),
         const SizedBox(height: 12),
-        ...actions.map((a) => Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: _ActionTile(label: a.$1, icon: a.$2, route: a.$3, pn: pn),
-            )),
+        ...actions.map(
+          (a) => Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: _ActionTile(label: a.$1, icon: a.$2, route: a.$3, pn: pn),
+          ),
+        ),
       ],
     );
   }
@@ -367,14 +383,20 @@ class _QuickActions extends StatelessWidget {
   List<(String, IconData, String)> _actionsForRole(String role) {
     switch (role) {
       case 'technician':
-      case 'helper_technician':
-      case 'helper':
         return [
-          ('View Complaints', Icons.list_alt_outlined, '/technician/complaints'),
+          (
+            'View Complaints',
+            Icons.list_alt_outlined,
+            '/technician/complaints',
+          ),
         ];
       case 'recovery_agent':
         return [
-          ('View Pending Bills', Icons.receipt_long_outlined, '/collector/bills'),
+          (
+            'View Pending Bills',
+            Icons.receipt_long_outlined,
+            '/collector/bills',
+          ),
         ];
       case 'field_agent':
         return [
@@ -415,11 +437,14 @@ class _ActionTile extends StatelessWidget {
             children: [
               Icon(icon, color: primary, size: 22),
               const SizedBox(width: 12),
-              Text(label,
-                  style: TextStyle(
-                      fontWeight: FontWeight.w500,
-                      fontSize: 14,
-                      color: pn.text)),
+              Text(
+                label,
+                style: TextStyle(
+                  fontWeight: FontWeight.w500,
+                  fontSize: 14,
+                  color: pn.text,
+                ),
+              ),
               const Spacer(),
               Icon(Icons.chevron_right, color: pn.textMuted),
             ],

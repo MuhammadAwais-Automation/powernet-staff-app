@@ -1,41 +1,44 @@
 import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' show AuthChangeEvent;
+
 import '../config/supabase_config.dart';
-import '../models/staff.dart';
-import '../services/auth_service.dart';
+import '../models/customer_account.dart';
+import '../services/customer_auth_service.dart';
 
-class AuthProvider extends ChangeNotifier {
-  static const _key = 'pn_staff';
+class CustomerAuthProvider extends ChangeNotifier {
+  static const _key = 'pn_customer';
   static const _storage = FlutterSecureStorage();
-  final AuthService _service = AuthService();
+  final CustomerAuthService _service = CustomerAuthService();
 
-  Staff? _currentStaff;
+  CustomerAccount? _currentCustomer;
   bool _loading = true;
 
-  Staff? get currentStaff => _currentStaff;
-  bool get isLoggedIn => _currentStaff != null;
+  CustomerAccount? get currentCustomer => _currentCustomer;
+  bool get isLoggedIn => _currentCustomer != null;
   bool get loading => _loading;
 
   Future<void> initialize() async {
-    await _loadSavedStaff();
+    await _loadSavedCustomer();
     _listenAuthState();
   }
 
-  Future<void> _loadSavedStaff() async {
+  Future<void> _loadSavedCustomer() async {
     try {
-      final json = await _storage
+      final raw = await _storage
           .read(key: _key)
           .timeout(const Duration(seconds: 5));
-      if (json != null) {
-        final saved = Staff.fromJson(jsonDecode(json) as Map<String, dynamic>);
+      if (raw != null) {
+        final saved = CustomerAccount.fromJson(
+          jsonDecode(raw) as Map<String, dynamic>,
+        );
         final session = supabase.auth.currentSession;
-        if (saved.authUserId != null &&
-            (session == null || session.user.id != saved.authUserId)) {
+        if (session == null || saved.authUserId != session.user.id) {
           await _storage.delete(key: _key);
         } else {
-          _currentStaff = saved;
+          _currentCustomer = saved;
         }
       }
     } catch (_) {
@@ -56,48 +59,50 @@ class AuthProvider extends ChangeNotifier {
           final event = data.event;
 
           if (session == null) {
-            _currentStaff = null;
+            _currentCustomer = null;
             notifyListeners();
             return;
           }
 
-          // Skip silent events when same user already loaded
           if (event == AuthChangeEvent.tokenRefreshed ||
               event == AuthChangeEvent.signedIn ||
               event == AuthChangeEvent.initialSession) {
-            if (_currentStaff?.authUserId == session.user.id) return;
-            final staff = await _service.fetchStaffByAuthId(session.user.id);
-            if (staff == null) {
-              _currentStaff = null;
+            if (_currentCustomer?.authUserId == session.user.id) return;
+            final customer = await _service.fetchCustomerByAuthId(
+              session.user.id,
+            );
+            if (customer == null) {
+              _currentCustomer = null;
             } else {
-              _currentStaff = staff;
-              await _persist(staff);
+              _currentCustomer = customer;
+              await _persist(customer);
             }
             notifyListeners();
           }
         } catch (e) {
-          debugPrint('AuthProvider: auth state handler error: $e');
+          debugPrint('CustomerAuthProvider: auth state handler error: $e');
           notifyListeners();
         }
       },
       onError: (Object e) {
-        debugPrint('AuthProvider: auth stream error: $e');
+        debugPrint('CustomerAuthProvider: auth stream error: $e');
       },
       cancelOnError: false,
     );
   }
 
   Future<({bool ok, String? error})> login(
-    String username,
+    String identifier,
     String password,
   ) async {
     try {
-      final staff = await _service.login(username, password);
-      if (staff == null) {
-        return (ok: false, error: 'Invalid credentials');
+      await _service.signOut().catchError((_) {});
+      final customer = await _service.login(identifier, password);
+      if (customer == null) {
+        return (ok: false, error: 'Invalid customer credentials');
       }
-      _currentStaff = staff;
-      await _persist(staff).catchError((_) {});
+      _currentCustomer = customer;
+      await _persist(customer).catchError((_) {});
       notifyListeners();
       return (ok: true, error: null);
     } catch (e) {
@@ -107,32 +112,29 @@ class AuthProvider extends ChangeNotifier {
 
   Future<void> logout() async {
     await _service.signOut();
-    _currentStaff = null;
+    _currentCustomer = null;
     await _storage.delete(key: _key);
     notifyListeners();
   }
 
   Future<void> refreshProfile() async {
-    final staff = _currentStaff;
-    if (staff == null) return;
+    final customer = _currentCustomer;
+    if (customer?.authUserId == null) return;
     try {
-      Staff? updated;
-      if (staff.authUserId != null) {
-        updated = await _service.fetchStaffByAuthId(staff.authUserId!);
-      } else {
-        updated = await _service.fetchStaffById(staff.id);
-      }
+      final updated = await _service.fetchCustomerByAuthId(
+        customer!.authUserId!,
+      );
       if (updated != null) {
-        _currentStaff = updated;
+        _currentCustomer = updated;
         await _persist(updated);
         notifyListeners();
       }
     } catch (e) {
-      debugPrint('AuthProvider: refreshProfile failed: $e');
+      debugPrint('CustomerAuthProvider: refreshProfile failed: $e');
     }
   }
 
-  Future<void> _persist(Staff staff) async {
-    await _storage.write(key: _key, value: jsonEncode(staff.toJson()));
+  Future<void> _persist(CustomerAccount customer) async {
+    await _storage.write(key: _key, value: jsonEncode(customer.toJson()));
   }
 }

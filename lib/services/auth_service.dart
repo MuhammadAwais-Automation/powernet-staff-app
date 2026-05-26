@@ -3,7 +3,7 @@ import '../models/staff.dart';
 
 const _domain = '@powernet.local';
 const _staffCols =
-    'id, full_name, role, phone, area_id, username, auth_user_id';
+    'id, full_name, role, phone, area_id, username, auth_user_id, area:areas(name)';
 
 Staff? parseVerifiedStaffLogin(dynamic response) {
   if (response is! Map || response['success'] != true) return null;
@@ -43,6 +43,17 @@ class AuthService {
         .from('staff')
         .select(_staffCols)
         .eq('auth_user_id', authUserId)
+        .eq('is_active', true)
+        .maybeSingle();
+    if (data == null) return null;
+    return Staff.fromJson(data);
+  }
+
+  Future<Staff?> fetchStaffById(String id) async {
+    final data = await supabase
+        .from('staff')
+        .select(_staffCols)
+        .eq('id', id)
         .eq('is_active', true)
         .maybeSingle();
     if (data == null) return null;

@@ -6,6 +6,8 @@ import 'config/supabase_config.dart';
 import 'providers/auth_provider.dart';
 import 'providers/bills_provider.dart';
 import 'providers/complaint_queue_provider.dart';
+import 'providers/customer_auth_provider.dart';
+import 'providers/customer_portal_provider.dart';
 import 'providers/customers_provider.dart';
 import 'theme/app_theme.dart';
 
@@ -24,14 +26,17 @@ class PowerNetStaffApp extends StatefulWidget {
 
 class _PowerNetStaffAppState extends State<PowerNetStaffApp> {
   late final AuthProvider _auth;
+  late final CustomerAuthProvider _customerAuth;
   late final GoRouter _router;
 
   @override
   void initState() {
     super.initState();
     _auth = AuthProvider();
-    _router = buildRouter(_auth);
+    _customerAuth = CustomerAuthProvider();
+    _router = buildRouter(_auth, _customerAuth);
     _auth.initialize();
+    _customerAuth.initialize();
   }
 
   @override
@@ -39,9 +44,11 @@ class _PowerNetStaffAppState extends State<PowerNetStaffApp> {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider.value(value: _auth),
+        ChangeNotifierProvider.value(value: _customerAuth),
         ChangeNotifierProvider(create: (_) => BillsProvider()),
         ChangeNotifierProvider(create: (_) => ComplaintQueueProvider()),
         ChangeNotifierProvider(create: (_) => CustomersProvider()),
+        ChangeNotifierProvider(create: (_) => CustomerPortalProvider()),
       ],
       child: Consumer<AuthProvider>(
         builder: (context, auth, child) => MaterialApp.router(

@@ -80,6 +80,22 @@ class Bill {
     customer: j['customer'] as Map<String, dynamic>?,
   );
 
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'customer_id': customerId,
+    'amount': amount,
+    'paid_amount': paidAmount,
+    'month': month,
+    'status': status,
+    'collected_by': collectedBy,
+    'paid_at': paidAt,
+    'receipt_no': receiptNo,
+    'payment_method': paymentMethod,
+    'payment_note': paymentNote,
+    'created_at': createdAt,
+    'customer': customer,
+  };
+
   Bill copyWith({
     double? paidAmount,
     String? status,
@@ -117,4 +133,5 @@ class Bill {
   String get customerAddressType => customer?['address_type'] as String? ?? '';
 
   bool get hasAddress => customerAddress.isNotEmpty;
+  String? get customerAreaId => customer?['area_id'] as String?;
 }

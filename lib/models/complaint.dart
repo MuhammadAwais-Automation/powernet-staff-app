@@ -9,6 +9,8 @@ class Complaint {
   final String? assignedTo;
   final String openedAt;
   final String? resolvedAt;
+  final String? resolutionNotes;
+  final String? hardwareUsed;
   final Map<String, dynamic>? customer;
   final Map<String, dynamic>? technician;
 
@@ -23,24 +25,67 @@ class Complaint {
     this.assignedTo,
     required this.openedAt,
     this.resolvedAt,
+    this.resolutionNotes,
+    this.hardwareUsed,
     this.customer,
     this.technician,
   });
 
   factory Complaint.fromJson(Map<String, dynamic> j) => Complaint(
-        id: j['id'] as String,
-        complaintCode: j['complaint_code'] as String,
-        customerId: j['customer_id'] as String,
-        issue: j['issue'] as String,
-        type: j['type'] as String,
-        priority: j['priority'] as String,
-        status: j['status'] as String,
-        assignedTo: j['assigned_to'] as String?,
-        openedAt: j['opened_at'] as String,
-        resolvedAt: j['resolved_at'] as String?,
-        customer: j['customer'] as Map<String, dynamic>?,
-        technician: j['technician'] as Map<String, dynamic>?,
-      );
+    id: j['id'] as String,
+    complaintCode: j['complaint_code'] as String,
+    customerId: j['customer_id'] as String,
+    issue: j['issue'] as String,
+    type: j['type'] as String,
+    priority: j['priority'] as String,
+    status: j['status'] as String,
+    assignedTo: j['assigned_to'] as String?,
+    openedAt: j['opened_at'] as String,
+    resolvedAt: j['resolved_at'] as String?,
+    resolutionNotes: j['resolution_notes'] as String?,
+    hardwareUsed: j['hardware_used'] as String?,
+    customer: j['customer'] as Map<String, dynamic>?,
+    technician: j['technician'] as Map<String, dynamic>?,
+  );
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'complaint_code': complaintCode,
+    'customer_id': customerId,
+    'issue': issue,
+    'type': type,
+    'priority': priority,
+    'status': status,
+    'assigned_to': assignedTo,
+    'opened_at': openedAt,
+    'resolved_at': resolvedAt,
+    'resolution_notes': resolutionNotes,
+    'hardware_used': hardwareUsed,
+    'customer': customer,
+    'technician': technician,
+  };
+
+  Complaint copyWith({
+    String? status,
+    String? resolvedAt,
+    String? resolutionNotes,
+    String? hardwareUsed,
+  }) => Complaint(
+    id: id,
+    complaintCode: complaintCode,
+    customerId: customerId,
+    issue: issue,
+    type: type,
+    priority: priority,
+    status: status ?? this.status,
+    assignedTo: assignedTo,
+    openedAt: openedAt,
+    resolvedAt: resolvedAt ?? this.resolvedAt,
+    resolutionNotes: resolutionNotes ?? this.resolutionNotes,
+    hardwareUsed: hardwareUsed ?? this.hardwareUsed,
+    customer: customer,
+    technician: technician,
+  );
 
   bool get isOpen => status == 'open';
   bool get isInProgress => status == 'in_progress';
@@ -51,4 +96,8 @@ class Complaint {
 
   String get customerName => customer?['full_name'] as String? ?? '—';
   String get technicianName => technician?['full_name'] as String? ?? '—';
+  String get customerCode => customer?['customer_code'] as String? ?? '—';
+  String get customerPhone => customer?['phone'] as String? ?? '';
+  String get customerAddress => customer?['address_value'] as String? ?? '';
+  bool get hasAddress => customerAddress.isNotEmpty;
 }

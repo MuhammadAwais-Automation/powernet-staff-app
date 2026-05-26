@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 
 class RecoveryHeroCard extends StatelessWidget {
+  final String areaName;
   final double totalDue;
   final int billCount;
   final double collectedTodayAmount;
@@ -11,6 +12,7 @@ class RecoveryHeroCard extends StatelessWidget {
 
   const RecoveryHeroCard({
     super.key,
+    required this.areaName,
     required this.totalDue,
     required this.billCount,
     required this.collectedTodayAmount,
@@ -23,13 +25,20 @@ class RecoveryHeroCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: const Color(0xFF172033),
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Color(0xFF1E2433),
+            Color(0xFF0F1420),
+          ],
+        ),
         borderRadius: BorderRadius.circular(24),
         border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.12),
-            blurRadius: 22,
+            color: Colors.black.withValues(alpha: 0.18),
+            blurRadius: 24,
             offset: const Offset(0, 12),
           ),
         ],
@@ -48,21 +57,25 @@ class RecoveryHeroCard extends StatelessWidget {
                 child: const Icon(Icons.route_outlined, color: primary),
               ),
               const SizedBox(width: 12),
-              const Expanded(
+              Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Today route',
-                      style: TextStyle(color: Colors.white70, fontSize: 12),
+                      'Area: $areaName',
+                      style: const TextStyle(
+                        color: primary,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
-                    SizedBox(height: 2),
-                    Text(
+                    const SizedBox(height: 2),
+                    const Text(
                       'Collect, note, sync',
                       style: TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.w800,
-                        fontSize: 20,
+                        fontSize: 18,
                       ),
                     ),
                   ],

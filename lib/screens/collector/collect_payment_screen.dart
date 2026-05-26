@@ -49,15 +49,44 @@ class _CollectPaymentScreenState extends State<CollectPaymentScreen> {
       _loading = true;
       _error = null;
     });
+    final cachedBill = context.read<BillsProvider>().findBillById(
+      widget.billId,
+    );
+    if (cachedBill != null) {
+      _applyLoadedBill(cachedBill);
+      if (mounted) setState(() => _loading = false);
+    }
     try {
       final bill = await _repo.fetchById(widget.billId);
-      _bill = bill;
-      if (bill != null) _amountCtrl.text = bill.remaining.toStringAsFixed(0);
+      if (mounted) {
+        _applyLoadedBill(bill);
+      }
     } on Exception catch (e) {
-      _error = e.toString();
+      if (_bill == null) {
+        debugPrint('POWERNET_DEBUG: collect bill load failed: $e');
+        _error =
+            'Internet band hai. Bill detail open karne ke liye pehle Recovery Console se synced/cached bill select karein.';
+      }
     } finally {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  void _applyLoadedBill(Bill? bill) {
+    final auth = context.read<AuthProvider>();
+    final staff = auth.currentStaff;
+    if (bill != null && staff != null) {
+      final isRecovery = staff.normalizedRole == 'recovery_agent';
+      if (isRecovery &&
+          (staff.areaId == null || bill.customerAreaId != staff.areaId)) {
+        _error = 'Access Denied: Yeh bill aapke assigned area ka nahi hai.';
+        _bill = null;
+        return;
+      }
+    }
+    _bill = bill;
+    _error = null;
+    if (bill != null) _amountCtrl.text = bill.remaining.toStringAsFixed(0);
   }
 
   void _onVisitTypeChanged(VisitType? type) {
@@ -117,21 +146,23 @@ class _CollectPaymentScreenState extends State<CollectPaymentScreen> {
               _visitType.isVisitOnly
                   ? '${_visitType.label} logged'
                   : fullPayment
-                      ? 'Full payment recorded'
-                      : 'Partial payment recorded',
+                  ? 'Full payment recorded'
+                  : 'Partial payment recorded',
             ),
             backgroundColor: success,
           ),
         );
-        context.pop();
+        context.go('/collector/bills');
       case PaymentSubmissionResult.queued:
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Internet issue: saved locally for sync'),
+            content: Text(
+              'Saved offline. Internet on hotay hi auto sync ho jayega.',
+            ),
             backgroundColor: warning,
           ),
         );
-        context.pop();
+        context.go('/collector/bills');
       case PaymentSubmissionResult.failed:
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -233,8 +264,9 @@ class _PaymentForm extends StatelessWidget {
             const SizedBox(height: 8),
             TextFormField(
               controller: amountCtrl,
-              keyboardType:
-                  const TextInputType.numberWithOptions(decimal: true),
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
               decoration: const InputDecoration(
                 prefixText: 'Rs. ',
                 hintText: '0',
@@ -298,8 +330,8 @@ class _PaymentForm extends StatelessWidget {
                 submitting
                     ? 'Saving...'
                     : isVisitOnly
-                        ? 'Log Visit'
-                        : 'Record Collection',
+                    ? 'Log Visit'
+                    : 'Record Collection',
                 style: const TextStyle(fontWeight: FontWeight.w800),
               ),
             ),
@@ -353,8 +385,9 @@ class _VisitTypeSelector extends StatelessWidget {
                     type.label,
                     style: TextStyle(
                       color: isSelected ? primary : pn.text,
-                      fontWeight:
-                          isSelected ? FontWeight.w700 : FontWeight.w500,
+                      fontWeight: isSelected
+                          ? FontWeight.w700
+                          : FontWeight.w500,
                       fontSize: 14,
                     ),
                   ),
@@ -630,7 +663,7 @@ class _OfflineHint extends StatelessWidget {
           const SizedBox(width: 10),
           Expanded(
             child: Text(
-              'If internet drops, this is saved locally and syncs on next refresh.',
+              'If internet drops, this is saved locally and auto-syncs when internet returns.',
               style: TextStyle(color: pn.text, fontSize: 12, height: 1.35),
             ),
           ),
