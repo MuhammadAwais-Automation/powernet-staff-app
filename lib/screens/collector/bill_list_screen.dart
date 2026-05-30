@@ -6,7 +6,6 @@ import '../../providers/auth_provider.dart';
 import '../../providers/bills_provider.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/empty_state.dart';
-import '../../widgets/pn_status_badge.dart';
 
 class BillListScreen extends StatefulWidget {
   const BillListScreen({super.key});
@@ -211,9 +210,11 @@ class _BillListScreenState extends State<BillListScreen>
             return ErrorState(message: provider.error!, onRetry: _load);
           }
 
-          final all = _filter(provider.bills);
-          final overdue = all.where((b) => b.isOverdue).toList();
-          final partial = all.where((b) => b.hasPartialPayment).toList();
+          final all = _filterLedgers(provider.pendingLedgers);
+          final overdue = all.where((ledger) => ledger.isOverdue).toList();
+          final partial = all
+              .where((ledger) => ledger.hasPartialPayment)
+              .toList();
           final today = _filter(provider.collectedToday);
           final visits = _filter(provider.visitedToday);
 
@@ -236,10 +237,16 @@ class _BillListScreenState extends State<BillListScreen>
                                 decoration: InputDecoration(
                                   hintText: 'Search name, code, area',
                                   hintStyle: TextStyle(color: pn.textMuted),
-                                  prefixIcon: Icon(Icons.search, color: pn.textMuted, size: 20),
+                                  prefixIcon: Icon(
+                                    Icons.search,
+                                    color: pn.textMuted,
+                                    size: 20,
+                                  ),
                                   filled: true,
                                   fillColor: pn.surface,
-                                  contentPadding: const EdgeInsets.symmetric(vertical: 14),
+                                  contentPadding: const EdgeInsets.symmetric(
+                                    vertical: 14,
+                                  ),
                                   border: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(18),
                                     borderSide: BorderSide(color: pn.border),
@@ -256,23 +263,32 @@ class _BillListScreenState extends State<BillListScreen>
                               onPressed: () {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
-                                    content: const Text('Search filters updated'),
+                                    content: const Text(
+                                      'Search filters updated',
+                                    ),
                                     backgroundColor: pn.primary,
                                     behavior: SnackBarBehavior.floating,
                                   ),
                                 );
                               },
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: pn.cyan.withValues(alpha: 0.12),
+                                backgroundColor: pn.cyan.withValues(
+                                  alpha: 0.12,
+                                ),
                                 foregroundColor: pn.cyan,
                                 elevation: 0,
                                 minimumSize: const Size(54, 52),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(18),
-                                  side: BorderSide(color: pn.cyan.withValues(alpha: 0.2)),
+                                  side: BorderSide(
+                                    color: pn.cyan.withValues(alpha: 0.2),
+                                  ),
                                 ),
                               ),
-                              child: const Text('Go', style: TextStyle(fontWeight: FontWeight.w900)),
+                              child: const Text(
+                                'Go',
+                                style: TextStyle(fontWeight: FontWeight.w900),
+                              ),
                             ),
                           ],
                         ),
@@ -300,28 +316,30 @@ class _BillListScreenState extends State<BillListScreen>
                     items: all,
                     emptyMessage: 'No pending recoveries in this area',
                     pn: pn,
-                    onTap: (b) =>
-                        context.push('/collector/bills/${b.id}/collect'),
+                    onTap: (ledger) => context.push(
+                      '/collector/bills/${ledger.currentBill.id}/collect',
+                    ),
                   ),
                   _BillList(
                     items: overdue,
                     emptyMessage: 'No overdue bills right now',
                     pn: pn,
-                    onTap: (b) =>
-                        context.push('/collector/bills/${b.id}/collect'),
+                    onTap: (ledger) => context.push(
+                      '/collector/bills/${ledger.currentBill.id}/collect',
+                    ),
                   ),
                   _BillList(
                     items: partial,
                     emptyMessage: 'No partial collections pending',
                     pn: pn,
-                    onTap: (b) =>
-                        context.push('/collector/bills/${b.id}/collect'),
+                    onTap: (ledger) => context.push(
+                      '/collector/bills/${ledger.currentBill.id}/collect',
+                    ),
                   ),
-                  _BillList(
+                  _CollectedBillList(
                     items: today,
                     emptyMessage: 'No collections recorded today',
                     pn: pn,
-                    readOnly: true,
                   ),
                   _VisitList(
                     items: visits,
@@ -342,6 +360,16 @@ class _BillListScreenState extends State<BillListScreen>
     return items.where((bill) {
       final haystack = '${bill.customerName} ${bill.customerCode} ${bill.month}'
           .toLowerCase();
+      return haystack.contains(_query);
+    }).toList();
+  }
+
+  List<CustomerBillLedger> _filterLedgers(List<CustomerBillLedger> items) {
+    if (_query.isEmpty) return items;
+    return items.where((ledger) {
+      final haystack =
+          '${ledger.customerName} ${ledger.customerCode} ${ledger.monthRange}'
+              .toLowerCase();
       return haystack.contains(_query);
     }).toList();
   }
@@ -384,7 +412,11 @@ class _TabsHeader extends SliverPersistentHeaderDelegate {
   final Color background;
   final PnColors pn;
 
-  const _TabsHeader({required this.controller, required this.background, required this.pn});
+  const _TabsHeader({
+    required this.controller,
+    required this.background,
+    required this.pn,
+  });
 
   @override
   double get minExtent => 54;
@@ -443,17 +475,15 @@ class _TabsHeader extends SliverPersistentHeaderDelegate {
 }
 
 class _BillList extends StatelessWidget {
-  final List<Bill> items;
+  final List<CustomerBillLedger> items;
   final String emptyMessage;
-  final void Function(Bill)? onTap;
-  final bool readOnly;
+  final void Function(CustomerBillLedger)? onTap;
   final PnColors pn;
 
   const _BillList({
     required this.items,
     required this.emptyMessage,
     this.onTap,
-    this.readOnly = false,
     required this.pn,
   });
 
@@ -468,8 +498,7 @@ class _BillList extends StatelessWidget {
       itemCount: items.length,
       separatorBuilder: (context, index) => const SizedBox(height: 12),
       itemBuilder: (context, i) => _BillTile(
-        bill: items[i],
-        readOnly: readOnly,
+        ledger: items[i],
         pn: pn,
         onTap: onTap != null ? () => onTap!(items[i]) : null,
       ),
@@ -478,15 +507,14 @@ class _BillList extends StatelessWidget {
 }
 
 class _BillTile extends StatelessWidget {
-  final Bill bill;
+  final CustomerBillLedger ledger;
   final VoidCallback? onTap;
-  final bool readOnly;
   final PnColors pn;
 
-  const _BillTile({required this.bill, this.onTap, required this.readOnly, required this.pn});
+  const _BillTile({required this.ledger, this.onTap, required this.pn});
 
   Color _statusColor() {
-    switch (bill.collectionStatus) {
+    switch (ledger.collectionStatus) {
       case 'paid':
         return pn.success;
       case 'overdue':
@@ -499,7 +527,7 @@ class _BillTile extends StatelessWidget {
   }
 
   String _statusLabel() {
-    switch (bill.collectionStatus) {
+    switch (ledger.collectionStatus) {
       case 'paid':
         return 'Paid';
       case 'overdue':
@@ -513,8 +541,6 @@ class _BillTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final paid = bill.paidAmount ?? 0;
-
     return Card(
       elevation: 0,
       clipBehavior: Clip.antiAlias,
@@ -534,9 +560,7 @@ class _BillTile extends StatelessWidget {
                 top: 0,
                 bottom: 0,
                 width: 6,
-                child: Container(
-                  color: _statusColor(),
-                ),
+                child: Container(color: _statusColor()),
               ),
               Padding(
                 padding: const EdgeInsets.fromLTRB(20, 16, 16, 16),
@@ -547,7 +571,7 @@ class _BillTile extends StatelessWidget {
                       children: [
                         Expanded(
                           child: Text(
-                            bill.customerName,
+                            ledger.customerName,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
@@ -560,7 +584,10 @@ class _BillTile extends StatelessWidget {
                         ),
                         const SizedBox(width: 8),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 4,
+                          ),
                           decoration: BoxDecoration(
                             color: _statusColor().withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(99),
@@ -579,7 +606,7 @@ class _BillTile extends StatelessWidget {
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      '${bill.customerCode} - ${bill.customerAddress.isNotEmpty ? bill.customerAddress : "Gulshan Block 4"} - ${bill.month}',
+                      '${ledger.customerCode} - ${ledger.customerAddress.isNotEmpty ? ledger.customerAddress : "Gulshan Block 4"} - ${ledger.monthRange}',
                       style: TextStyle(
                         fontSize: 12,
                         color: pn.textMuted,
@@ -598,14 +625,20 @@ class _BillTile extends StatelessWidget {
                       child: Row(
                         children: [
                           Expanded(
-                            child: _buildMiniCell('Amount', 'PKR ${_formatMoney(bill.amount)}', pn),
+                            child: _buildMiniCell(
+                              ledger.billCount == 1
+                                  ? 'Bill'
+                                  : '${ledger.billCount} Bills',
+                              'PKR ${_formatMoney(ledger.totalAmount)}',
+                              pn,
+                            ),
                           ),
                           Expanded(
                             child: _buildMiniCell(
-                              readOnly ? 'Collected' : 'Remaining',
-                              'PKR ${_formatMoney(readOnly ? paid : bill.remaining)}',
+                              'Remaining',
+                              'PKR ${_formatMoney(ledger.totalRemaining)}',
                               pn,
-                              highlight: !readOnly,
+                              highlight: true,
                             ),
                           ),
                         ],
@@ -616,20 +649,21 @@ class _BillTile extends StatelessWidget {
                       borderRadius: BorderRadius.circular(99),
                       child: LinearProgressIndicator(
                         minHeight: 8,
-                        value: bill.collectionProgress,
+                        value: ledger.collectionProgress,
                         backgroundColor: pn.surfaceMuted,
-                        color: bill.isPaid ? pn.success : pn.accent,
+                        color: ledger.totalRemaining <= 0
+                            ? pn.success
+                            : pn.accent,
                       ),
                     ),
                   ],
                 ),
               ),
-              if (!readOnly)
-                Positioned(
-                  right: 12,
-                  bottom: 50,
-                  child: Icon(Icons.chevron_right, color: pn.textMuted),
-                ),
+              Positioned(
+                right: 12,
+                bottom: 50,
+                child: Icon(Icons.chevron_right, color: pn.textMuted),
+              ),
             ],
           ),
         ),
@@ -637,7 +671,12 @@ class _BillTile extends StatelessWidget {
     );
   }
 
-  Widget _buildMiniCell(String label, String value, PnColors pn, {bool highlight = false}) {
+  Widget _buildMiniCell(
+    String label,
+    String value,
+    PnColors pn, {
+    bool highlight = false,
+  }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -672,12 +711,206 @@ class _BillTile extends StatelessWidget {
   }
 }
 
+class _CollectedBillList extends StatelessWidget {
+  final List<Bill> items;
+  final String emptyMessage;
+  final PnColors pn;
+
+  const _CollectedBillList({
+    required this.items,
+    required this.emptyMessage,
+    required this.pn,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (items.isEmpty) {
+      return EmptyState(message: emptyMessage);
+    }
+
+    return ListView.separated(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+      itemCount: items.length,
+      separatorBuilder: (context, index) => const SizedBox(height: 12),
+      itemBuilder: (context, i) => _CollectedBillTile(bill: items[i], pn: pn),
+    );
+  }
+}
+
+class _CollectedBillTile extends StatelessWidget {
+  final Bill bill;
+  final PnColors pn;
+
+  const _CollectedBillTile({required this.bill, required this.pn});
+
+  @override
+  Widget build(BuildContext context) {
+    final paid = bill.paidAmount ?? 0;
+
+    return Card(
+      elevation: 0,
+      clipBehavior: Clip.antiAlias,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(18),
+        side: BorderSide(color: pn.border, width: 1.2),
+      ),
+      child: Container(
+        color: pn.surface,
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    bill.customerName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w900,
+                      fontSize: 16,
+                      color: pn.text,
+                      letterSpacing: -0.3,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: pn.success.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(99),
+                  ),
+                  child: Text(
+                    'PAID',
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w900,
+                      color: pn.success,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Text(
+              '${bill.customerCode} - ${bill.month}',
+              style: TextStyle(
+                fontSize: 12,
+                color: pn.textMuted,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            if (bill.paymentSource != null) ...[
+              const SizedBox(height: 6),
+              Row(
+                children: [
+                  Icon(
+                    Icons.account_balance_wallet_outlined,
+                    size: 14,
+                    color: pn.textMuted,
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      bill.paymentSourceLabel,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: pn.textMuted,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+            const SizedBox(height: 14),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: pn.surfaceMuted,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: pn.border),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: _buildCollectedMiniCell('Bill', bill.amount, pn),
+                  ),
+                  Expanded(
+                    child: _buildCollectedMiniCell(
+                      'Collected',
+                      paid,
+                      pn,
+                      highlight: true,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCollectedMiniCell(
+    String label,
+    double value,
+    PnColors pn, {
+    bool highlight = false,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label.toUpperCase(),
+          style: TextStyle(
+            fontSize: 9,
+            fontWeight: FontWeight.w700,
+            color: pn.textMuted,
+            letterSpacing: 0.5,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          'PKR ${_formatMoney(value)}',
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w900,
+            color: highlight ? pn.success : pn.text,
+          ),
+        ),
+      ],
+    );
+  }
+
+  String _formatMoney(double value) {
+    if (value >= 1000) {
+      final k = value / 1000;
+      return '${k.toStringAsFixed(k.truncateToDouble() == k ? 0 : 1)}K';
+    }
+    return value.toStringAsFixed(0);
+  }
+}
+
 class _VisitList extends StatelessWidget {
   final List<Bill> items;
   final String emptyMessage;
   final PnColors pn;
 
-  const _VisitList({required this.items, required this.emptyMessage, required this.pn});
+  const _VisitList({
+    required this.items,
+    required this.emptyMessage,
+    required this.pn,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -746,7 +979,11 @@ class _VisitTile extends StatelessWidget {
                   const SizedBox(height: 3),
                   Text(
                     bill.customerCode,
-                    style: TextStyle(fontSize: 12, color: pn.textMuted, fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: pn.textMuted,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ],
               ),

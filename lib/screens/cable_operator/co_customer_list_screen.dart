@@ -62,15 +62,16 @@ class _CoCustomerListScreenState extends State<CoCustomerListScreen>
                 autofocus: true,
                 style: TextStyle(color: pn.text),
                 decoration: InputDecoration(
-                   hintText: 'Search name, code, ONU…',
+                  hintText: 'Search name, code, ONU…',
                   hintStyle: TextStyle(color: pn.textMuted),
                   border: InputBorder.none,
                 ),
                 onChanged: (v) {
                   final staff = context.read<AuthProvider>().currentStaff;
-                  context
-                      .read<CustomersProvider>()
-                      .search(v, areaIds: staff?.areaIds);
+                  context.read<CustomersProvider>().search(
+                    v,
+                    areaIds: staff?.areaIds,
+                  );
                 },
               )
             : const Text('Customers'),
@@ -216,7 +217,9 @@ class _CoCustomerTile extends StatelessWidget {
                     Text(
                       customer.fullName,
                       style: const TextStyle(
-                          fontWeight: FontWeight.w600, fontSize: 14),
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                      ),
                     ),
                     const SizedBox(height: 3),
                     Text(
@@ -227,13 +230,15 @@ class _CoCustomerTile extends StatelessWidget {
                       const SizedBox(height: 3),
                       Row(
                         children: [
-                          Icon(Icons.router_outlined,
-                              size: 12, color: pn.textMuted),
+                          Icon(
+                            Icons.router_outlined,
+                            size: 12,
+                            color: pn.textMuted,
+                          ),
                           const SizedBox(width: 4),
                           Text(
                             customer.onuNumber!,
-                            style:
-                                TextStyle(fontSize: 12, color: pn.textMuted),
+                            style: TextStyle(fontSize: 12, color: pn.textMuted),
                           ),
                         ],
                       ),

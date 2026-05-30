@@ -275,7 +275,10 @@ class _Body extends StatelessWidget {
                               ),
                             ),
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 4,
+                              ),
                               decoration: BoxDecoration(
                                 color: pn.warning.withValues(alpha: 0.12),
                                 borderRadius: BorderRadius.circular(99),
@@ -355,7 +358,11 @@ class _Body extends StatelessWidget {
                           keyboardType: TextInputType.number,
                           decoration: InputDecoration(
                             labelText: 'Cable Wire (Mtrs)',
-                            labelStyle: TextStyle(color: pn.textSoft, fontWeight: FontWeight.bold, fontSize: 13),
+                            labelStyle: TextStyle(
+                              color: pn.textSoft,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13,
+                            ),
                             hintText: '0',
                             filled: true,
                             fillColor: pn.input,
@@ -379,7 +386,11 @@ class _Body extends StatelessWidget {
                           keyboardType: TextInputType.number,
                           decoration: InputDecoration(
                             labelText: 'RJ45 Connectors',
-                            labelStyle: TextStyle(color: pn.textSoft, fontWeight: FontWeight.bold, fontSize: 13),
+                            labelStyle: TextStyle(
+                              color: pn.textSoft,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13,
+                            ),
                             hintText: '0',
                             filled: true,
                             fillColor: pn.input,
@@ -403,7 +414,11 @@ class _Body extends StatelessWidget {
                     controller: routerCtrl,
                     decoration: InputDecoration(
                       labelText: 'Replaced Router/ONT (Optional)',
-                      labelStyle: TextStyle(color: pn.textSoft, fontWeight: FontWeight.bold, fontSize: 13),
+                      labelStyle: TextStyle(
+                        color: pn.textSoft,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                      ),
                       hintText: 'e.g. Netis WF2419, ZTE ONT...',
                       filled: true,
                       fillColor: pn.input,
@@ -419,7 +434,8 @@ class _Body extends StatelessWidget {
                       if (!formKey.currentState!.validate()) return;
                       final hardwareLog = {
                         'cables_meter': int.tryParse(cableCtrl.text) ?? 0,
-                        'rj45_connectors': int.tryParse(connectorsCtrl.text) ?? 0,
+                        'rj45_connectors':
+                            int.tryParse(connectorsCtrl.text) ?? 0,
                         'router_replaced': routerCtrl.text.trim(),
                       };
                       onResolveWithDetails(
@@ -620,7 +636,9 @@ class _Step extends StatelessWidget {
           title,
           style: TextStyle(
             fontSize: 11,
-            fontWeight: isCurrent || isActive ? FontWeight.w800 : FontWeight.w500,
+            fontWeight: isCurrent || isActive
+                ? FontWeight.w800
+                : FontWeight.w500,
             color: isCurrent || isActive ? color : Colors.grey,
           ),
         ),
@@ -767,7 +785,11 @@ class _DetailTileRow extends StatelessWidget {
               children: [
                 Text(
                   label,
-                  style: TextStyle(color: pn.textMuted, fontSize: 11, fontWeight: FontWeight.bold),
+                  style: TextStyle(
+                    color: pn.textMuted,
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
                 const SizedBox(height: 3),
                 Text(
@@ -844,7 +866,11 @@ class _IssueDetailsCard extends StatelessWidget {
               children: [
                 Text(
                   'Category Type',
-                  style: TextStyle(color: pn.textMuted, fontSize: 12, fontWeight: FontWeight.bold),
+                  style: TextStyle(
+                    color: pn.textMuted,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
                 const Spacer(),
                 Container(
@@ -872,7 +898,11 @@ class _IssueDetailsCard extends StatelessWidget {
               children: [
                 Text(
                   'Priority Level',
-                  style: TextStyle(color: pn.textMuted, fontSize: 12, fontWeight: FontWeight.bold),
+                  style: TextStyle(
+                    color: pn.textMuted,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
                 const Spacer(),
                 Container(
@@ -900,7 +930,11 @@ class _IssueDetailsCard extends StatelessWidget {
               children: [
                 Text(
                   'Opened Date',
-                  style: TextStyle(color: pn.textMuted, fontSize: 12, fontWeight: FontWeight.bold),
+                  style: TextStyle(
+                    color: pn.textMuted,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
                 const Spacer(),
                 Text(
@@ -933,7 +967,12 @@ class _IssueDetailsCard extends StatelessWidget {
               ),
               child: Text(
                 complaint.issue,
-                style: TextStyle(color: pn.text, fontSize: 13, height: 1.45, fontWeight: FontWeight.w500),
+                style: TextStyle(
+                  color: pn.text,
+                  fontSize: 13,
+                  height: 1.45,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
             ),
           ],
@@ -1004,7 +1043,12 @@ class _ResolutionResultsCard extends StatelessWidget {
               ),
               child: Text(
                 complaint.resolutionNotes ?? '—',
-                style: TextStyle(color: pn.text, fontSize: 13, height: 1.45, fontWeight: FontWeight.w500),
+                style: TextStyle(
+                  color: pn.text,
+                  fontSize: 13,
+                  height: 1.45,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
             ),
             if (mtr > 0 || rj > 0 || router.isNotEmpty) ...[
@@ -1059,7 +1103,14 @@ class _InventoryRow extends StatelessWidget {
         children: [
           Icon(Icons.inventory_2_outlined, size: 14, color: pn.textMuted),
           const SizedBox(width: 8),
-          Text(label, style: TextStyle(fontSize: 13, color: pn.text, fontWeight: FontWeight.w500)),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 13,
+              color: pn.text,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
           const Spacer(),
           Text(
             value,
@@ -1117,7 +1168,11 @@ class _ActionBtn extends StatelessWidget {
             : Icon(icon, size: 20),
         label: Text(
           label,
-          style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 15, letterSpacing: 0.2),
+          style: const TextStyle(
+            fontWeight: FontWeight.w900,
+            fontSize: 15,
+            letterSpacing: 0.2,
+          ),
         ),
       ),
     );

@@ -8,12 +8,12 @@ import '../config/supabase_config.dart';
 
 const billBaseSelect =
     'id, customer_id, amount, paid_amount, month, status, collected_by, '
-    'paid_at, receipt_no, payment_method, payment_note, created_at, '
+    'paid_at, receipt_no, payment_method, payment_note, payment_source, created_at, '
     'customer:customers(id, customer_code, full_name, address_type, address_value, area_id)';
 
 const billAreaSelect =
     'id, customer_id, amount, paid_amount, month, status, collected_by, '
-    'paid_at, receipt_no, payment_method, payment_note, created_at, '
+    'paid_at, receipt_no, payment_method, payment_note, payment_source, created_at, '
     'customer:customers!inner(id, customer_code, full_name, address_type, address_value, area_id)';
 
 const _queuedPaymentsKey = 'queued_bill_payments';
@@ -138,6 +138,24 @@ class BillsRepository {
         .toList();
   }
 
+  Future<List<Bill>> fetchPaidTodayByAreas(List<String> areaIds) async {
+    if (areaIds.isEmpty) return [];
+    final today = DateTime.now().toUtc();
+    final dateStr =
+        '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
+    final res = await supabase
+        .from('bills')
+        .select(billAreaSelect)
+        .inFilter('customer.area_id', areaIds)
+        .eq('status', 'paid')
+        .gte('paid_at', '${dateStr}T00:00:00Z')
+        .lte('paid_at', '${dateStr}T23:59:59Z')
+        .order('paid_at', ascending: false);
+    return (res as List)
+        .map((j) => Bill.fromJson(j as Map<String, dynamic>))
+        .toList();
+  }
+
   Future<List<Bill>> fetchVisitedToday(String collectorId) async {
     final today = DateTime.now().toUtc();
     final dateStr =
@@ -232,6 +250,7 @@ class BillsRepository {
         'p_amount': paidAmount.round(),
         'p_collected_by': collectorId,
         'p_method': paymentMethod,
+        'p_source': 'agent',
         'p_note': paymentNote,
       },
     );

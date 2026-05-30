@@ -29,7 +29,9 @@ class _CustomerBillsScreenState extends State<CustomerBillsScreen> {
   void _triggerPaymentMock() {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('Payment request initiated. Please pay your recovery agent or visit manager office.'),
+        content: Text(
+          'Payment request initiated. Please pay your recovery agent or visit manager office.',
+        ),
         backgroundColor: accentColor,
         behavior: SnackBarBehavior.floating,
       ),
@@ -45,9 +47,7 @@ class _CustomerBillsScreenState extends State<CustomerBillsScreen> {
 
     return Scaffold(
       backgroundColor: pn.background,
-      appBar: AppBar(
-        title: const Text('My Bills'),
-      ),
+      appBar: AppBar(title: const Text('My Bills')),
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: provider.refreshActive,
@@ -58,22 +58,33 @@ class _CustomerBillsScreenState extends State<CustomerBillsScreen> {
               // House ID Header Detail
               if (customer != null) ...[
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 4,
+                  ),
                   child: Row(
                     children: [
                       Text(
                         'HOUSE ID: ',
-                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: pn.textMuted),
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          color: pn.textMuted,
+                        ),
                       ),
                       Text(
                         customer.displayHouseId,
-                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w900, color: pn.textSoft),
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w900,
+                          color: pn.textSoft,
+                        ),
                       ),
                     ],
                   ),
                 ),
               ],
-              
+
               // Total Due Glass Card Overview (Matches CSS .card.glass.between)
               Padding(
                 padding: const EdgeInsets.all(20.0),
@@ -82,10 +93,10 @@ class _CustomerBillsScreenState extends State<CustomerBillsScreen> {
                   decoration: BoxDecoration(
                     color: pn.surface,
                     borderRadius: BorderRadius.circular(18),
-                    border: Border.all(color: pn.cyan.withOpacity(0.35)),
+                    border: Border.all(color: pn.cyan.withValues(alpha: 0.35)),
                     boxShadow: [
                       BoxShadow(
-                        color: pn.cyan.withOpacity(0.04),
+                        color: pn.cyan.withValues(alpha: 0.04),
                         blurRadius: 18,
                         offset: const Offset(0, 8),
                       ),
@@ -143,12 +154,19 @@ class _CustomerBillsScreenState extends State<CustomerBillsScreen> {
                   children: [
                     Text(
                       'BILLING STATEMENT HISTORY',
-                      style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: pn.textMuted, letterSpacing: 0.5),
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                        color: pn.textMuted,
+                        letterSpacing: 0.5,
+                      ),
                     ),
-                    const Expanded(child: Padding(
-                      padding: EdgeInsets.only(left: 8.0),
-                      child: Divider(),
-                    )),
+                    const Expanded(
+                      child: Padding(
+                        padding: EdgeInsets.only(left: 8.0),
+                        child: Divider(),
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -159,16 +177,19 @@ class _CustomerBillsScreenState extends State<CustomerBillsScreen> {
                 child: provider.loading && provider.bills.isEmpty
                     ? const Center(child: CircularProgressIndicator())
                     : provider.bills.isEmpty
-                        ? const _EmptyBills()
-                        : ListView.separated(
-                            physics: const BouncingScrollPhysics(),
-                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                            itemBuilder: (context, index) =>
-                                _BillCard(bill: provider.bills[index]),
-                            separatorBuilder: (context, index) =>
-                                const SizedBox(height: 12),
-                            itemCount: provider.bills.length,
-                          ),
+                    ? const _EmptyBills()
+                    : ListView.separated(
+                        physics: const BouncingScrollPhysics(),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 20,
+                          vertical: 8,
+                        ),
+                        itemBuilder: (context, index) =>
+                            _BillCard(bill: provider.bills[index]),
+                        separatorBuilder: (context, index) =>
+                            const SizedBox(height: 12),
+                        itemCount: provider.bills.length,
+                      ),
               ),
             ],
           ),
@@ -194,7 +215,7 @@ class _EmptyBills extends StatelessWidget {
           decoration: BoxDecoration(
             color: pn.softCyan,
             shape: BoxShape.circle,
-            border: Border.all(color: pn.cyan.withOpacity(0.2)),
+            border: Border.all(color: pn.cyan.withValues(alpha: 0.2)),
           ),
           child: Icon(Icons.receipt_long_outlined, size: 34, color: pn.cyan),
         ),
@@ -230,19 +251,19 @@ class _BillCard extends StatelessWidget {
     final pn = Theme.of(context).extension<PnColors>()!;
     final paid = bill.paidAmount ?? 0;
     final remaining = bill.remaining.clamp(0, double.infinity);
-    
+
     // Resolve color scheme for status chip
     Color statusColor;
     Color statusBg;
-    String statusLabel = bill.status.toUpperCase();
+    String statusLabel = bill.collectionStatus.toUpperCase();
 
-    if (bill.status == 'paid') {
+    if (bill.collectionStatus == 'paid') {
       statusColor = pn.success;
       statusBg = pn.softGreen;
-    } else if (bill.status == 'overdue') {
+    } else if (bill.collectionStatus == 'overdue') {
       statusColor = pn.danger;
       statusBg = pn.softRed;
-    } else if (bill.status == 'partial') {
+    } else if (bill.collectionStatus == 'partial') {
       statusColor = pn.accent;
       statusBg = pn.softOrange;
       statusLabel = 'PARTIAL';
@@ -259,7 +280,7 @@ class _BillCard extends StatelessWidget {
         border: Border.all(color: pn.border),
         boxShadow: [
           BoxShadow(
-            color: pn.text.withOpacity(0.02),
+            color: pn.text.withValues(alpha: 0.02),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -281,11 +302,14 @@ class _BillCard extends StatelessWidget {
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
                   color: statusBg,
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: statusColor.withOpacity(0.2)),
+                  border: Border.all(color: statusColor.withValues(alpha: 0.2)),
                 ),
                 child: Text(
                   statusLabel,
@@ -305,13 +329,28 @@ class _BillCard extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              _buildMiniCell(pn, 'Amount', 'Rs. ${bill.amount.toStringAsFixed(0)}', pn.text),
-              _buildMiniCell(pn, 'Paid', 'Rs. ${paid.toStringAsFixed(0)}', pn.success),
-              _buildMiniCell(pn, 'Remaining', 'Rs. ${remaining.toStringAsFixed(0)}', remaining > 0 ? pn.danger : pn.textSoft),
+              _buildMiniCell(
+                pn,
+                'Amount',
+                'Rs. ${bill.amount.toStringAsFixed(0)}',
+                pn.text,
+              ),
+              _buildMiniCell(
+                pn,
+                'Paid',
+                'Rs. ${paid.toStringAsFixed(0)}',
+                pn.success,
+              ),
+              _buildMiniCell(
+                pn,
+                'Remaining',
+                'Rs. ${remaining.toStringAsFixed(0)}',
+                remaining > 0 ? pn.danger : pn.textSoft,
+              ),
               _buildMiniCell(pn, 'Receipt', bill.receiptNo ?? '—', pn.textSoft),
             ],
           ),
-          
+
           if (bill.paidAt != null) ...[
             const Padding(
               padding: EdgeInsets.only(top: 10.0),
@@ -321,11 +360,37 @@ class _BillCard extends StatelessWidget {
               padding: const EdgeInsets.only(top: 6.0),
               child: Row(
                 children: [
-                  Icon(Icons.event_available_rounded, size: 13, color: pn.textMuted),
+                  Icon(
+                    Icons.event_available_rounded,
+                    size: 13,
+                    color: pn.textMuted,
+                  ),
                   const SizedBox(width: 6),
                   Text(
                     'Paid on: ${bill.paidAt}',
-                    style: TextStyle(color: pn.textMuted, fontSize: 11, fontWeight: FontWeight.w500),
+                    style: TextStyle(
+                      color: pn.textMuted,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Icon(
+                    Icons.account_balance_wallet_outlined,
+                    size: 13,
+                    color: pn.textMuted,
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      bill.paymentSourceLabel,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: pn.textMuted,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -336,14 +401,23 @@ class _BillCard extends StatelessWidget {
     );
   }
 
-  Widget _buildMiniCell(PnColors pn, String label, String value, Color valueColor) {
+  Widget _buildMiniCell(
+    PnColors pn,
+    String label,
+    String value,
+    Color valueColor,
+  ) {
     return Expanded(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             label,
-            style: TextStyle(color: pn.textMuted, fontSize: 10, fontWeight: FontWeight.w600),
+            style: TextStyle(
+              color: pn.textMuted,
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+            ),
           ),
           const SizedBox(height: 3),
           Text(
@@ -361,4 +435,3 @@ class _BillCard extends StatelessWidget {
     );
   }
 }
-

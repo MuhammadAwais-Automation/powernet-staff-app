@@ -43,8 +43,9 @@ class _CoCustomerDetailScreenState extends State<CoCustomerDetailScreen>
       final cust = await _custRepo.fetchById(widget.customerId);
       final all = await _compRepo.fetchAll();
       _customer = cust;
-      _complaints =
-          all.where((c) => c.customerId == widget.customerId).toList();
+      _complaints = all
+          .where((c) => c.customerId == widget.customerId)
+          .toList();
     } catch (e) {
       _error = e.toString();
     } finally {
@@ -78,16 +79,16 @@ class _CoCustomerDetailScreenState extends State<CoCustomerDetailScreen>
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _error != null
-              ? ErrorState(message: _error!, onRetry: _load)
-              : _customer == null
-                  ? const EmptyState(message: 'Customer not found')
-                  : TabBarView(
-                      controller: _tabs,
-                      children: [
-                        _CoInfoTab(customer: _customer!, pn: pn),
-                        _ComplaintsTab(complaints: _complaints, pn: pn),
-                      ],
-                    ),
+          ? ErrorState(message: _error!, onRetry: _load)
+          : _customer == null
+          ? const EmptyState(message: 'Customer not found')
+          : TabBarView(
+              controller: _tabs,
+              children: [
+                _CoInfoTab(customer: _customer!, pn: pn),
+                _ComplaintsTab(complaints: _complaints, pn: pn),
+              ],
+            ),
     );
   }
 }
@@ -119,8 +120,10 @@ class _CoInfoTab extends StatelessWidget {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('ONU Number',
-                        style: TextStyle(fontSize: 12, color: pn.textMuted)),
+                    Text(
+                      'ONU Number',
+                      style: TextStyle(fontSize: 12, color: pn.textMuted),
+                    ),
                     const SizedBox(height: 2),
                     Text(
                       customer.onuNumber!,
@@ -136,12 +139,12 @@ class _CoInfoTab extends StatelessWidget {
                 const Spacer(),
                 GestureDetector(
                   onTap: () {
-                    Clipboard.setData(
-                        ClipboardData(text: customer.onuNumber!));
+                    Clipboard.setData(ClipboardData(text: customer.onuNumber!));
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
-                          content: Text('ONU number copied'),
-                          duration: Duration(seconds: 1)),
+                        content: Text('ONU number copied'),
+                        duration: Duration(seconds: 1),
+                      ),
                     );
                   },
                   child: Icon(Icons.copy, size: 18, color: pn.textMuted),
@@ -158,8 +161,10 @@ class _CoInfoTab extends StatelessWidget {
               _Row(label: 'Username', value: customer.username!, pn: pn),
             Row(
               children: [
-                Text('Status',
-                    style: TextStyle(color: pn.textMuted, fontSize: 13)),
+                Text(
+                  'Status',
+                  style: TextStyle(color: pn.textMuted, fontSize: 13),
+                ),
                 const Spacer(),
                 PnStatusBadge.fromString(customer.status),
               ],
@@ -194,10 +199,7 @@ class _CoInfoTab extends StatelessWidget {
             if (customer.addressValue != null)
               _Row(label: 'Address', value: customer.addressValue!, pn: pn),
             if (customer.connectionDate != null)
-              _Row(
-                  label: 'Connected',
-                  value: customer.connectionDate!,
-                  pn: pn),
+              _Row(label: 'Connected', value: customer.connectionDate!, pn: pn),
           ],
         ),
         if (customer.dueAmount != null && customer.dueAmount! > 0) ...[
@@ -208,12 +210,15 @@ class _CoInfoTab extends StatelessWidget {
               color: const Color(0xFFDC2626).withValues(alpha: 0.08),
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
-                  color: const Color(0xFFDC2626).withValues(alpha: 0.25)),
+                color: const Color(0xFFDC2626).withValues(alpha: 0.25),
+              ),
             ),
             child: Row(
               children: [
-                const Icon(Icons.warning_amber_rounded,
-                    color: Color(0xFFDC2626)),
+                const Icon(
+                  Icons.warning_amber_rounded,
+                  color: Color(0xFFDC2626),
+                ),
                 const SizedBox(width: 10),
                 Text(
                   'Due: Rs. ${customer.dueAmount!.toStringAsFixed(0)}',
@@ -231,9 +236,10 @@ class _CoInfoTab extends StatelessWidget {
           _Section(
             title: 'REMARKS',
             children: [
-              Text(customer.remarks!,
-                  style:
-                      TextStyle(fontSize: 13, color: pn.text, height: 1.5)),
+              Text(
+                customer.remarks!,
+                style: TextStyle(fontSize: 13, color: pn.text, height: 1.5),
+              ),
             ],
           ),
         ],
@@ -266,21 +272,29 @@ class _ComplaintsTab extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    Text(c.complaintCode,
-                        style: const TextStyle(
-                            fontWeight: FontWeight.w600, fontSize: 13)),
+                    Text(
+                      c.complaintCode,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                      ),
+                    ),
                     const Spacer(),
                     PnStatusBadge.fromString(c.status),
                   ],
                 ),
                 const SizedBox(height: 6),
-                Text(c.issue,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontSize: 13, color: pn.text)),
+                Text(
+                  c.issue,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: 13, color: pn.text),
+                ),
                 const SizedBox(height: 6),
-                Text(_fmt(c.openedAt),
-                    style: TextStyle(fontSize: 11, color: pn.textMuted)),
+                Text(
+                  _fmt(c.openedAt),
+                  style: TextStyle(fontSize: 11, color: pn.textMuted),
+                ),
               ],
             ),
           ),
@@ -313,12 +327,15 @@ class _Section extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(title,
-                style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    color: pn.textMuted,
-                    letterSpacing: 0.5)),
+            Text(
+              title,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: pn.textMuted,
+                letterSpacing: 0.5,
+              ),
+            ),
             const SizedBox(height: 10),
             ...children,
           ],
@@ -343,12 +360,15 @@ class _Row extends StatelessWidget {
           Text(label, style: TextStyle(color: pn.textMuted, fontSize: 13)),
           const Spacer(),
           Flexible(
-            child: Text(value,
-                textAlign: TextAlign.end,
-                style: TextStyle(
-                    color: pn.text,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500)),
+            child: Text(
+              value,
+              textAlign: TextAlign.end,
+              style: TextStyle(
+                color: pn.text,
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
           ),
         ],
       ),
@@ -361,11 +381,12 @@ class _CopyRow extends StatelessWidget {
   final String value;
   final PnColors pn;
   final bool canCopy;
-  const _CopyRow(
-      {required this.label,
-      required this.value,
-      required this.pn,
-      this.canCopy = false});
+  const _CopyRow({
+    required this.label,
+    required this.value,
+    required this.pn,
+    this.canCopy = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -375,11 +396,14 @@ class _CopyRow extends StatelessWidget {
         children: [
           Text(label, style: TextStyle(color: pn.textMuted, fontSize: 13)),
           const Spacer(),
-          Text(value,
-              style: TextStyle(
-                  color: pn.text,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500)),
+          Text(
+            value,
+            style: TextStyle(
+              color: pn.text,
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
           if (canCopy) ...[
             const SizedBox(width: 8),
             GestureDetector(
@@ -387,8 +411,9 @@ class _CopyRow extends StatelessWidget {
                 Clipboard.setData(ClipboardData(text: value));
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
-                      content: Text('Copied'),
-                      duration: Duration(seconds: 1)),
+                    content: Text('Copied'),
+                    duration: Duration(seconds: 1),
+                  ),
                 );
               },
               child: Icon(Icons.copy, size: 16, color: pn.textMuted),

@@ -16,7 +16,7 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final _usernameCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
-  
+
   // Modes: 'welcome', 'staff', 'customer'
   String _mode = 'welcome';
   bool _obscure = true;
@@ -60,7 +60,8 @@ class _LoginScreenState extends State<LoginScreen> {
 
     if (!result.ok) {
       setState(() {
-        _errorMessage = result.error ?? 'Invalid credentials. Check and try again.';
+        _errorMessage =
+            result.error ?? 'Invalid credentials. Check and try again.';
       });
     }
   }
@@ -81,7 +82,7 @@ class _LoginScreenState extends State<LoginScreen> {
               height: 300,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: pn.cyan.withOpacity(0.06),
+                color: pn.cyan.withValues(alpha: 0.06),
               ),
             ),
           ),
@@ -93,15 +94,18 @@ class _LoginScreenState extends State<LoginScreen> {
               height: 320,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: pn.accent.withOpacity(0.05),
+                color: pn.accent.withValues(alpha: 0.05),
               ),
             ),
           ),
-          
+
           SafeArea(
             child: Center(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 16,
+                ),
                 child: AnimatedSwitcher(
                   duration: const Duration(milliseconds: 300),
                   child: _mode == 'welcome'
@@ -185,7 +189,7 @@ class _LoginScreenState extends State<LoginScreen> {
           icon: Icons.badge_outlined,
           iconBg: pn.softOrange,
           iconColor: pn.accent,
-          borderGlowColor: pn.accent.withOpacity(0.3),
+          borderGlowColor: pn.accent.withValues(alpha: 0.3),
           onTap: () {
             setState(() {
               _mode = 'staff';
@@ -204,7 +208,7 @@ class _LoginScreenState extends State<LoginScreen> {
           icon: Icons.home_outlined,
           iconBg: pn.softCyan,
           iconColor: pn.cyan,
-          borderGlowColor: pn.cyan.withOpacity(0.35),
+          borderGlowColor: pn.cyan.withValues(alpha: 0.35),
           onTap: () {
             setState(() {
               _mode = 'customer';
@@ -229,7 +233,11 @@ class _LoginScreenState extends State<LoginScreen> {
         const SizedBox(height: 8),
         OutlinedButton.icon(
           onPressed: () => context.push('/customer/signup'),
-          icon: Icon(Icons.person_add_alt_1_outlined, color: pn.accent, size: 18),
+          icon: Icon(
+            Icons.person_add_alt_1_outlined,
+            color: pn.accent,
+            size: 18,
+          ),
           label: Text(
             'Create new customer request',
             style: TextStyle(color: pn.text, fontWeight: FontWeight.w800),
@@ -265,7 +273,11 @@ class _LoginScreenState extends State<LoginScreen> {
                   border: Border.all(color: pn.border),
                   color: pn.surface,
                 ),
-                child: Icon(Icons.arrow_back_rounded, color: pn.textSoft, size: 20),
+                child: Icon(
+                  Icons.arrow_back_rounded,
+                  color: pn.textSoft,
+                  size: 20,
+                ),
               ),
             ),
             const SizedBox(width: 14),
@@ -322,7 +334,7 @@ class _LoginScreenState extends State<LoginScreen> {
             decoration: BoxDecoration(
               color: pn.softRed,
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: pn.danger.withOpacity(0.35)),
+              border: Border.all(color: pn.danger.withValues(alpha: 0.35)),
             ),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -345,7 +357,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       Text(
                         _errorMessage!,
                         style: TextStyle(
-                          color: pn.danger.withOpacity(0.85),
+                          color: pn.danger.withValues(alpha: 0.85),
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
                         ),
@@ -377,10 +389,18 @@ class _LoginScreenState extends State<LoginScreen> {
           enableSuggestions: false,
           textCapitalization: TextCapitalization.none,
           keyboardType: TextInputType.text,
-          style: TextStyle(color: pn.text, fontSize: 15, fontWeight: FontWeight.w700),
+          style: TextStyle(
+            color: pn.text,
+            fontSize: 15,
+            fontWeight: FontWeight.w700,
+          ),
           decoration: InputDecoration(
             hintText: isStaff ? 'e.g. technician_ahmed' : 'e.g. house_102b',
-            prefixIcon: Icon(Icons.person_outline_rounded, color: pn.textMuted, size: 20),
+            prefixIcon: Icon(
+              Icons.person_outline_rounded,
+              color: pn.textMuted,
+              size: 20,
+            ),
           ),
           onChanged: (_) => setState(() {}),
         ),
@@ -402,10 +422,18 @@ class _LoginScreenState extends State<LoginScreen> {
           obscureText: _obscure,
           textInputAction: TextInputAction.done,
           onSubmitted: (_) => _canSubmit ? _submit() : null,
-          style: TextStyle(color: pn.text, fontSize: 15, fontWeight: FontWeight.w700),
+          style: TextStyle(
+            color: pn.text,
+            fontSize: 15,
+            fontWeight: FontWeight.w700,
+          ),
           decoration: InputDecoration(
             hintText: 'Enter account password',
-            prefixIcon: Icon(Icons.lock_outline_rounded, color: pn.textMuted, size: 20),
+            prefixIcon: Icon(
+              Icons.lock_outline_rounded,
+              color: pn.textMuted,
+              size: 20,
+            ),
             suffixIcon: IconButton(
               icon: Icon(
                 _obscure
@@ -427,9 +455,9 @@ class _LoginScreenState extends State<LoginScreen> {
           style: ElevatedButton.styleFrom(
             backgroundColor: pn.accent,
             foregroundColor: pn.primary,
-            disabledBackgroundColor: pn.accent.withOpacity(0.4),
-            disabledForegroundColor: pn.primary.withOpacity(0.5),
-            shadowColor: pn.accent.withOpacity(0.25),
+            disabledBackgroundColor: pn.accent.withValues(alpha: 0.4),
+            disabledForegroundColor: pn.primary.withValues(alpha: 0.5),
+            shadowColor: pn.accent.withValues(alpha: 0.25),
             elevation: 8,
           ),
           child: _loading
@@ -444,13 +472,15 @@ class _LoginScreenState extends State<LoginScreen> {
               : Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Text(isStaff ? 'SECURE STAFF LOGIN' : 'ACCESS CUSTOMER PORTAL'),
+                    Text(
+                      isStaff ? 'SECURE STAFF LOGIN' : 'ACCESS CUSTOMER PORTAL',
+                    ),
                     const SizedBox(width: 8),
                     Icon(Icons.arrow_forward_rounded, size: 18),
                   ],
                 ),
         ),
-        
+
         if (!isStaff) ...[
           const SizedBox(height: 24),
           Row(
@@ -541,11 +571,7 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               const SizedBox(width: 8),
               // Arrow Indicator
-              Icon(
-                Icons.chevron_right_rounded,
-                color: pn.accent,
-                size: 24,
-              ),
+              Icon(Icons.chevron_right_rounded, color: pn.accent, size: 24),
             ],
           ),
         ),
@@ -553,4 +579,3 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 }
-

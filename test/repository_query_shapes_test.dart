@@ -13,12 +13,14 @@ void main() {
       expect(billAreaSelect, contains('area_id'));
       expect(billAreaSelect, contains('customer_code'));
       expect(billAreaSelect, contains('full_name'));
+      expect(billAreaSelect, contains('payment_source'));
     });
 
     test('base bill select keeps customer fields used by models', () {
       expect(billBaseSelect, contains('customer:customers('));
       expect(billBaseSelect, contains('customer_code'));
       expect(billBaseSelect, contains('full_name'));
+      expect(billBaseSelect, contains('payment_source'));
     });
   });
 

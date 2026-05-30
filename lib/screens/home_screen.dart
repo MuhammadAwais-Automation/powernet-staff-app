@@ -29,15 +29,15 @@ class _HomeScreenState extends State<HomeScreen> {
     switch (staff.normalizedRole) {
       case 'technician':
         context.read<ComplaintQueueProvider>().loadForTechnicianAndAreas(
-              staff.id,
-              staff.areaIds,
-            );
+          staff.id,
+          staff.areaIds,
+        );
         break;
       case 'recovery_agent':
         context.read<BillsProvider>().loadPendingByAreas(
-              staff.areaIds,
-              staff.id,
-            );
+          staff.areaIds,
+          staff.id,
+        );
         break;
       case 'field_agent':
         context.read<CustomersProvider>().loadByAreas(staff.areaIds);
@@ -61,10 +61,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       backgroundColor: pn.background,
       body: SafeArea(
-        child: _RoleHome(
-          role: staff.normalizedRole,
-          onRefresh: _loadData,
-        ),
+        child: _RoleHome(role: staff.normalizedRole, onRefresh: _loadData),
       ),
     );
   }
@@ -74,10 +71,7 @@ class _RoleHome extends StatelessWidget {
   final String role;
   final VoidCallback onRefresh;
 
-  const _RoleHome({
-    required this.role,
-    required this.onRefresh,
-  });
+  const _RoleHome({required this.role, required this.onRefresh});
 
   @override
   Widget build(BuildContext context) {
@@ -119,13 +113,23 @@ class _RoleHome extends StatelessWidget {
             ],
           ),
         ),
-        _buildBottomNav(context, 'home', pn, showComplaints: role == 'cable_operator', showCollections: false),
+        _buildBottomNav(
+          context,
+          'home',
+          pn,
+          showComplaints: role == 'cable_operator',
+          showCollections: false,
+        ),
       ],
     );
   }
 
   // --- Technician Home Design Overhaul (09-technician-home.html) ---
-  Widget _buildTechnicianHome(BuildContext context, dynamic staff, PnColors pn) {
+  Widget _buildTechnicianHome(
+    BuildContext context,
+    dynamic staff,
+    PnColors pn,
+  ) {
     final q = context.watch<ComplaintQueueProvider>();
     final loading = q.loading;
 
@@ -193,7 +197,10 @@ class _RoleHome extends StatelessWidget {
                           backgroundColor: pn.cyan.withValues(alpha: 0.12),
                           foregroundColor: pn.cyan,
                           elevation: 0,
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 8,
+                          ),
                           minimumSize: Size.zero,
                           tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                           shape: RoundedRectangleBorder(
@@ -263,7 +270,10 @@ class _RoleHome extends StatelessWidget {
                 const SizedBox(height: 12),
                 // Queued Offline Actions Card
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 14,
+                  ),
                   decoration: BoxDecoration(
                     color: pn.surface,
                     borderRadius: BorderRadius.circular(18),
@@ -317,7 +327,13 @@ class _RoleHome extends StatelessWidget {
             ),
           ),
         ),
-        _buildBottomNav(context, 'home', pn, showComplaints: true, showCollections: false),
+        _buildBottomNav(
+          context,
+          'home',
+          pn,
+          showComplaints: true,
+          showCollections: false,
+        ),
       ],
     );
   }
@@ -375,7 +391,10 @@ class _RoleHome extends StatelessWidget {
                       ),
                       // Live indicator dot matching mockup
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
                         decoration: BoxDecoration(
                           color: pn.success.withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(99),
@@ -434,7 +453,9 @@ class _RoleHome extends StatelessWidget {
                     ),
                     _buildKpiCard(
                       label: 'Overdue Bills',
-                      value: loading ? '…' : '${bills.bills.where((b) => b.isOverdue).length}',
+                      value: loading
+                          ? '…'
+                          : '${bills.bills.where((b) => b.isOverdue).length}',
                       valueColor: pn.warning,
                       pn: pn,
                       onTap: () => context.push('/collector/bills'),
@@ -458,7 +479,10 @@ class _RoleHome extends StatelessWidget {
                 const SizedBox(height: 12),
                 // Offline Actions Card
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 14,
+                  ),
                   decoration: BoxDecoration(
                     color: pn.surface,
                     borderRadius: BorderRadius.circular(18),
@@ -512,18 +536,31 @@ class _RoleHome extends StatelessWidget {
             ),
           ),
         ),
-        _buildBottomNav(context, 'home', pn, showComplaints: false, showCollections: true),
+        _buildBottomNav(
+          context,
+          'home',
+          pn,
+          showComplaints: false,
+          showCollections: true,
+        ),
       ],
     );
   }
 
   // --- Supporting Reusable Widgets matching HTML layouts ---
-  Widget _buildAppBar(BuildContext context, String name, String subtitle, PnColors pn) {
+  Widget _buildAppBar(
+    BuildContext context,
+    String name,
+    String subtitle,
+    PnColors pn,
+  ) {
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
       decoration: BoxDecoration(
         color: pn.background,
-        border: Border(bottom: BorderSide(color: pn.border.withValues(alpha: 0.5))),
+        border: Border(
+          bottom: BorderSide(color: pn.border.withValues(alpha: 0.5)),
+        ),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -787,11 +824,7 @@ class _BottomNavItem extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              icon,
-              color: isActive ? activeColor : pn.textMuted,
-              size: 24,
-            ),
+            Icon(icon, color: isActive ? activeColor : pn.textMuted, size: 24),
             const SizedBox(height: 3),
             Text(
               label,

@@ -6,12 +6,7 @@ class PnCard extends StatelessWidget {
   final EdgeInsetsGeometry? padding;
   final VoidCallback? onTap;
 
-  const PnCard({
-    super.key,
-    required this.child,
-    this.padding,
-    this.onTap,
-  });
+  const PnCard({super.key, required this.child, this.padding, this.onTap});
 
   @override
   Widget build(BuildContext context) {

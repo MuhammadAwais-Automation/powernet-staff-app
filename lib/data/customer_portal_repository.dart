@@ -5,7 +5,7 @@ import '../models/customer_account.dart';
 
 const _customerBillSelect =
     'id, customer_id, amount, paid_amount, month, status, collected_by, '
-    'paid_at, receipt_no, payment_method, payment_note, created_at, '
+    'paid_at, receipt_no, payment_method, payment_note, payment_source, created_at, '
     'customer:customers(id, customer_code, full_name, address_type, address_value, area_id)';
 
 const _customerComplaintSelect =

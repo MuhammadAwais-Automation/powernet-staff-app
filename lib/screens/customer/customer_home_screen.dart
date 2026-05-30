@@ -47,7 +47,9 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
           color: pn.accent,
           backgroundColor: pn.surface,
           child: ListView(
-            physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+            physics: const BouncingScrollPhysics(
+              parent: AlwaysScrollableScrollPhysics(),
+            ),
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
             children: [
               // Welcome Header Bar (06-customer-home.html)
@@ -63,9 +65,11 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                           width: 44,
                           height: 44,
                           decoration: BoxDecoration(
-                            color: pn.cyan.withOpacity(0.12),
+                            color: pn.cyan.withValues(alpha: 0.12),
                             shape: BoxShape.circle,
-                            border: Border.all(color: pn.cyan.withOpacity(0.35)),
+                            border: Border.all(
+                              color: pn.cyan.withValues(alpha: 0.35),
+                            ),
                           ),
                           child: Center(
                             child: Text(
@@ -85,7 +89,11 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                         children: [
                           Text(
                             'Welcome back,',
-                            style: TextStyle(color: pn.textMuted, fontSize: 11, fontWeight: FontWeight.w600),
+                            style: TextStyle(
+                              color: pn.textMuted,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                           const SizedBox(height: 1),
                           Text(
@@ -100,14 +108,19 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                       ),
                     ],
                   ),
-                  
+
                   // Live indicator sync chip
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: pn.softGreen,
                       borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: pn.success.withOpacity(0.2)),
+                      border: Border.all(
+                        color: pn.success.withValues(alpha: 0.2),
+                      ),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
@@ -152,7 +165,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                   border: Border.all(color: pn.border),
                   boxShadow: [
                     BoxShadow(
-                      color: pn.text.withOpacity(0.03),
+                      color: pn.text.withValues(alpha: 0.03),
                       blurRadius: 20,
                       offset: const Offset(0, 10),
                     ),
@@ -193,9 +206,15 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                           decoration: BoxDecoration(
                             color: pn.softOrange,
                             borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: pn.accent.withOpacity(0.3)),
+                            border: Border.all(
+                              color: pn.accent.withValues(alpha: 0.3),
+                            ),
                           ),
-                          child: Icon(Icons.wifi_tethering, color: pn.accent, size: 22),
+                          child: Icon(
+                            Icons.wifi_tethering,
+                            color: pn.accent,
+                            size: 22,
+                          ),
                         ),
                       ],
                     ),
@@ -208,14 +227,22 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                       children: [
                         Text(
                           'House ID: ${customer.displayHouseId}',
-                          style: TextStyle(color: pn.textSoft, fontSize: 12, fontWeight: FontWeight.w700),
+                          style: TextStyle(
+                            color: pn.textSoft,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
                         Text(
                           'Area: ${customer.area?.name ?? "—"}',
-                          style: TextStyle(color: pn.textSoft, fontSize: 12, fontWeight: FontWeight.w700),
+                          style: TextStyle(
+                            color: pn.textSoft,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
                       ],
-                    )
+                    ),
                   ],
                 ),
               ),
@@ -231,7 +258,11 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                   ),
                   child: Text(
                     portal.error!,
-                    style: TextStyle(color: pn.danger, fontSize: 12, fontWeight: FontWeight.w600),
+                    style: TextStyle(
+                      color: pn.danger,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
               ],
@@ -248,7 +279,9 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                   _buildDashboardKpi(
                     pn,
                     'Total Due Amount',
-                    portal.loading ? '...' : 'Rs. ${portal.totalDue.toStringAsFixed(0)}',
+                    portal.loading
+                        ? '...'
+                        : 'Rs. ${portal.totalDue.toStringAsFixed(0)}',
                     portal.totalDue > 0 ? pn.danger : pn.success,
                     Icons.account_balance_wallet_outlined,
                   ),
@@ -345,7 +378,11 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                     ),
                   ),
                 ),
-                Icon(icon, color: pn.textMuted.withOpacity(0.5), size: 16),
+                Icon(
+                  icon,
+                  color: pn.textMuted.withValues(alpha: 0.5),
+                  size: 16,
+                ),
               ],
             ),
             const SizedBox(height: 6),
@@ -391,7 +428,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                 decoration: BoxDecoration(
                   color: iconBg,
                   borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: iconColor.withOpacity(0.35)),
+                  border: Border.all(color: iconColor.withValues(alpha: 0.35)),
                 ),
                 child: Icon(icon, color: iconColor, size: 20),
               ),
@@ -421,11 +458,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                 ),
               ),
               const SizedBox(width: 6),
-              Icon(
-                Icons.chevron_right_rounded,
-                color: pn.accent,
-                size: 22,
-              ),
+              Icon(Icons.chevron_right_rounded, color: pn.accent, size: 22),
             ],
           ),
         ),
@@ -433,4 +466,3 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
     );
   }
 }
-

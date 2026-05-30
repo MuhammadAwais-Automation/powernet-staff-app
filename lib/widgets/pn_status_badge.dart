@@ -1,7 +1,18 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 
-enum PnStatus { paid, unpaid, overdue, partial, open, inProgress, resolved, active, suspended, disconnected }
+enum PnStatus {
+  paid,
+  unpaid,
+  overdue,
+  partial,
+  open,
+  inProgress,
+  resolved,
+  active,
+  suspended,
+  disconnected,
+}
 
 class PnStatusBadge extends StatelessWidget {
   final String label;

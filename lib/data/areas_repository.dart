@@ -8,7 +8,9 @@ class AreasRepository {
         .select('id, code, name, type, is_active')
         .eq('is_active', true)
         .order('name');
-    return (res as List).map((j) => Area.fromJson(j as Map<String, dynamic>)).toList();
+    return (res as List)
+        .map((j) => Area.fromJson(j as Map<String, dynamic>))
+        .toList();
   }
 
   Future<Area?> fetchById(String id) async {

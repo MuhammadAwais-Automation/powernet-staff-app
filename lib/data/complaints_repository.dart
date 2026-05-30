@@ -8,7 +8,7 @@ import '../models/complaint.dart';
 
 const complaintBaseSelect =
     'id, complaint_code, customer_id, issue, type, priority, status, '
-    'assigned_to, opened_at, resolved_at, resolution_notes, hardware_used, '
+    'assigned_to, assigned_at, in_progress_at, opened_at, resolved_at, resolution_notes, hardware_used, '
     'customer:customers(id, full_name, area_id, customer_code, address_value, phone), '
     'technician:staff(id, full_name)';
 
@@ -20,7 +20,7 @@ const complaintLegacyBaseSelect =
 
 const complaintAreaSelect =
     'id, complaint_code, customer_id, issue, type, priority, status, '
-    'assigned_to, opened_at, resolved_at, resolution_notes, hardware_used, '
+    'assigned_to, assigned_at, in_progress_at, opened_at, resolved_at, resolution_notes, hardware_used, '
     'customer:customers!inner(id, full_name, area_id, customer_code, address_value, phone), '
     'technician:staff(id, full_name)';
 
@@ -109,6 +109,9 @@ class ComplaintsRepository {
 
   Future<void> updateStatus(String id, String status) async {
     final update = <String, dynamic>{'status': status};
+    if (status == 'in_progress') {
+      update['in_progress_at'] = DateTime.now().toUtc().toIso8601String();
+    }
     if (status == 'resolved') {
       update['resolved_at'] = DateTime.now().toUtc().toIso8601String();
     }
@@ -139,7 +142,12 @@ class ComplaintsRepository {
   Future<void> assignTo(String complaintId, String technicianId) async {
     await supabase
         .from('complaints')
-        .update({'assigned_to': technicianId, 'status': 'in_progress'})
+        .update({
+          'assigned_to': technicianId,
+          'assigned_at': DateTime.now().toUtc().toIso8601String(),
+          'status': 'in_progress',
+          'in_progress_at': DateTime.now().toUtc().toIso8601String(),
+        })
         .eq('id', complaintId);
   }
 
@@ -255,7 +263,10 @@ class ComplaintsRepository {
     return _parseComplaintList(res);
   }
 
-  Future<List<Complaint>> _fetchByAreas(List<String> areaIds, String select) async {
+  Future<List<Complaint>> _fetchByAreas(
+    List<String> areaIds,
+    String select,
+  ) async {
     if (areaIds.isEmpty) return [];
     final res = await supabase
         .from('complaints')
@@ -296,6 +307,8 @@ class ComplaintsRepository {
     final text = error.toString();
     return text.contains('42703') ||
         text.contains('resolution_notes') ||
-        text.contains('hardware_used');
+        text.contains('hardware_used') ||
+        text.contains('assigned_at') ||
+        text.contains('in_progress_at');
   }
 }

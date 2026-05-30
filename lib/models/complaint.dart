@@ -7,6 +7,8 @@ class Complaint {
   final String priority;
   final String status;
   final String? assignedTo;
+  final String? assignedAt;
+  final String? inProgressAt;
   final String openedAt;
   final String? resolvedAt;
   final String? resolutionNotes;
@@ -23,6 +25,8 @@ class Complaint {
     required this.priority,
     required this.status,
     this.assignedTo,
+    this.assignedAt,
+    this.inProgressAt,
     required this.openedAt,
     this.resolvedAt,
     this.resolutionNotes,
@@ -40,6 +44,8 @@ class Complaint {
     priority: j['priority'] as String,
     status: j['status'] as String,
     assignedTo: j['assigned_to'] as String?,
+    assignedAt: j['assigned_at'] as String?,
+    inProgressAt: j['in_progress_at'] as String?,
     openedAt: j['opened_at'] as String,
     resolvedAt: j['resolved_at'] as String?,
     resolutionNotes: j['resolution_notes'] as String?,
@@ -57,6 +63,8 @@ class Complaint {
     'priority': priority,
     'status': status,
     'assigned_to': assignedTo,
+    'assigned_at': assignedAt,
+    'in_progress_at': inProgressAt,
     'opened_at': openedAt,
     'resolved_at': resolvedAt,
     'resolution_notes': resolutionNotes,
@@ -67,6 +75,8 @@ class Complaint {
 
   Complaint copyWith({
     String? status,
+    String? assignedAt,
+    String? inProgressAt,
     String? resolvedAt,
     String? resolutionNotes,
     String? hardwareUsed,
@@ -79,6 +89,8 @@ class Complaint {
     priority: priority,
     status: status ?? this.status,
     assignedTo: assignedTo,
+    assignedAt: assignedAt ?? this.assignedAt,
+    inProgressAt: inProgressAt ?? this.inProgressAt,
     openedAt: openedAt,
     resolvedAt: resolvedAt ?? this.resolvedAt,
     resolutionNotes: resolutionNotes ?? this.resolutionNotes,

@@ -46,29 +46,29 @@ class Customer {
   });
 
   factory Customer.fromJson(Map<String, dynamic> j) => Customer(
-        id: j['id'] as String,
-        customerCode: j['customer_code'] as String,
-        username: j['username'] as String?,
-        fullName: j['full_name'] as String,
-        cnic: j['cnic'] as String?,
-        phone: j['phone'] as String?,
-        packageId: j['package_id'] as String?,
-        iptv: j['iptv'] as bool? ?? false,
-        addressType: j['address_type'] as String? ?? 'text',
-        addressValue: j['address_value'] as String?,
-        areaId: j['area_id'] as String?,
-        connectionDate: j['connection_date'] as String?,
-        dueAmount: (j['due_amount'] as num?)?.toDouble(),
-        onuNumber: j['onu_number'] as String?,
-        status: j['status'] as String,
-        disconnectedDate: j['disconnected_date'] as String?,
-        reconnectedDate: j['reconnected_date'] as String?,
-        remarks: j['remarks'] as String?,
-        createdAt: j['created_at'] as String,
-        area: j['area'] != null
-            ? Area.fromJson(j['area'] as Map<String, dynamic>)
-            : null,
-      );
+    id: j['id'] as String,
+    customerCode: j['customer_code'] as String,
+    username: j['username'] as String?,
+    fullName: j['full_name'] as String,
+    cnic: j['cnic'] as String?,
+    phone: j['phone'] as String?,
+    packageId: j['package_id'] as String?,
+    iptv: j['iptv'] as bool? ?? false,
+    addressType: j['address_type'] as String? ?? 'text',
+    addressValue: j['address_value'] as String?,
+    areaId: j['area_id'] as String?,
+    connectionDate: j['connection_date'] as String?,
+    dueAmount: (j['due_amount'] as num?)?.toDouble(),
+    onuNumber: j['onu_number'] as String?,
+    status: j['status'] as String,
+    disconnectedDate: j['disconnected_date'] as String?,
+    reconnectedDate: j['reconnected_date'] as String?,
+    remarks: j['remarks'] as String?,
+    createdAt: j['created_at'] as String,
+    area: j['area'] != null
+        ? Area.fromJson(j['area'] as Map<String, dynamic>)
+        : null,
+  );
 
   String get displayId => username ?? customerCode;
 }

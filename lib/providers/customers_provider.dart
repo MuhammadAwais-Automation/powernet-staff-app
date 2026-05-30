@@ -18,8 +18,10 @@ class CustomersProvider extends ChangeNotifier {
   String? get error => _error;
 
   int get activeCount => _customers.where((c) => c.status == 'active').length;
-  int get suspendedCount => _customers.where((c) => c.status == 'suspended').length;
-  int get disconnectedCount => _customers.where((c) => c.status == 'disconnected').length;
+  int get suspendedCount =>
+      _customers.where((c) => c.status == 'suspended').length;
+  int get disconnectedCount =>
+      _customers.where((c) => c.status == 'disconnected').length;
 
   Future<void> loadByAreas(List<String> areaIds) async {
     _loading = true;

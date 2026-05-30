@@ -44,7 +44,8 @@ class Staff {
       phone: json['phone'] as String?,
       areaId: json['area_id'] as String?,
       areaName: resolvedAreaName,
-      areaIds: (json['area_ids'] as List?)?.cast<String>() ??
+      areaIds:
+          (json['area_ids'] as List?)?.cast<String>() ??
           (json['area_id'] != null ? [json['area_id'] as String] : []),
       areaNames: resolvedAreaNames,
       username: json['username'] as String?,

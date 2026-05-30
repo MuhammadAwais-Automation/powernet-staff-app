@@ -3,7 +3,7 @@ import '../models/staff.dart';
 
 const _domain = '@powernet.local';
 const _staffCols =
-    'id, full_name, role, phone, area_id, username, auth_user_id, area:areas(name)';
+    'id, full_name, role, phone, area_id, area_ids, username, auth_user_id, area:areas(name)';
 
 Staff? parseVerifiedStaffLogin(dynamic response) {
   if (response is! Map || response['success'] != true) return null;
@@ -18,8 +18,10 @@ class AuthService {
     final email = '$normalizedUsername$_domain';
 
     try {
-      final res = await supabase.auth
-          .signInWithPassword(email: email, password: password);
+      final res = await supabase.auth.signInWithPassword(
+        email: email,
+        password: password,
+      );
       if (res.session == null) return null;
       final staff = await _fetchStaff(res.session!.user.id);
       if (staff != null) return staff;
@@ -61,11 +63,13 @@ class AuthService {
   }
 
   Future<Staff?> _loginWithLegacyPassword(
-      String username, String password) async {
-    final response = await supabase.rpc('verify_staff_login', params: {
-      'p_username': username,
-      'p_password': password,
-    });
+    String username,
+    String password,
+  ) async {
+    final response = await supabase.rpc(
+      'verify_staff_login',
+      params: {'p_username': username, 'p_password': password},
+    );
     return parseVerifiedStaffLogin(response);
   }
 }

@@ -88,7 +88,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
           case 'cable_operator':
             await Future.wait([
               context.read<CustomersProvider>().loadByAreas(staff.areaIds),
-              context.read<ComplaintQueueProvider>().loadForAreas(staff.areaIds),
+              context.read<ComplaintQueueProvider>().loadForAreas(
+                staff.areaIds,
+              ),
             ]);
             break;
         }
@@ -147,7 +149,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 border: Border.all(color: pn.border),
                 boxShadow: [
                   BoxShadow(
-                    color: pn.text.withOpacity(0.04),
+                    color: pn.text.withValues(alpha: 0.04),
                     blurRadius: 26,
                     offset: const Offset(0, 10),
                   ),
@@ -162,9 +164,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         width: 58,
                         height: 58,
                         decoration: BoxDecoration(
-                          color: pn.accent.withOpacity(0.12),
+                          color: pn.accent.withValues(alpha: 0.12),
                           shape: BoxShape.circle,
-                          border: Border.all(color: pn.accent.withOpacity(0.3)),
+                          border: Border.all(
+                            color: pn.accent.withValues(alpha: 0.3),
+                          ),
                         ),
                         child: Center(
                           child: Text(
@@ -202,11 +206,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             const SizedBox(height: 6),
                             Container(
                               padding: const EdgeInsets.symmetric(
-                                  horizontal: 8, vertical: 2),
+                                horizontal: 8,
+                                vertical: 2,
+                              ),
                               decoration: BoxDecoration(
                                 color: pn.softGreen,
                                 borderRadius: BorderRadius.circular(6),
-                                border: Border.all(color: pn.success.withOpacity(0.2)),
+                                border: Border.all(
+                                  color: pn.success.withValues(alpha: 0.2),
+                                ),
                               ),
                               child: Text(
                                 'ACTIVE',
@@ -237,12 +245,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           children: [
                             Text(
                               'USERNAME',
-                              style: TextStyle(color: pn.textMuted, fontSize: 10, fontWeight: FontWeight.w600),
+                              style: TextStyle(
+                                color: pn.textMuted,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
                             const SizedBox(height: 2),
                             Text(
                               staff.username ?? '—',
-                              style: TextStyle(color: pn.text, fontSize: 13, fontWeight: FontWeight.w800),
+                              style: TextStyle(
+                                color: pn.text,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w800,
+                              ),
                             ),
                           ],
                         ),
@@ -253,18 +269,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           children: [
                             Text(
                               'ASSIGNED AREA',
-                              style: TextStyle(color: pn.textMuted, fontSize: 10, fontWeight: FontWeight.w600),
+                              style: TextStyle(
+                                color: pn.textMuted,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
                             const SizedBox(height: 2),
                             Text(
                               staff.areaName ?? '—',
-                              style: TextStyle(color: pn.text, fontSize: 13, fontWeight: FontWeight.w800),
+                              style: TextStyle(
+                                color: pn.text,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w800,
+                              ),
                             ),
                           ],
                         ),
                       ),
                     ],
-                  )
+                  ),
                 ],
               ),
             ),
@@ -290,19 +314,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: pn.softCyan,
                 foregroundColor: pn.primary,
-                side: BorderSide(color: pn.cyan.withOpacity(0.3)),
+                side: BorderSide(color: pn.cyan.withValues(alpha: 0.3)),
               ),
               icon: _syncing
                   ? const SizedBox(
                       width: 18,
                       height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2, valueColor: AlwaysStoppedAnimation(primaryColor)),
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation(primaryColor),
+                      ),
                     )
                   : Icon(Icons.sync_rounded, color: pn.cyan, size: 20),
               label: Text(_syncing ? 'Syncing...' : 'Sync Data Now'),
             ),
             const SizedBox(height: 12),
-            
+
             OutlinedButton.icon(
               onPressed: () async {
                 await auth.logout();
@@ -311,7 +338,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               style: OutlinedButton.styleFrom(
                 backgroundColor: pn.softRed,
                 foregroundColor: pn.danger,
-                side: BorderSide(color: pn.danger.withOpacity(0.2)),
+                side: BorderSide(color: pn.danger.withValues(alpha: 0.2)),
               ),
               icon: Icon(Icons.logout_rounded, color: pn.danger, size: 20),
               label: const Text('Logout Session'),
@@ -323,7 +350,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildDynamicStatsGrid(BuildContext context, dynamic staff, PnColors pn) {
+  Widget _buildDynamicStatsGrid(
+    BuildContext context,
+    dynamic staff,
+    PnColors pn,
+  ) {
     switch (staff.normalizedRole) {
       case 'technician':
         final q = context.watch<ComplaintQueueProvider>();
@@ -336,10 +367,34 @@ class _ProfileScreenState extends State<ProfileScreen> {
           crossAxisSpacing: 10,
           childAspectRatio: 1.5,
           children: [
-            _buildKpiCard(pn, 'Resolved Today', loading ? '…' : '${q.resolvedToday.length}', pn.softGreen, pn.success),
-            _buildKpiCard(pn, 'Pending Jobs', loading ? '…' : '${q.open.length}', pn.softOrange, pn.accent),
-            _buildKpiCard(pn, 'In Progress', loading ? '…' : '${q.inProgress.length}', pn.softCyan, pn.cyan),
-            _buildKpiCard(pn, 'Offline Queue', loading ? '…' : '${q.pendingSyncCount}', pn.softCyan, pn.cyan),
+            _buildKpiCard(
+              pn,
+              'Resolved Today',
+              loading ? '…' : '${q.resolvedToday.length}',
+              pn.softGreen,
+              pn.success,
+            ),
+            _buildKpiCard(
+              pn,
+              'Pending Jobs',
+              loading ? '…' : '${q.open.length}',
+              pn.softOrange,
+              pn.accent,
+            ),
+            _buildKpiCard(
+              pn,
+              'In Progress',
+              loading ? '…' : '${q.inProgress.length}',
+              pn.softCyan,
+              pn.cyan,
+            ),
+            _buildKpiCard(
+              pn,
+              'Offline Queue',
+              loading ? '…' : '${q.pendingSyncCount}',
+              pn.softCyan,
+              pn.cyan,
+            ),
           ],
         );
 
@@ -354,10 +409,36 @@ class _ProfileScreenState extends State<ProfileScreen> {
           crossAxisSpacing: 10,
           childAspectRatio: 1.5,
           children: [
-            _buildKpiCard(pn, 'Collected Today', loading ? '…' : 'PKR ${_formatShortAmount(bills.collectedTodayAmount)}', pn.softGreen, pn.success),
-            _buildKpiCard(pn, 'Pending Bills', loading ? '…' : '${bills.bills.length}', pn.softOrange, pn.accent),
-            _buildKpiCard(pn, 'Visits Logged', loading ? '…' : '${bills.visitedToday.length}', pn.softCyan, pn.cyan),
-            _buildKpiCard(pn, 'Offline Queue', loading ? '…' : '${bills.pendingSyncCount}', pn.softCyan, pn.cyan),
+            _buildKpiCard(
+              pn,
+              'Collected Today',
+              loading
+                  ? '…'
+                  : 'PKR ${_formatShortAmount(bills.collectedTodayAmount)}',
+              pn.softGreen,
+              pn.success,
+            ),
+            _buildKpiCard(
+              pn,
+              'Pending Bills',
+              loading ? '…' : '${bills.bills.length}',
+              pn.softOrange,
+              pn.accent,
+            ),
+            _buildKpiCard(
+              pn,
+              'Visits Logged',
+              loading ? '…' : '${bills.visitedToday.length}',
+              pn.softCyan,
+              pn.cyan,
+            ),
+            _buildKpiCard(
+              pn,
+              'Offline Queue',
+              loading ? '…' : '${bills.pendingSyncCount}',
+              pn.softCyan,
+              pn.cyan,
+            ),
           ],
         );
 
@@ -372,10 +453,34 @@ class _ProfileScreenState extends State<ProfileScreen> {
           crossAxisSpacing: 10,
           childAspectRatio: 1.5,
           children: [
-            _buildKpiCard(pn, 'Total Customers', loading ? '…' : '${custs.customers.length}', pn.softCyan, pn.cyan),
-            _buildKpiCard(pn, 'Active', loading ? '…' : '${custs.activeCount}', pn.softGreen, pn.success),
-            _buildKpiCard(pn, 'Suspended', loading ? '…' : '${custs.suspendedCount}', pn.softOrange, pn.accent),
-            _buildKpiCard(pn, 'Disconnected', loading ? '…' : '${custs.disconnectedCount}', pn.softRed, pn.danger),
+            _buildKpiCard(
+              pn,
+              'Total Customers',
+              loading ? '…' : '${custs.customers.length}',
+              pn.softCyan,
+              pn.cyan,
+            ),
+            _buildKpiCard(
+              pn,
+              'Active',
+              loading ? '…' : '${custs.activeCount}',
+              pn.softGreen,
+              pn.success,
+            ),
+            _buildKpiCard(
+              pn,
+              'Suspended',
+              loading ? '…' : '${custs.suspendedCount}',
+              pn.softOrange,
+              pn.accent,
+            ),
+            _buildKpiCard(
+              pn,
+              'Disconnected',
+              loading ? '…' : '${custs.disconnectedCount}',
+              pn.softRed,
+              pn.danger,
+            ),
           ],
         );
 
@@ -391,10 +496,34 @@ class _ProfileScreenState extends State<ProfileScreen> {
           crossAxisSpacing: 10,
           childAspectRatio: 1.5,
           children: [
-            _buildKpiCard(pn, 'Total Customers', loading ? '…' : '${coCusts.customers.length}', pn.softCyan, pn.cyan),
-            _buildKpiCard(pn, 'Active', loading ? '…' : '${coCusts.activeCount}', pn.softGreen, pn.success),
-            _buildKpiCard(pn, 'Open Complaints', loading ? '…' : '${coQ.open.length}', pn.softOrange, pn.accent),
-            _buildKpiCard(pn, 'Disconnected', loading ? '…' : '${coCusts.disconnectedCount}', pn.softRed, pn.danger),
+            _buildKpiCard(
+              pn,
+              'Total Customers',
+              loading ? '…' : '${coCusts.customers.length}',
+              pn.softCyan,
+              pn.cyan,
+            ),
+            _buildKpiCard(
+              pn,
+              'Active',
+              loading ? '…' : '${coCusts.activeCount}',
+              pn.softGreen,
+              pn.success,
+            ),
+            _buildKpiCard(
+              pn,
+              'Open Complaints',
+              loading ? '…' : '${coQ.open.length}',
+              pn.softOrange,
+              pn.accent,
+            ),
+            _buildKpiCard(
+              pn,
+              'Disconnected',
+              loading ? '…' : '${coCusts.disconnectedCount}',
+              pn.softRed,
+              pn.danger,
+            ),
           ],
         );
 
@@ -452,4 +581,3 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 }
-

@@ -14,10 +14,10 @@ class Area {
   });
 
   factory Area.fromJson(Map<String, dynamic> j) => Area(
-        id: j['id'] as String,
-        code: j['code'] as String,
-        name: j['name'] as String,
-        type: j['type'] as String,
-        isActive: j['is_active'] as bool,
-      );
+    id: j['id'] as String,
+    code: j['code'] as String,
+    name: j['name'] as String,
+    type: j['type'] as String,
+    isActive: j['is_active'] as bool,
+  );
 }

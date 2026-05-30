@@ -28,10 +28,7 @@ class RecoveryHeroCard extends StatelessWidget {
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
-            Color(0xFF1E2433),
-            Color(0xFF0F1420),
-          ],
+          colors: [Color(0xFF1E2433), Color(0xFF0F1420)],
         ),
         borderRadius: BorderRadius.circular(24),
         border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
@@ -153,7 +150,10 @@ class RecoverySegmentedTabs extends StatelessWidget {
             borderRadius: BorderRadius.circular(14),
           ),
           dividerColor: Colors.transparent,
-          labelStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
+          labelStyle: const TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w800,
+          ),
           tabs: const [
             _SegmentTab(label: 'All'),
             _SegmentTab(label: 'Overdue'),
@@ -174,10 +174,7 @@ class _SegmentTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 40,
-      child: Center(child: Text(label)),
-    );
+    return SizedBox(height: 40, child: Center(child: Text(label)));
   }
 }
 

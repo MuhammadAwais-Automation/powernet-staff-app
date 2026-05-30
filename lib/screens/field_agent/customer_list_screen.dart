@@ -57,7 +57,10 @@ class _FieldAgentCustomerListScreenState
                 ),
                 onChanged: (v) {
                   final staff = context.read<AuthProvider>().currentStaff;
-                  context.read<CustomersProvider>().search(v, areaIds: staff?.areaIds);
+                  context.read<CustomersProvider>().search(
+                    v,
+                    areaIds: staff?.areaIds,
+                  );
                 },
               )
             : const Text('Customers'),
@@ -108,7 +111,8 @@ class _FieldAgentCustomerListScreenState
               itemBuilder: (context, i) => _CustomerTile(
                 customer: items[i],
                 pn: pn,
-                onTap: () => context.push('/field-agent/customers/${items[i].id}'),
+                onTap: () =>
+                    context.push('/field-agent/customers/${items[i].id}'),
               ),
             ),
           );
@@ -160,7 +164,9 @@ class _CustomerTile extends StatelessWidget {
                     Text(
                       customer.fullName,
                       style: const TextStyle(
-                          fontWeight: FontWeight.w600, fontSize: 14),
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                      ),
                     ),
                     const SizedBox(height: 3),
                     Text(

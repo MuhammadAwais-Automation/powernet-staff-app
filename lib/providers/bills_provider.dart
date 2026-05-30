@@ -30,6 +30,8 @@ class BillsProvider extends ChangeNotifier {
   int _pendingSyncCount = 0;
 
   List<Bill> get bills => _bills;
+  List<CustomerBillLedger> get pendingLedgers =>
+      CustomerBillLedger.groupBills(_bills);
   List<Bill> get collectedToday => _collectedToday;
   List<Bill> get visitedToday => _visitedToday;
   bool get loading => _loading;
@@ -52,7 +54,10 @@ class BillsProvider extends ChangeNotifier {
     _listenForConnectivity();
   }
 
-  Future<void> loadPendingByAreas(List<String> areaIds, String collectorId) async {
+  Future<void> loadPendingByAreas(
+    List<String> areaIds,
+    String collectorId,
+  ) async {
     _activeAreaIds = areaIds;
     _activeCollectorId = collectorId;
     _ensureRealtimeSubscription();
@@ -67,7 +72,7 @@ class BillsProvider extends ChangeNotifier {
       }
       final results = await Future.wait([
         _repo.fetchPendingByAreas(areaIds),
-        _repo.fetchCollectedToday(collectorId),
+        _repo.fetchPaidTodayByAreas(areaIds),
         _repo.fetchVisitedToday(collectorId),
       ]);
       _bills = results[0];
@@ -224,6 +229,55 @@ class BillsProvider extends ChangeNotifier {
     return null;
   }
 
+  CustomerBillLedger? findLedgerByBillId(String billId) {
+    for (final ledger in pendingLedgers) {
+      if (ledger.bills.any((bill) => bill.id == billId)) return ledger;
+    }
+    return null;
+  }
+
+  CustomerBillLedger? findLedgerByCustomerId(String customerId) {
+    for (final ledger in pendingLedgers) {
+      if (ledger.customerId == customerId) return ledger;
+    }
+    return null;
+  }
+
+  Future<PaymentSubmissionResult> submitLedgerPayment({
+    required CustomerBillLedger ledger,
+    required double amount,
+    required String collectorId,
+    required String paymentMethod,
+    String? paymentNote,
+  }) async {
+    var remainingPayment = amount;
+    var finalResult = PaymentSubmissionResult.synced;
+    final oldestFirst = [...ledger.bills.reversed];
+
+    for (final bill in oldestFirst) {
+      if (remainingPayment <= 0) break;
+      final amountForBill = remainingPayment > bill.remaining
+          ? bill.remaining
+          : remainingPayment;
+      if (amountForBill <= 0) continue;
+
+      final result = await submitPayment(
+        billId: bill.id,
+        amount: amountForBill,
+        collectorId: collectorId,
+        paymentMethod: paymentMethod,
+        paymentNote: paymentNote,
+      );
+      if (result == PaymentSubmissionResult.failed) return result;
+      if (result == PaymentSubmissionResult.queued) {
+        finalResult = PaymentSubmissionResult.queued;
+      }
+      remainingPayment -= amountForBill;
+    }
+
+    return finalResult;
+  }
+
   Future<void> syncQueuedNow({bool refreshAfterSync = true}) async {
     if (_syncing) return;
     _syncing = true;
@@ -236,7 +290,7 @@ class BillsProvider extends ChangeNotifier {
         if (areaIds.isNotEmpty && collectorId != null) {
           final results = await Future.wait([
             _repo.fetchPendingByAreas(areaIds),
-            _repo.fetchCollectedToday(collectorId),
+            _repo.fetchPaidTodayByAreas(areaIds),
             _repo.fetchVisitedToday(collectorId),
           ]);
           _bills = results[0];
@@ -260,7 +314,10 @@ class BillsProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> _loadCachedSnapshot(List<String> areaIds, String collectorId) async {
+  Future<void> _loadCachedSnapshot(
+    List<String> areaIds,
+    String collectorId,
+  ) async {
     _bills = await _repo.getCachedPendingByAreas(areaIds);
     _collectedToday = await _repo.getCachedCollectedToday(collectorId);
     _visitedToday = await _repo.getCachedVisitedToday(collectorId);

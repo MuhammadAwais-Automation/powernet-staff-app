@@ -19,7 +19,7 @@ class _CustomerSignupScreenState extends State<CustomerSignupScreen> {
   final _repo = CustomerSignupRepository();
   final _formKeyPersonal = GlobalKey<FormState>();
   final _formKeyConnection = GlobalKey<FormState>();
-  
+
   final _name = TextEditingController();
   final _fatherName = TextEditingController();
   final _cnic = TextEditingController();
@@ -31,17 +31,19 @@ class _CustomerSignupScreenState extends State<CustomerSignupScreen> {
   final _houseId = TextEditingController();
   final _street = TextEditingController();
   final _email = TextEditingController();
+  final _customSpeed = TextEditingController();
 
   List<Area> _areas = [];
   List<PackagePlan> _packages = [];
   String? _areaId;
   String? _packageId;
   String? _gender = 'male';
+  bool _isCustomPackage = false;
   bool _loadingLookups = true;
   bool _submitting = false;
   bool _submitted = false;
   String? _error;
-  
+
   // Custom Stepper Index (0: Personal, 1: Connection, 2: Package, 3: Review)
   int _currentStep = 0;
 
@@ -65,6 +67,7 @@ class _CustomerSignupScreenState extends State<CustomerSignupScreen> {
       _houseId,
       _street,
       _email,
+      _customSpeed,
     ]) {
       c.dispose();
     }
@@ -78,9 +81,32 @@ class _CustomerSignupScreenState extends State<CustomerSignupScreen> {
       _areas = areas;
       _packages = packages;
       if (_areas.isNotEmpty) _areaId = _areas.first.id;
-      if (_packages.isNotEmpty) _packageId = _packages.first.id;
+
+      // Default selection to first hot package (4, 10 or 20 Mbps)
+      final hot = packages
+          .where(
+            (p) => p.speedMbps == 4 || p.speedMbps == 10 || p.speedMbps == 20,
+          )
+          .toList();
+      if (hot.isNotEmpty) {
+        _packageId = hot.first.id;
+      } else if (_packages.isNotEmpty) {
+        _packageId = _packages.first.id;
+      }
+
+      if (_packageId != null) {
+        final currentPkg = _packages.firstWhere(
+          (p) => p.id == _packageId,
+          orElse: () =>
+              PackagePlan(id: '', name: '', speedMbps: -1, isActive: false),
+        );
+        _isCustomPackage =
+            currentPkg.speedMbps == 0 ||
+            currentPkg.name.toLowerCase().contains('custom');
+      }
     } catch (e) {
-      _error = 'Signup options could not be loaded. Please check your internet connection.';
+      _error =
+          'Signup options could not be loaded. Please check your internet connection.';
     } finally {
       _loadingLookups = false;
       if (mounted) setState(() {});
@@ -147,6 +173,10 @@ class _CustomerSignupScreenState extends State<CustomerSignupScreen> {
         setState(() => _error = 'Select a package to continue.');
         return;
       }
+      if (_isCustomPackage && _customSpeed.text.trim().isEmpty) {
+        setState(() => _error = 'Please enter custom speed in Mbps.');
+        return;
+      }
       setState(() {
         _error = null;
         _currentStep = 3;
@@ -170,6 +200,10 @@ class _CustomerSignupScreenState extends State<CustomerSignupScreen> {
       _error = null;
     });
     try {
+      final finalStreet = _isCustomPackage
+          ? '${_street.text}\n[Requested Custom Speed: ${_customSpeed.text} Mbps]'
+          : _street.text;
+
       await _repo.submit(
         CustomerSignupDraft(
           fullName: _name.text,
@@ -184,7 +218,7 @@ class _CustomerSignupScreenState extends State<CustomerSignupScreen> {
           areaId: _areaId!,
           packageId: _packageId!,
           houseId: _houseId.text,
-          streetAddress: _street.text,
+          streetAddress: finalStreet,
           email: _email.text,
         ),
       );
@@ -202,7 +236,7 @@ class _CustomerSignupScreenState extends State<CustomerSignupScreen> {
   @override
   Widget build(BuildContext context) {
     final pn = Theme.of(context).extension<PnColors>()!;
-    
+
     // Check if request is submitted successfully
     if (_submitted) {
       return Scaffold(
@@ -221,7 +255,9 @@ class _CustomerSignupScreenState extends State<CustomerSignupScreen> {
                   decoration: BoxDecoration(
                     color: pn.softGreen,
                     shape: BoxShape.circle,
-                    border: Border.all(color: pn.success.withOpacity(0.3)),
+                    border: Border.all(
+                      color: pn.success.withValues(alpha: 0.3),
+                    ),
                   ),
                   child: Icon(
                     Icons.mark_email_read_outlined,
@@ -243,7 +279,11 @@ class _CustomerSignupScreenState extends State<CustomerSignupScreen> {
                 Text(
                   'Your request is pending company verification. After approval, a verified system agent will contact you on call or WhatsApp with your temporary house ID credentials.',
                   textAlign: TextAlign.center,
-                  style: TextStyle(color: pn.textSoft, height: 1.5, fontSize: 13.5),
+                  style: TextStyle(
+                    color: pn.textSoft,
+                    height: 1.5,
+                    fontSize: 13.5,
+                  ),
                 ),
                 const Spacer(),
                 ElevatedButton(
@@ -273,9 +313,12 @@ class _CustomerSignupScreenState extends State<CustomerSignupScreen> {
               children: [
                 // Clean step indicator bar matching CSS .stepper
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 12,
+                  ),
                   decoration: BoxDecoration(
-                    color: pn.surfaceMuted.withOpacity(0.4),
+                    color: pn.surfaceMuted.withValues(alpha: 0.4),
                     border: Border(bottom: BorderSide(color: pn.border)),
                   ),
                   child: Row(
@@ -292,7 +335,10 @@ class _CustomerSignupScreenState extends State<CustomerSignupScreen> {
                 Expanded(
                   child: SingleChildScrollView(
                     physics: const BouncingScrollPhysics(),
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 16,
+                    ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
@@ -303,23 +349,33 @@ class _CustomerSignupScreenState extends State<CustomerSignupScreen> {
                             decoration: BoxDecoration(
                               color: pn.softRed,
                               borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: pn.danger.withOpacity(0.3)),
+                              border: Border.all(
+                                color: pn.danger.withValues(alpha: 0.3),
+                              ),
                             ),
                             child: Row(
                               children: [
-                                Icon(Icons.error_outline_rounded, color: pn.danger, size: 18),
+                                Icon(
+                                  Icons.error_outline_rounded,
+                                  color: pn.danger,
+                                  size: 18,
+                                ),
                                 const SizedBox(width: 10),
                                 Expanded(
                                   child: Text(
                                     _error!,
-                                    style: TextStyle(color: pn.danger, fontSize: 12, fontWeight: FontWeight.w600),
+                                    style: TextStyle(
+                                      color: pn.danger,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                    ),
                                   ),
                                 ),
                               ],
                             ),
                           ),
                         ],
-                        
+
                         // Active Stepper Panel Builder
                         _buildActiveStepPanel(pn),
                       ],
@@ -340,14 +396,9 @@ class _CustomerSignupScreenState extends State<CustomerSignupScreen> {
         margin: const EdgeInsets.symmetric(horizontal: 3),
         padding: const EdgeInsets.symmetric(vertical: 8),
         decoration: BoxDecoration(
-          color: isActive
-              ? pn.accent
-              : (isDone ? pn.softCyan : pn.surface),
+          color: isActive ? pn.accent : (isDone ? pn.softCyan : pn.surface),
           borderRadius: BorderRadius.circular(999),
-          border: Border.all(
-            color: isActive ? pn.accent : pn.border,
-            width: 1,
-          ),
+          border: Border.all(color: isActive ? pn.accent : pn.border, width: 1),
         ),
         child: Text(
           label,
@@ -419,6 +470,45 @@ class _CustomerSignupScreenState extends State<CustomerSignupScreen> {
             decoration: const InputDecoration(hintText: 'e.g. 42101-XXXXXXX-X'),
           ),
           const SizedBox(height: 16),
+          _buildFieldHeader(pn, 'GENDER'),
+          DropdownButtonFormField<String>(
+            initialValue: _gender,
+            items: const [
+              DropdownMenuItem(value: 'male', child: Text('Male')),
+              DropdownMenuItem(value: 'female', child: Text('Female')),
+              DropdownMenuItem(value: 'other', child: Text('Other')),
+            ],
+            onChanged: (value) => setState(() => _gender = value),
+            validator: (value) => value == null ? 'Required' : null,
+          ),
+          const SizedBox(height: 16),
+          _buildFieldHeader(pn, 'PROFESSION'),
+          TextFormField(
+            controller: _profession,
+            textInputAction: TextInputAction.next,
+            decoration: const InputDecoration(
+              hintText: 'e.g. Businessman, Engineer, Soldier',
+            ),
+          ),
+          const SizedBox(height: 16),
+          _buildFieldHeader(pn, 'RANK / POSITION (OPTIONAL)'),
+          TextFormField(
+            controller: _rank,
+            textInputAction: TextInputAction.next,
+            decoration: const InputDecoration(
+              hintText: 'e.g. Captain, Manager, Assistant',
+            ),
+          ),
+          const SizedBox(height: 16),
+          _buildFieldHeader(pn, 'UNIT / DEPARTMENT (OPTIONAL)'),
+          TextFormField(
+            controller: _unit,
+            textInputAction: TextInputAction.next,
+            decoration: const InputDecoration(
+              hintText: 'e.g. Signal Battalion, IT Dept',
+            ),
+          ),
+          const SizedBox(height: 16),
           _buildFieldHeader(pn, 'MOBILE NUMBER'),
           TextFormField(
             controller: _phone,
@@ -442,7 +532,9 @@ class _CustomerSignupScreenState extends State<CustomerSignupScreen> {
             ],
             keyboardType: TextInputType.phone,
             textInputAction: TextInputAction.done,
-            decoration: const InputDecoration(hintText: 'e.g. 0300-XXXXXXX (Same or other)'),
+            decoration: const InputDecoration(
+              hintText: 'e.g. 0300-XXXXXXX (Same or other)',
+            ),
           ),
           const SizedBox(height: 24),
           ElevatedButton(
@@ -469,7 +561,7 @@ class _CustomerSignupScreenState extends State<CustomerSignupScreen> {
         children: [
           _buildFieldHeader(pn, 'ASSIGNED SERVICE AREA'),
           DropdownButtonFormField<String>(
-            value: _areaId,
+            initialValue: _areaId,
             items: _areas
                 .map(
                   (area) => DropdownMenuItem(
@@ -487,14 +579,18 @@ class _CustomerSignupScreenState extends State<CustomerSignupScreen> {
             controller: _houseId,
             validator: _required,
             textInputAction: TextInputAction.next,
-            decoration: const InputDecoration(hintText: 'e.g. House 14-B / Street 2'),
+            decoration: const InputDecoration(
+              hintText: 'e.g. House 14-B / Street 2',
+            ),
           ),
           const SizedBox(height: 16),
           _buildFieldHeader(pn, 'STREET ADDRESS'),
           TextFormField(
             controller: _street,
             maxLines: 3,
-            decoration: const InputDecoration(hintText: 'Complete physical street address & landmarks'),
+            decoration: const InputDecoration(
+              hintText: 'Complete physical street address & landmarks',
+            ),
           ),
           const SizedBox(height: 16),
           _buildFieldHeader(pn, 'EMAIL ADDRESS (OPTIONAL)'),
@@ -503,7 +599,9 @@ class _CustomerSignupScreenState extends State<CustomerSignupScreen> {
             validator: _validateEmail,
             keyboardType: TextInputType.emailAddress,
             textInputAction: TextInputAction.done,
-            decoration: const InputDecoration(hintText: 'e.g. name@example.com'),
+            decoration: const InputDecoration(
+              hintText: 'e.g. name@example.com',
+            ),
           ),
           const SizedBox(height: 24),
           Row(
@@ -536,7 +634,24 @@ class _CustomerSignupScreenState extends State<CustomerSignupScreen> {
     );
   }
 
+  List<PackagePlan> _getHotPackages() {
+    return _packages.where((pkg) {
+      return pkg.speedMbps == 4 || pkg.speedMbps == 10 || pkg.speedMbps == 20;
+    }).toList();
+  }
+
   Widget _buildPackageForm(PnColors pn) {
+    final hotPackages = _getHotPackages();
+    final customPkg = _packages.firstWhere(
+      (p) => p.speedMbps == 0 || p.name.toLowerCase().contains('custom'),
+      orElse: () => PackagePlan(
+        id: '',
+        name: 'Custom Package',
+        speedMbps: 0,
+        isActive: true,
+      ),
+    );
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -565,14 +680,21 @@ class _CustomerSignupScreenState extends State<CustomerSignupScreen> {
             crossAxisSpacing: 10,
             childAspectRatio: 1.3,
           ),
-          itemCount: _packages.length,
+          itemCount: hotPackages.length + 1,
           itemBuilder: (context, index) {
-            final pkg = _packages[index];
-            final isSelected = _packageId == pkg.id;
+            final isCustomCard = index == hotPackages.length;
+            final pkg = isCustomCard ? customPkg : hotPackages[index];
+            final isSelected = isCustomCard
+                ? _isCustomPackage
+                : (_packageId == pkg.id && !_isCustomPackage);
 
             return InkWell(
               onTap: () {
-                setState(() => _packageId = pkg.id);
+                setState(() {
+                  _packageId = pkg.id;
+                  _isCustomPackage = isCustomCard;
+                  _error = null;
+                });
               },
               borderRadius: BorderRadius.circular(16),
               child: Container(
@@ -586,7 +708,9 @@ class _CustomerSignupScreenState extends State<CustomerSignupScreen> {
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: isSelected ? pn.accent.withOpacity(0.08) : Colors.transparent,
+                      color: isSelected
+                          ? pn.accent.withValues(alpha: 0.08)
+                          : Colors.transparent,
                       blurRadius: 10,
                       spreadRadius: 2,
                     ),
@@ -598,11 +722,15 @@ class _CustomerSignupScreenState extends State<CustomerSignupScreen> {
                   children: [
                     Text(
                       'PowerNet',
-                      style: TextStyle(color: pn.textMuted, fontSize: 10, fontWeight: FontWeight.w600),
+                      style: TextStyle(
+                        color: pn.textMuted,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      pkg.name,
+                      isCustomCard ? 'Custom' : pkg.name,
                       style: GoogleFonts.manrope(
                         color: pn.text,
                         fontSize: 16,
@@ -611,9 +739,11 @@ class _CustomerSignupScreenState extends State<CustomerSignupScreen> {
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      pkg.defaultPrice == null
-                          ? '—'
-                          : 'Rs. ${pkg.defaultPrice!.toStringAsFixed(0)}',
+                      isCustomCard
+                          ? 'Flex Speed'
+                          : (pkg.defaultPrice == null
+                                ? '—'
+                                : 'Rs. ${pkg.defaultPrice!.toStringAsFixed(0)}'),
                       style: TextStyle(
                         color: isSelected ? pn.accent : pn.textSoft,
                         fontSize: 13,
@@ -626,6 +756,28 @@ class _CustomerSignupScreenState extends State<CustomerSignupScreen> {
             );
           },
         ),
+
+        if (_isCustomPackage) ...[
+          const SizedBox(height: 20),
+          _buildFieldHeader(pn, 'REQUESTED SPEED (MBPS)'),
+          TextFormField(
+            controller: _customSpeed,
+            keyboardType: TextInputType.number,
+            inputFormatters: [
+              FilteringTextInputFormatter.digitsOnly,
+              LengthLimitingTextInputFormatter(3),
+            ],
+            decoration: const InputDecoration(
+              hintText: 'e.g. 3, 6, 15, 25',
+              suffixText: 'Mbps',
+            ),
+            onChanged: (_) {
+              setState(() {
+                _error = null;
+              });
+            },
+          ),
+        ],
 
         const SizedBox(height: 32),
         Row(
@@ -658,8 +810,19 @@ class _CustomerSignupScreenState extends State<CustomerSignupScreen> {
   }
 
   Widget _buildReviewForm(PnColors pn) {
-    final selectedArea = _areas.firstWhere((a) => a.id == _areaId, orElse: () => Area(id: '', name: '—', code: '', type: '', isActive: true));
-    final selectedPackage = _packages.firstWhere((p) => p.id == _packageId, orElse: () => PackagePlan(id: '', name: '—', speedMbps: 0, isActive: true));
+    final selectedArea = _areas.firstWhere(
+      (a) => a.id == _areaId,
+      orElse: () => Area(id: '', name: '—', code: '', type: '', isActive: true),
+    );
+    final selectedPackage = _packages.firstWhere(
+      (p) => p.id == _packageId,
+      orElse: () =>
+          PackagePlan(id: '', name: '—', speedMbps: 0, isActive: true),
+    );
+
+    final packageDisplay = _isCustomPackage
+        ? 'Custom Package (${_customSpeed.text} Mbps)'
+        : selectedPackage.name;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -686,20 +849,50 @@ class _CustomerSignupScreenState extends State<CustomerSignupScreen> {
             children: [
               _buildReviewRow('Full Name', _name.text, pn),
               const Divider(height: 20),
+              _buildReviewRow('CNIC Number', _cnic.text, pn),
+              const Divider(height: 20),
+              _buildReviewRow(
+                'Gender',
+                _gender == 'male'
+                    ? 'Male'
+                    : (_gender == 'female' ? 'Female' : 'Other'),
+                pn,
+              ),
+              const Divider(height: 20),
+              if (_profession.text.trim().isNotEmpty) ...[
+                _buildReviewRow('Profession', _profession.text, pn),
+                const Divider(height: 20),
+              ],
+              if (_rank.text.trim().isNotEmpty) ...[
+                _buildReviewRow('Rank / Position', _rank.text, pn),
+                const Divider(height: 20),
+              ],
+              if (_unit.text.trim().isNotEmpty) ...[
+                _buildReviewRow('Unit / Dept', _unit.text, pn),
+                const Divider(height: 20),
+              ],
               _buildReviewRow('Phone Number', _phone.text, pn),
               const Divider(height: 20),
               _buildReviewRow('House ID', _houseId.text, pn),
               const Divider(height: 20),
               _buildReviewRow('Service Area', selectedArea.name, pn),
               const Divider(height: 20),
-              _buildReviewRow('Bandwidth Package', selectedPackage.name, pn),
+              _buildReviewRow('Bandwidth Package', packageDisplay, pn),
               const Divider(height: 20),
-              _buildReviewRow('Package Price', selectedPackage.defaultPrice != null ? 'Rs. ${selectedPackage.defaultPrice!.toStringAsFixed(0)}' : '—', pn),
+              _buildReviewRow(
+                'Package Price',
+                _isCustomPackage
+                    ? 'Flex Speed'
+                    : (selectedPackage.defaultPrice != null
+                          ? 'Rs. ${selectedPackage.defaultPrice!.toStringAsFixed(0)}'
+                          : '—'),
+                pn,
+              ),
             ],
           ),
         ),
         const SizedBox(height: 32),
-        
+
         ElevatedButton(
           onPressed: _submitting ? null : _submit,
           style: ElevatedButton.styleFrom(
@@ -711,7 +904,10 @@ class _CustomerSignupScreenState extends State<CustomerSignupScreen> {
               ? SizedBox(
                   width: 22,
                   height: 22,
-                  child: CircularProgressIndicator(strokeWidth: 2.5, valueColor: AlwaysStoppedAnimation(pn.primary)),
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2.5,
+                    valueColor: AlwaysStoppedAnimation(pn.primary),
+                  ),
                 )
               : const Row(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -752,14 +948,21 @@ class _CustomerSignupScreenState extends State<CustomerSignupScreen> {
       children: [
         Text(
           label,
-          style: TextStyle(color: pn.textMuted, fontSize: 13, fontWeight: FontWeight.w500),
+          style: TextStyle(
+            color: pn.textMuted,
+            fontSize: 13,
+            fontWeight: FontWeight.w500,
+          ),
         ),
         Text(
           value,
-          style: TextStyle(color: pn.text, fontSize: 14, fontWeight: FontWeight.w800),
+          style: TextStyle(
+            color: pn.text,
+            fontSize: 14,
+            fontWeight: FontWeight.w800,
+          ),
         ),
       ],
     );
   }
 }
-

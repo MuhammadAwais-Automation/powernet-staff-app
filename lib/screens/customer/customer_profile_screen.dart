@@ -23,10 +23,7 @@ class CustomerProfileScreen extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: pn.background,
-      appBar: AppBar(
-        title: const Text('My Profile'),
-        elevation: 0,
-      ),
+      appBar: AppBar(title: const Text('My Profile'), elevation: 0),
       body: SingleChildScrollView(
         physics: const BouncingScrollPhysics(),
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
@@ -42,7 +39,7 @@ class CustomerProfileScreen extends StatelessWidget {
                 border: Border.all(color: pn.border),
                 boxShadow: [
                   BoxShadow(
-                    color: pn.text.withOpacity(0.04),
+                    color: pn.text.withValues(alpha: 0.04),
                     blurRadius: 24,
                     offset: const Offset(0, 8),
                   ),
@@ -54,9 +51,11 @@ class CustomerProfileScreen extends StatelessWidget {
                     width: 58,
                     height: 58,
                     decoration: BoxDecoration(
-                      color: pn.cyan.withOpacity(0.12),
+                      color: pn.cyan.withValues(alpha: 0.12),
                       shape: BoxShape.circle,
-                      border: Border.all(color: pn.cyan.withOpacity(0.35)),
+                      border: Border.all(
+                        color: pn.cyan.withValues(alpha: 0.35),
+                      ),
                     ),
                     child: Center(
                       child: Text(
@@ -85,19 +84,20 @@ class CustomerProfileScreen extends StatelessWidget {
                         const SizedBox(height: 2),
                         Text(
                           customer.customerCode,
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: pn.textSoft,
-                          ),
+                          style: TextStyle(fontSize: 12, color: pn.textSoft),
                         ),
                         const SizedBox(height: 6),
                         Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 2),
+                            horizontal: 8,
+                            vertical: 2,
+                          ),
                           decoration: BoxDecoration(
                             color: pn.softGreen,
                             borderRadius: BorderRadius.circular(6),
-                            border: Border.all(color: pn.success.withOpacity(0.2)),
+                            border: Border.all(
+                              color: pn.success.withValues(alpha: 0.2),
+                            ),
                           ),
                           child: Text(
                             customer.status.toUpperCase(),
@@ -140,12 +140,42 @@ class CustomerProfileScreen extends StatelessWidget {
                     padding: EdgeInsets.symmetric(vertical: 12.0),
                     child: Divider(),
                   ),
-                  _Row(label: 'House ID', value: customer.displayHouseId, icon: Icons.home_work_outlined, pn: pn),
-                  _Row(label: 'CNIC Number', value: customer.cnic ?? '—', icon: Icons.badge_outlined, pn: pn),
-                  _Row(label: 'Phone Contact', value: customer.phone ?? '—', icon: Icons.phone_outlined, pn: pn),
-                  _Row(label: 'WhatsApp', value: customer.whatsapp ?? '—', icon: Icons.chat_outlined, pn: pn),
-                  _Row(label: 'Assigned Area', value: customer.area?.name ?? '—', icon: Icons.my_location_rounded, pn: pn),
-                  _Row(label: 'Active Package', value: customer.package?.name ?? '—', icon: Icons.wifi_tethering, pn: pn),
+                  _Row(
+                    label: 'House ID',
+                    value: customer.displayHouseId,
+                    icon: Icons.home_work_outlined,
+                    pn: pn,
+                  ),
+                  _Row(
+                    label: 'CNIC Number',
+                    value: customer.cnic ?? '—',
+                    icon: Icons.badge_outlined,
+                    pn: pn,
+                  ),
+                  _Row(
+                    label: 'Phone Contact',
+                    value: customer.phone ?? '—',
+                    icon: Icons.phone_outlined,
+                    pn: pn,
+                  ),
+                  _Row(
+                    label: 'WhatsApp',
+                    value: customer.whatsapp ?? '—',
+                    icon: Icons.chat_outlined,
+                    pn: pn,
+                  ),
+                  _Row(
+                    label: 'Assigned Area',
+                    value: customer.area?.name ?? '—',
+                    icon: Icons.my_location_rounded,
+                    pn: pn,
+                  ),
+                  _Row(
+                    label: 'Active Package',
+                    value: customer.package?.name ?? '—',
+                    icon: Icons.wifi_tethering,
+                    pn: pn,
+                  ),
                 ],
               ),
             ),
@@ -160,7 +190,7 @@ class CustomerProfileScreen extends StatelessWidget {
               style: OutlinedButton.styleFrom(
                 backgroundColor: pn.softRed,
                 foregroundColor: pn.danger,
-                side: BorderSide(color: pn.danger.withOpacity(0.2)),
+                side: BorderSide(color: pn.danger.withValues(alpha: 0.2)),
               ),
               icon: Icon(Icons.logout_rounded, color: pn.danger, size: 20),
               label: const Text('Logout Session'),
@@ -195,7 +225,7 @@ class _Row extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: pn.cyan.withOpacity(0.08),
+              color: pn.cyan.withValues(alpha: 0.08),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(icon, color: pn.cyan, size: 18),
@@ -230,4 +260,3 @@ class _Row extends StatelessWidget {
     );
   }
 }
-

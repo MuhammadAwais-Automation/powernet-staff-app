@@ -143,7 +143,9 @@ class _FakeComplaintsRepository extends ComplaintsRepository {
   ];
 
   @override
-  Future<List<Complaint>> fetchByAreas(List<String> areaIds) async => [_complaint];
+  Future<List<Complaint>> fetchByAreas(List<String> areaIds) async => [
+    _complaint,
+  ];
 
   @override
   Future<void> updateStatus(String id, String status) async {

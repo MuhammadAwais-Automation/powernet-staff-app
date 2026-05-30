@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 const primaryColor = Color(0xFF071A33); // Deep Navy
-const accentColor = Color(0xFFF5A623);  // Vibrant Orange Accent
-const cyanColor = Color(0xFF1DD7FF);    // Stable Cyan
+const accentColor = Color(0xFFF5A623); // Vibrant Orange Accent
+const cyanColor = Color(0xFF1DD7FF); // Stable Cyan
 const successColor = Color(0xFF22C55E);
 const warningColor = Color(0xFFF59E0B);
 const dangerColor = Color(0xFFEF4444);
@@ -14,7 +14,6 @@ const success = successColor;
 const warning = warningColor;
 const danger = dangerColor;
 const info = cyanColor;
-
 
 // Soft background colors
 const softOrangeBg = Color(0xFFFFF3DF);
@@ -198,7 +197,7 @@ ThemeData buildDarkTheme() => _buildTheme(Brightness.dark);
 ThemeData _buildTheme(Brightness brightness) {
   final isDark = brightness == Brightness.dark;
   final pn = isDark ? PnColors.dark : PnColors.light;
-  
+
   // Custom display/body fonts using Manrope from Google Fonts
   final baseTextTheme = ThemeData(brightness: brightness).textTheme;
   final textTheme = GoogleFonts.manropeTextTheme(baseTextTheme).copyWith(
@@ -215,14 +214,10 @@ ThemeData _buildTheme(Brightness brightness) {
       ),
     ),
     bodyLarge: GoogleFonts.manrope(
-      textStyle: baseTextTheme.bodyLarge?.copyWith(
-        color: pn.textSoft,
-      ),
+      textStyle: baseTextTheme.bodyLarge?.copyWith(color: pn.textSoft),
     ),
     bodyMedium: GoogleFonts.manrope(
-      textStyle: baseTextTheme.bodyMedium?.copyWith(
-        color: pn.textSoft,
-      ),
+      textStyle: baseTextTheme.bodyMedium?.copyWith(color: pn.textSoft),
     ),
   );
 
@@ -235,7 +230,6 @@ ThemeData _buildTheme(Brightness brightness) {
       secondary: accentColor,
       brightness: brightness,
       surface: pn.surface,
-      background: pn.background,
     ),
     scaffoldBackgroundColor: pn.background,
     textTheme: textTheme,
@@ -276,19 +270,23 @@ ThemeData _buildTheme(Brightness brightness) {
         borderRadius: BorderRadius.circular(14),
         borderSide: const BorderSide(color: cyanColor, width: 1.5),
       ),
-      contentPadding:
-          const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-      labelStyle: TextStyle(color: pn.textMuted, fontSize: 13, fontWeight: FontWeight.w600),
-      hintStyle: TextStyle(color: pn.textMuted.withOpacity(0.7), fontSize: 14),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      labelStyle: TextStyle(
+        color: pn.textMuted,
+        fontSize: 13,
+        fontWeight: FontWeight.w600,
+      ),
+      hintStyle: TextStyle(
+        color: pn.textMuted.withValues(alpha: 0.7),
+        fontSize: 14,
+      ),
     ),
     elevatedButtonTheme: ElevatedButtonThemeData(
       style: ElevatedButton.styleFrom(
         backgroundColor: accentColor, // Orange background
         foregroundColor: primaryColor, // Navy Blue text
         minimumSize: const Size.fromHeight(52),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         textStyle: GoogleFonts.manrope(
           fontSize: 15,
           fontWeight: FontWeight.w800,
@@ -301,9 +299,7 @@ ThemeData _buildTheme(Brightness brightness) {
         foregroundColor: pn.text,
         side: BorderSide(color: pn.border, width: 1),
         minimumSize: const Size.fromHeight(52),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         textStyle: GoogleFonts.manrope(
           fontSize: 15,
           fontWeight: FontWeight.w800,
@@ -311,11 +307,6 @@ ThemeData _buildTheme(Brightness brightness) {
         backgroundColor: pn.surface,
       ),
     ),
-    dividerTheme: DividerThemeData(
-      color: pn.border,
-      space: 1,
-      thickness: 1,
-    ),
+    dividerTheme: DividerThemeData(color: pn.border, space: 1, thickness: 1),
   );
 }
-

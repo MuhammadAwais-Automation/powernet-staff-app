@@ -45,6 +45,7 @@ class Bill {
   final String? receiptNo;
   final String? paymentMethod;
   final String? paymentNote;
+  final String? paymentSource;
   final String createdAt;
   final Map<String, dynamic>? customer;
 
@@ -60,6 +61,7 @@ class Bill {
     this.receiptNo,
     this.paymentMethod,
     this.paymentNote,
+    this.paymentSource,
     required this.createdAt,
     this.customer,
   });
@@ -76,6 +78,7 @@ class Bill {
     receiptNo: j['receipt_no'] as String?,
     paymentMethod: j['payment_method'] as String?,
     paymentNote: j['payment_note'] as String?,
+    paymentSource: j['payment_source'] as String?,
     createdAt: j['created_at'] as String,
     customer: j['customer'] as Map<String, dynamic>?,
   );
@@ -92,6 +95,7 @@ class Bill {
     'receipt_no': receiptNo,
     'payment_method': paymentMethod,
     'payment_note': paymentNote,
+    'payment_source': paymentSource,
     'created_at': createdAt,
     'customer': customer,
   };
@@ -103,6 +107,7 @@ class Bill {
     String? paidAt,
     String? paymentMethod,
     String? paymentNote,
+    String? paymentSource,
   }) => Bill(
     id: id,
     customerId: customerId,
@@ -115,6 +120,7 @@ class Bill {
     receiptNo: receiptNo,
     paymentMethod: paymentMethod ?? this.paymentMethod,
     paymentNote: paymentNote ?? this.paymentNote,
+    paymentSource: paymentSource ?? this.paymentSource,
     createdAt: createdAt,
     customer: customer,
   );
@@ -126,6 +132,20 @@ class Bill {
   double get collectionProgress =>
       amount <= 0 ? 0 : ((paidAmount ?? 0) / amount).clamp(0, 1).toDouble();
   String get collectionStatus => hasPartialPayment ? 'partial' : status;
+  String get paymentSourceLabel {
+    switch (paymentSource) {
+      case 'office':
+        return 'Paid in Office';
+      case 'agent':
+        return 'Collected by Agent';
+      case 'customer':
+        return 'Paid by Customer';
+      case 'manual':
+        return 'Manual Entry';
+      default:
+        return 'Payment Source Pending';
+    }
+  }
 
   String get customerName => customer?['full_name'] as String? ?? '—';
   String get customerCode => customer?['customer_code'] as String? ?? '—';
@@ -134,4 +154,145 @@ class Bill {
 
   bool get hasAddress => customerAddress.isNotEmpty;
   String? get customerAreaId => customer?['area_id'] as String?;
+}
+
+class CustomerBillLedger {
+  final String customerId;
+  final List<Bill> bills;
+
+  const CustomerBillLedger({required this.customerId, required this.bills});
+
+  factory CustomerBillLedger.fromBills(List<Bill> bills) {
+    if (bills.isEmpty) {
+      throw ArgumentError('CustomerBillLedger requires at least one bill');
+    }
+    final sorted = [...bills]..sort(_compareNewestFirst);
+    return CustomerBillLedger(
+      customerId: sorted.first.customerId,
+      bills: sorted,
+    );
+  }
+
+  static List<CustomerBillLedger> groupBills(List<Bill> bills) {
+    final grouped = <String, List<Bill>>{};
+    for (final bill in bills) {
+      grouped.update(
+        bill.customerId,
+        (existing) => [...existing, bill],
+        ifAbsent: () => [bill],
+      );
+    }
+
+    final ledgers = grouped.entries
+        .map((entry) => CustomerBillLedger.fromBills(entry.value))
+        .toList();
+    ledgers.sort((a, b) {
+      final billCompare = _compareNewestFirst(a.currentBill, b.currentBill);
+      if (billCompare != 0) return billCompare;
+      return a.customerId.compareTo(b.customerId);
+    });
+    return ledgers;
+  }
+
+  Bill get currentBill => bills.first;
+  List<Bill> get previousBills => bills.skip(1).toList();
+  int get billCount => bills.length;
+  String get customerName => currentBill.customerName;
+  String get customerCode => currentBill.customerCode;
+  String get customerAddress => currentBill.customerAddress;
+  String get customerAddressType => currentBill.customerAddressType;
+  String? get customerAreaId => currentBill.customerAreaId;
+  bool get hasAddress => currentBill.hasAddress;
+  bool get isOverdue => bills.any((bill) => bill.isOverdue);
+  bool get hasPartialPayment => bills.any((bill) => bill.hasPartialPayment);
+  double get totalAmount => bills.fold(0, (sum, bill) => sum + bill.amount);
+  double get totalPaid =>
+      bills.fold(0, (sum, bill) => sum + (bill.paidAmount ?? 0));
+  double get totalRemaining =>
+      bills.fold(0, (sum, bill) => sum + bill.remaining);
+  double get currentDue => currentBill.remaining;
+  double get previousDue =>
+      previousBills.fold(0, (sum, bill) => sum + bill.remaining);
+  double get collectionProgress =>
+      totalAmount <= 0 ? 0 : (totalPaid / totalAmount).clamp(0, 1).toDouble();
+
+  String get monthRange {
+    if (bills.length == 1) return currentBill.month;
+    return '${bills.last.month} to ${currentBill.month}';
+  }
+
+  String get collectionStatus {
+    if (totalRemaining <= 0) return 'paid';
+    if (hasPartialPayment) return 'partial';
+    if (isOverdue) return 'overdue';
+    return currentBill.status;
+  }
+
+  static int _compareNewestFirst(Bill a, Bill b) {
+    final monthCompare = _monthRank(b.month).compareTo(_monthRank(a.month));
+    if (monthCompare != 0) return monthCompare;
+    return b.createdAt.compareTo(a.createdAt);
+  }
+
+  static int _monthRank(String value) {
+    final trimmed = value.trim();
+    final iso = RegExp(r'^(\d{4})-(\d{1,2})').firstMatch(trimmed);
+    if (iso != null) {
+      final year = int.tryParse(iso.group(1)!) ?? 0;
+      final month = int.tryParse(iso.group(2)!) ?? 0;
+      return year * 12 + month;
+    }
+
+    final parts = trimmed.split(RegExp(r'\s+'));
+    if (parts.length >= 2) {
+      final month = _monthNumber(parts.first);
+      final year = int.tryParse(parts.last) ?? 0;
+      if (month > 0 && year > 0) return year * 12 + month;
+    }
+
+    return 0;
+  }
+
+  static int _monthNumber(String value) {
+    switch (value.toLowerCase()) {
+      case 'jan':
+      case 'january':
+        return 1;
+      case 'feb':
+      case 'february':
+        return 2;
+      case 'mar':
+      case 'march':
+        return 3;
+      case 'apr':
+      case 'april':
+        return 4;
+      case 'may':
+        return 5;
+      case 'jun':
+      case 'june':
+        return 6;
+      case 'jul':
+      case 'july':
+        return 7;
+      case 'aug':
+      case 'august':
+        return 8;
+      case 'sep':
+      case 'sept':
+      case 'september':
+        return 9;
+      case 'oct':
+      case 'october':
+        return 10;
+      case 'nov':
+      case 'november':
+        return 11;
+      case 'dec':
+      case 'december':
+        return 12;
+      default:
+        return 0;
+    }
+  }
 }

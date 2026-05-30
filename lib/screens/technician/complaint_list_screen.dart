@@ -138,7 +138,9 @@ class _ComplaintListScreenState extends State<ComplaintListScreen>
           final filteredOpen = _filter(queue.open);
           final filteredWorking = _filter(queue.inProgress);
           // Show all resolved complaints in the third tab
-          final filteredResolved = _filter(queue.complaints.where((c) => c.isResolved).toList());
+          final filteredResolved = _filter(
+            queue.complaints.where((c) => c.isResolved).toList(),
+          );
 
           return NestedScrollView(
             headerSliverBuilder: (context, innerBoxIsScrolled) => [
@@ -152,10 +154,16 @@ class _ComplaintListScreenState extends State<ComplaintListScreen>
                         controller: _searchCtrl,
                         decoration: InputDecoration(
                           hintText: 'Search name, code, area',
-                          prefixIcon: Icon(Icons.search, color: pn.textMuted, size: 20),
+                          prefixIcon: Icon(
+                            Icons.search,
+                            color: pn.textMuted,
+                            size: 20,
+                          ),
                           filled: true,
                           fillColor: pn.surface,
-                          contentPadding: const EdgeInsets.symmetric(vertical: 14),
+                          contentPadding: const EdgeInsets.symmetric(
+                            vertical: 14,
+                          ),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(18),
                             borderSide: BorderSide(color: pn.border),
@@ -397,14 +405,21 @@ class _ComplaintTile extends StatelessWidget {
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: pn.surface,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20), side: BorderSide(color: pn.border)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: BorderSide(color: pn.border),
+        ),
         title: Row(
           children: [
             Icon(Icons.phone_outlined, color: pn.primary),
             const SizedBox(width: 10),
             Text(
               'Call Customer',
-              style: TextStyle(fontWeight: FontWeight.w900, color: pn.text, fontSize: 18),
+              style: TextStyle(
+                fontWeight: FontWeight.w900,
+                color: pn.text,
+                fontSize: 18,
+              ),
             ),
           ],
         ),
@@ -414,12 +429,20 @@ class _ComplaintTile extends StatelessWidget {
           children: [
             Text(
               complaint.customerName,
-              style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: pn.text),
+              style: TextStyle(
+                fontWeight: FontWeight.w800,
+                fontSize: 16,
+                color: pn.text,
+              ),
             ),
             const SizedBox(height: 4),
             Text(
               'Phone: $phone',
-              style: TextStyle(color: pn.textMuted, fontSize: 14, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                color: pn.textMuted,
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+              ),
             ),
             const SizedBox(height: 12),
             Text(
@@ -440,7 +463,10 @@ class _ComplaintTile extends StatelessWidget {
                 ),
               );
             },
-            child: Text('Copy Number', style: TextStyle(color: pn.textSoft, fontWeight: FontWeight.bold)),
+            child: Text(
+              'Copy Number',
+              style: TextStyle(color: pn.textSoft, fontWeight: FontWeight.bold),
+            ),
           ),
           ElevatedButton(
             onPressed: () {
@@ -461,7 +487,10 @@ class _ComplaintTile extends StatelessWidget {
                 borderRadius: BorderRadius.circular(12),
               ),
             ),
-            child: const Text('Call Now', style: TextStyle(fontWeight: FontWeight.bold)),
+            child: const Text(
+              'Call Now',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
           ),
         ],
       ),
@@ -532,7 +561,10 @@ class _ComplaintTile extends StatelessWidget {
                         ),
                         const Spacer(),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 4,
+                          ),
                           decoration: BoxDecoration(
                             color: statusColor.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(99),
@@ -583,10 +615,20 @@ class _ComplaintTile extends StatelessWidget {
                           Row(
                             children: [
                               Expanded(
-                                child: _buildMiniCell('Address', complaint.customerAddress.isNotEmpty ? complaint.customerAddress : 'No Address', pn),
+                                child: _buildMiniCell(
+                                  'Address',
+                                  complaint.customerAddress.isNotEmpty
+                                      ? complaint.customerAddress
+                                      : 'No Address',
+                                  pn,
+                                ),
                               ),
                               Expanded(
-                                child: _buildMiniCell('Type', complaint.type, pn),
+                                child: _buildMiniCell(
+                                  'Type',
+                                  complaint.type,
+                                  pn,
+                                ),
                               ),
                             ],
                           ),
@@ -597,20 +639,35 @@ class _ComplaintTile extends StatelessWidget {
                                 child: Row(
                                   children: [
                                     Expanded(
-                                      child: _buildMiniCell('Phone', complaint.customerPhone.isNotEmpty ? complaint.customerPhone : 'No Number', pn),
+                                      child: _buildMiniCell(
+                                        'Phone',
+                                        complaint.customerPhone.isNotEmpty
+                                            ? complaint.customerPhone
+                                            : 'No Number',
+                                        pn,
+                                      ),
                                     ),
                                     if (complaint.customerPhone.isNotEmpty)
                                       IconButton(
-                                        icon: Icon(Icons.phone_enabled_outlined, color: pn.success, size: 16),
+                                        icon: Icon(
+                                          Icons.phone_enabled_outlined,
+                                          color: pn.success,
+                                          size: 16,
+                                        ),
                                         padding: EdgeInsets.zero,
                                         constraints: const BoxConstraints(),
-                                        onPressed: () => _showCallDialerModal(context),
+                                        onPressed: () =>
+                                            _showCallDialerModal(context),
                                       ),
                                   ],
                                 ),
                               ),
                               Expanded(
-                                child: _buildMiniCell('Opened', _formatTime(complaint.openedAt), pn),
+                                child: _buildMiniCell(
+                                  'Opened',
+                                  _formatTime(complaint.openedAt),
+                                  pn,
+                                ),
                               ),
                             ],
                           ),

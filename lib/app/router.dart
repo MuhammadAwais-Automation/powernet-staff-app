@@ -1,6 +1,5 @@
 import 'package:flutter/foundation.dart';
 import 'package:go_router/go_router.dart';
-import '../models/staff.dart';
 import '../providers/auth_provider.dart';
 import '../providers/customer_auth_provider.dart';
 import '../screens/splash_screen.dart';

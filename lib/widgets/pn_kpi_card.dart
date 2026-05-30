@@ -39,10 +39,7 @@ class PnKpiCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 2),
-          Text(
-            label,
-            style: TextStyle(fontSize: 13, color: pn.textMuted),
-          ),
+          Text(label, style: TextStyle(fontSize: 13, color: pn.textMuted)),
         ],
       ),
     );

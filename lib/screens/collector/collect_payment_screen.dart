@@ -7,7 +7,6 @@ import '../../providers/auth_provider.dart';
 import '../../providers/bills_provider.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/empty_state.dart';
-import '../../widgets/pn_status_badge.dart';
 
 class CollectPaymentScreen extends StatefulWidget {
   final String billId;
@@ -23,7 +22,7 @@ class _CollectPaymentScreenState extends State<CollectPaymentScreen> {
   final _amountCtrl = TextEditingController();
   final _noteCtrl = TextEditingController();
 
-  Bill? _bill;
+  CustomerBillLedger? _ledger;
   bool _loading = true;
   bool _submitting = false;
   String? _error;
@@ -49,20 +48,34 @@ class _CollectPaymentScreenState extends State<CollectPaymentScreen> {
       _loading = true;
       _error = null;
     });
-    final cachedBill = context.read<BillsProvider>().findBillById(
+    final cachedLedger = context.read<BillsProvider>().findLedgerByBillId(
       widget.billId,
     );
-    if (cachedBill != null) {
-      _applyLoadedBill(cachedBill);
+    if (cachedLedger != null) {
+      _applyLoadedLedger(cachedLedger);
       if (mounted) setState(() => _loading = false);
     }
     try {
       final bill = await _repo.fetchById(widget.billId);
       if (mounted) {
-        _applyLoadedBill(bill);
+        if (bill == null) {
+          _applyLoadedLedger(null);
+        } else {
+          final customerBills = await _repo.fetchByCustomer(bill.customerId);
+          final pendingBills = customerBills
+              .where(
+                (item) => item.status == 'pending' || item.status == 'overdue',
+              )
+              .toList();
+          _applyLoadedLedger(
+            pendingBills.isEmpty
+                ? CustomerBillLedger.fromBills([bill])
+                : CustomerBillLedger.fromBills(pendingBills),
+          );
+        }
       }
     } on Exception catch (e) {
-      if (_bill == null) {
+      if (_ledger == null) {
         debugPrint('POWERNET_DEBUG: collect bill load failed: $e');
         _error =
             'No internet connection. To view bill details, please select a cached bill from the Recovery Console first.';
@@ -72,22 +85,25 @@ class _CollectPaymentScreenState extends State<CollectPaymentScreen> {
     }
   }
 
-  void _applyLoadedBill(Bill? bill) {
+  void _applyLoadedLedger(CustomerBillLedger? ledger) {
     final auth = context.read<AuthProvider>();
     final staff = auth.currentStaff;
-    if (bill != null && staff != null) {
+    if (ledger != null && staff != null) {
       final isRecovery = staff.normalizedRole == 'recovery_agent';
       if (isRecovery &&
           (staff.areaIds.isEmpty ||
-              !staff.areaIds.contains(bill.customerAreaId))) {
-        _error = 'Access Denied: This bill does not belong to your assigned service area.';
-        _bill = null;
+              !staff.areaIds.contains(ledger.customerAreaId))) {
+        _error =
+            'Access Denied: This bill does not belong to your assigned service area.';
+        _ledger = null;
         return;
       }
     }
-    _bill = bill;
+    _ledger = ledger;
     _error = null;
-    if (bill != null) _amountCtrl.text = bill.remaining.toStringAsFixed(0);
+    if (ledger != null) {
+      _amountCtrl.text = ledger.totalRemaining.toStringAsFixed(0);
+    }
   }
 
   void _onVisitTypeChanged(VisitType? type) {
@@ -98,8 +114,10 @@ class _CollectPaymentScreenState extends State<CollectPaymentScreen> {
         _amountCtrl.text = '0';
         if (_noteCtrl.text.isEmpty) _noteCtrl.text = type.label;
       } else {
-        final bill = _bill;
-        if (bill != null) _amountCtrl.text = bill.remaining.toStringAsFixed(0);
+        final ledger = _ledger;
+        if (ledger != null) {
+          _amountCtrl.text = ledger.totalRemaining.toStringAsFixed(0);
+        }
         final autoNotes = VisitType.values.map((v) => v.label).toSet();
         if (autoNotes.contains(_noteCtrl.text)) _noteCtrl.text = '';
       }
@@ -111,8 +129,8 @@ class _CollectPaymentScreenState extends State<CollectPaymentScreen> {
     final auth = context.read<AuthProvider>();
     final bills = context.read<BillsProvider>();
     final staff = auth.currentStaff;
-    final bill = _bill;
-    if (staff == null || bill == null) return;
+    final ledger = _ledger;
+    if (staff == null || ledger == null) return;
 
     setState(() => _submitting = true);
 
@@ -120,15 +138,15 @@ class _CollectPaymentScreenState extends State<CollectPaymentScreen> {
     final PaymentSubmissionResult result;
     if (_visitType.isVisitOnly) {
       result = await bills.submitVisit(
-        billId: widget.billId,
+        billId: ledger.currentBill.id,
         collectorId: staff.id,
         visitType: _visitType.value,
       );
     } else {
       paidAmount = double.tryParse(_amountCtrl.text.trim()) ?? 0;
       final rawNote = _noteCtrl.text.trim();
-      result = await bills.submitPayment(
-        billId: widget.billId,
+      result = await bills.submitLedgerPayment(
+        ledger: ledger,
         amount: paidAmount,
         collectorId: staff.id,
         paymentMethod: _method,
@@ -138,7 +156,8 @@ class _CollectPaymentScreenState extends State<CollectPaymentScreen> {
     if (mounted) setState(() => _submitting = false);
     if (!mounted) return;
 
-    final fullPayment = paidAmount != null && paidAmount >= bill.remaining;
+    final fullPayment =
+        paidAmount != null && paidAmount >= ledger.totalRemaining;
     switch (result) {
       case PaymentSubmissionResult.synced:
         ScaffoldMessenger.of(context).showSnackBar(
@@ -216,10 +235,10 @@ class _CollectPaymentScreenState extends State<CollectPaymentScreen> {
           ? const Center(child: CircularProgressIndicator())
           : _error != null
           ? ErrorState(message: _error!, onRetry: _load)
-          : _bill == null
+          : _ledger == null
           ? const EmptyState(message: 'Bill not found')
           : _PaymentForm(
-              bill: _bill!,
+              ledger: _ledger!,
               formKey: _formKey,
               amountCtrl: _amountCtrl,
               noteCtrl: _noteCtrl,
@@ -238,7 +257,7 @@ class _CollectPaymentScreenState extends State<CollectPaymentScreen> {
 }
 
 class _PaymentForm extends StatelessWidget {
-  final Bill bill;
+  final CustomerBillLedger ledger;
   final GlobalKey<FormState> formKey;
   final TextEditingController amountCtrl;
   final TextEditingController noteCtrl;
@@ -251,7 +270,7 @@ class _PaymentForm extends StatelessWidget {
   final VoidCallback onSubmit;
 
   const _PaymentForm({
-    required this.bill,
+    required this.ledger,
     required this.formKey,
     required this.amountCtrl,
     required this.noteCtrl,
@@ -273,7 +292,7 @@ class _PaymentForm extends StatelessWidget {
       child: ListView(
         padding: const EdgeInsets.fromLTRB(20, 10, 20, 32),
         children: [
-          _BillHeader(bill: bill),
+          _BillHeader(ledger: ledger),
           const SizedBox(height: 20),
           _FieldLabel(label: 'Visit type', pn: pn),
           const SizedBox(height: 8),
@@ -284,7 +303,7 @@ class _PaymentForm extends StatelessWidget {
           ),
           const SizedBox(height: 20),
           if (!isVisitOnly) ...[
-            _QuickAmountRow(bill: bill, amountCtrl: amountCtrl, pn: pn),
+            _QuickAmountRow(ledger: ledger, amountCtrl: amountCtrl, pn: pn),
             const SizedBox(height: 18),
             _FieldLabel(label: 'Collected amount', pn: pn),
             const SizedBox(height: 8),
@@ -295,7 +314,10 @@ class _PaymentForm extends StatelessWidget {
               ),
               decoration: InputDecoration(
                 prefixText: 'Rs. ',
-                prefixStyle: TextStyle(color: pn.text, fontWeight: FontWeight.bold),
+                prefixStyle: TextStyle(
+                  color: pn.text,
+                  fontWeight: FontWeight.bold,
+                ),
                 hintText: '0',
                 filled: true,
                 fillColor: pn.input,
@@ -309,8 +331,8 @@ class _PaymentForm extends StatelessWidget {
                 if (isVisitOnly) return null;
                 final amount = double.tryParse(value ?? '');
                 if (amount == null || amount <= 0) return 'Enter valid amount';
-                if (amount > bill.remaining) {
-                  return 'Amount cannot exceed Rs. ${bill.remaining.toStringAsFixed(0)}';
+                if (amount > ledger.totalRemaining) {
+                  return 'Amount cannot exceed Rs. ${ledger.totalRemaining.toStringAsFixed(0)}';
                 }
                 return null;
               },
@@ -319,9 +341,20 @@ class _PaymentForm extends StatelessWidget {
             _FieldLabel(label: 'Payment method', pn: pn),
             const SizedBox(height: 8),
             DropdownButtonFormField<String>(
-              value: method,
+              initialValue: method,
               items: methods
-                  .map((m) => DropdownMenuItem(value: m.$1, child: Text(m.$2, style: TextStyle(color: pn.text, fontWeight: FontWeight.bold))))
+                  .map(
+                    (m) => DropdownMenuItem(
+                      value: m.$1,
+                      child: Text(
+                        m.$2,
+                        style: TextStyle(
+                          color: pn.text,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  )
                   .toList(),
               onChanged: onMethodChanged,
               dropdownColor: pn.surface,
@@ -390,7 +423,11 @@ class _PaymentForm extends StatelessWidget {
                     : isVisitOnly
                     ? 'Log Visit Only'
                     : 'Collect Payment',
-                style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 15, letterSpacing: 0.2),
+                style: const TextStyle(
+                  fontWeight: FontWeight.w900,
+                  fontSize: 15,
+                  letterSpacing: 0.2,
+                ),
               ),
             ),
           ),
@@ -477,16 +514,18 @@ class _VisitTypeSelector extends StatelessWidget {
 }
 
 class _BillHeader extends StatelessWidget {
-  final Bill bill;
+  final CustomerBillLedger ledger;
 
-  const _BillHeader({required this.bill});
+  const _BillHeader({required this.ledger});
 
   @override
   Widget build(BuildContext context) {
     final pn = Theme.of(context).extension<PnColors>()!;
-    final statusColor = bill.isPaid
+    final statusColor = ledger.totalRemaining <= 0
         ? pn.success
-        : (bill.isOverdue ? pn.danger : (bill.hasPartialPayment ? pn.cyan : pn.warning));
+        : (ledger.isOverdue
+              ? pn.danger
+              : (ledger.hasPartialPayment ? pn.cyan : pn.warning));
 
     return Card(
       elevation: 0,
@@ -504,7 +543,7 @@ class _BillHeader extends StatelessWidget {
               children: [
                 Expanded(
                   child: Text(
-                    bill.customerName,
+                    ledger.customerName,
                     style: TextStyle(
                       color: pn.text,
                       fontSize: 18,
@@ -515,13 +554,16 @@ class _BillHeader extends StatelessWidget {
                 ),
                 const SizedBox(width: 8),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: statusColor.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(99),
                   ),
                   child: Text(
-                    bill.collectionStatus.toUpperCase(),
+                    ledger.collectionStatus.toUpperCase(),
                     style: TextStyle(
                       fontSize: 10,
                       fontWeight: FontWeight.w900,
@@ -534,24 +576,30 @@ class _BillHeader extends StatelessWidget {
             ),
             const SizedBox(height: 4),
             Text(
-              '${bill.customerCode} · ${bill.month}',
-              style: TextStyle(color: pn.textMuted, fontSize: 13, fontWeight: FontWeight.bold),
+              '${ledger.customerCode} - ${ledger.monthRange}',
+              style: TextStyle(
+                color: pn.textMuted,
+                fontSize: 13,
+                fontWeight: FontWeight.bold,
+              ),
             ),
-            if (bill.hasAddress) ...[
+            if (ledger.hasAddress) ...[
               const SizedBox(height: 12),
-              _AddressCard(bill: bill, pn: pn),
+              _AddressCard(ledger: ledger, pn: pn),
             ],
             const SizedBox(height: 18),
             ClipRRect(
               borderRadius: BorderRadius.circular(99),
               child: LinearProgressIndicator(
                 minHeight: 8,
-                value: bill.collectionProgress,
+                value: ledger.collectionProgress,
                 backgroundColor: pn.surfaceMuted,
-                color: bill.isPaid ? pn.success : pn.accent,
+                color: ledger.totalRemaining <= 0 ? pn.success : pn.accent,
               ),
             ),
             const SizedBox(height: 16),
+            _BillBreakdown(ledger: ledger, pn: pn),
+            const SizedBox(height: 12),
             // Multi-column money grids matching mockup
             Container(
               padding: const EdgeInsets.all(12),
@@ -562,11 +610,11 @@ class _BillHeader extends StatelessWidget {
               ),
               child: Row(
                 children: [
-                  _MoneyStat(label: 'Bill', value: bill.amount, pn: pn),
-                  _MoneyStat(label: 'Paid', value: bill.paidAmount ?? 0, pn: pn),
+                  _MoneyStat(label: 'Bills', value: ledger.totalAmount, pn: pn),
+                  _MoneyStat(label: 'Paid', value: ledger.totalPaid, pn: pn),
                   _MoneyStat(
-                    label: 'Remaining',
-                    value: bill.remaining,
+                    label: 'Total Due',
+                    value: ledger.totalRemaining,
                     highlight: true,
                     pn: pn,
                   ),
@@ -581,10 +629,10 @@ class _BillHeader extends StatelessWidget {
 }
 
 class _AddressCard extends StatelessWidget {
-  final Bill bill;
+  final CustomerBillLedger ledger;
   final PnColors pn;
 
-  const _AddressCard({required this.bill, required this.pn});
+  const _AddressCard({required this.ledger, required this.pn});
 
   @override
   Widget build(BuildContext context) {
@@ -602,7 +650,7 @@ class _AddressCard extends StatelessWidget {
           const SizedBox(width: 8),
           Expanded(
             child: Text(
-              bill.customerAddress,
+              ledger.customerAddress,
               style: TextStyle(
                 color: pn.text,
                 fontSize: 12,
@@ -613,6 +661,87 @@ class _AddressCard extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _BillBreakdown extends StatelessWidget {
+  final CustomerBillLedger ledger;
+  final PnColors pn;
+
+  const _BillBreakdown({required this.ledger, required this.pn});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: pn.softOrange.withValues(alpha: 0.45),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: pn.warning.withValues(alpha: 0.25)),
+      ),
+      child: Column(
+        children: [
+          _BreakdownRow(
+            label: 'Previous months',
+            value: ledger.previousDue,
+            pn: pn,
+          ),
+          const SizedBox(height: 8),
+          _BreakdownRow(
+            label: 'Current month',
+            value: ledger.currentDue,
+            pn: pn,
+          ),
+          const Divider(height: 18),
+          _BreakdownRow(
+            label: 'Total payable',
+            value: ledger.totalRemaining,
+            pn: pn,
+            strong: true,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _BreakdownRow extends StatelessWidget {
+  final String label;
+  final double value;
+  final PnColors pn;
+  final bool strong;
+
+  const _BreakdownRow({
+    required this.label,
+    required this.value,
+    required this.pn,
+    this.strong = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: Text(
+            label,
+            style: TextStyle(
+              color: strong ? pn.text : pn.textSoft,
+              fontSize: strong ? 13 : 12,
+              fontWeight: strong ? FontWeight.w900 : FontWeight.w700,
+            ),
+          ),
+        ),
+        Text(
+          'Rs. ${value.toStringAsFixed(0)}',
+          style: TextStyle(
+            color: strong ? pn.accent : pn.text,
+            fontSize: strong ? 15 : 13,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+      ],
     );
   }
 }
@@ -671,16 +800,20 @@ class _MoneyStat extends StatelessWidget {
 }
 
 class _QuickAmountRow extends StatelessWidget {
-  final Bill bill;
+  final CustomerBillLedger ledger;
   final TextEditingController amountCtrl;
   final PnColors pn;
 
-  const _QuickAmountRow({required this.bill, required this.amountCtrl, required this.pn});
+  const _QuickAmountRow({
+    required this.ledger,
+    required this.amountCtrl,
+    required this.pn,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final half = (bill.remaining / 2).round();
-    final full = bill.remaining.round();
+    final half = (ledger.totalRemaining / 2).round();
+    final full = ledger.totalRemaining.round();
     return Row(
       children: [
         _QuickAmountButton(
@@ -725,7 +858,10 @@ class _QuickAmountButton extends StatelessWidget {
         style: OutlinedButton.styleFrom(
           foregroundColor: primaryAction ? Colors.white : pn.text,
           backgroundColor: primaryAction ? pn.primary : pn.surface,
-          side: BorderSide(color: primaryAction ? pn.primary : pn.border, width: 1.2),
+          side: BorderSide(
+            color: primaryAction ? pn.primary : pn.border,
+            width: 1.2,
+          ),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(14),
           ),
@@ -781,7 +917,12 @@ class _OfflineHint extends StatelessWidget {
           Expanded(
             child: Text(
               'If internet drops, this is saved locally and auto-syncs when internet returns.',
-              style: TextStyle(color: pn.text, fontSize: 12, height: 1.35, fontWeight: FontWeight.w500),
+              style: TextStyle(
+                color: pn.text,
+                fontSize: 12,
+                height: 1.35,
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ),
         ],

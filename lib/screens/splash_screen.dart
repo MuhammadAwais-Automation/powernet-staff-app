@@ -39,12 +39,10 @@ class _SplashScreenState extends State<SplashScreen>
       ),
     );
 
-    _loaderAlign = Tween<double>(begin: -1.5, end: 2.5).animate(
-      CurvedAnimation(
-        parent: _controller,
-        curve: Curves.easeInOut,
-      ),
-    );
+    _loaderAlign = Tween<double>(
+      begin: -1.5,
+      end: 2.5,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
   }
 
   @override
@@ -64,12 +62,12 @@ class _SplashScreenState extends State<SplashScreen>
           Positioned.fill(
             child: CustomPaint(
               painter: _NetworkGridPainter(
-                cyanColor: pn.cyan.withOpacity(0.12),
-                accentColor: pn.accent.withOpacity(0.08),
+                cyanColor: pn.cyan.withValues(alpha: 0.12),
+                accentColor: pn.accent.withValues(alpha: 0.08),
               ),
             ),
           ),
-          
+
           SafeArea(
             child: Center(
               child: SingleChildScrollView(
@@ -89,7 +87,11 @@ class _SplashScreenState extends State<SplashScreen>
                           AnimatedBuilder(
                             animation: _controller,
                             builder: (context, child) {
-                              final opacity = (1.0 - (_pulseTwo.value - 0.8) / 0.45).clamp(0.0, 1.0);
+                              final opacity =
+                                  (1.0 - (_pulseTwo.value - 0.8) / 0.45).clamp(
+                                    0.0,
+                                    1.0,
+                                  );
                               return Transform.scale(
                                 scale: _pulseTwo.value,
                                 child: Container(
@@ -98,7 +100,9 @@ class _SplashScreenState extends State<SplashScreen>
                                   decoration: BoxDecoration(
                                     shape: BoxShape.circle,
                                     border: Border.all(
-                                      color: pn.accent.withOpacity(opacity * 0.35),
+                                      color: pn.accent.withValues(
+                                        alpha: opacity * 0.35,
+                                      ),
                                       width: 1.5,
                                     ),
                                   ),
@@ -110,7 +114,11 @@ class _SplashScreenState extends State<SplashScreen>
                           AnimatedBuilder(
                             animation: _controller,
                             builder: (context, child) {
-                              final opacity = (1.0 - (_pulseOne.value - 0.8) / 0.4).clamp(0.0, 1.0);
+                              final opacity =
+                                  (1.0 - (_pulseOne.value - 0.8) / 0.4).clamp(
+                                    0.0,
+                                    1.0,
+                                  );
                               return Transform.scale(
                                 scale: _pulseOne.value,
                                 child: Container(
@@ -119,7 +127,9 @@ class _SplashScreenState extends State<SplashScreen>
                                   decoration: BoxDecoration(
                                     shape: BoxShape.circle,
                                     border: Border.all(
-                                      color: pn.cyan.withOpacity(opacity * 0.4),
+                                      color: pn.cyan.withValues(
+                                        alpha: opacity * 0.4,
+                                      ),
                                       width: 1.5,
                                     ),
                                   ),
@@ -130,7 +140,9 @@ class _SplashScreenState extends State<SplashScreen>
                           // Signal diagonal lines
                           CustomPaint(
                             size: const Size(180, 180),
-                            painter: _SignalLinesPainter(color: pn.cyan.withOpacity(0.25)),
+                            painter: _SignalLinesPainter(
+                              color: pn.cyan.withValues(alpha: 0.25),
+                            ),
                           ),
                           // Central Power Core (Soft Glass)
                           Container(
@@ -139,7 +151,7 @@ class _SplashScreenState extends State<SplashScreen>
                             decoration: BoxDecoration(
                               borderRadius: BorderRadius.circular(32),
                               border: Border.all(
-                                color: pn.cyan.withOpacity(0.45),
+                                color: pn.cyan.withValues(alpha: 0.45),
                                 width: 1.5,
                               ),
                               gradient: LinearGradient(
@@ -152,7 +164,7 @@ class _SplashScreenState extends State<SplashScreen>
                               ),
                               boxShadow: [
                                 BoxShadow(
-                                  color: pn.cyan.withOpacity(0.2),
+                                  color: pn.cyan.withValues(alpha: 0.2),
                                   blurRadius: 36,
                                   offset: const Offset(0, 16),
                                 ),
@@ -169,7 +181,7 @@ class _SplashScreenState extends State<SplashScreen>
                       ),
                     ),
                     const SizedBox(height: 24),
-                    
+
                     // Logo text
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -197,7 +209,7 @@ class _SplashScreenState extends State<SplashScreen>
                       ],
                     ),
                     const SizedBox(height: 8),
-                    
+
                     Text(
                       'Future of Connectivity & Beyond',
                       style: GoogleFonts.manrope(
@@ -207,7 +219,7 @@ class _SplashScreenState extends State<SplashScreen>
                       ),
                     ),
                     const SizedBox(height: 36),
-                    
+
                     // Network Live status box
                     Container(
                       padding: const EdgeInsets.all(16.0),
@@ -217,7 +229,7 @@ class _SplashScreenState extends State<SplashScreen>
                         border: Border.all(color: pn.border),
                         boxShadow: [
                           BoxShadow(
-                            color: pn.text.withOpacity(0.04),
+                            color: pn.text.withValues(alpha: 0.04),
                             blurRadius: 16,
                             offset: const Offset(0, 8),
                           ),
@@ -239,11 +251,15 @@ class _SplashScreenState extends State<SplashScreen>
                               ),
                               Container(
                                 padding: const EdgeInsets.symmetric(
-                                    horizontal: 8, vertical: 4),
+                                  horizontal: 8,
+                                  vertical: 4,
+                                ),
                                 decoration: BoxDecoration(
                                   color: pn.softGreen,
                                   borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(color: pn.success.withOpacity(0.2)),
+                                  border: Border.all(
+                                    color: pn.success.withValues(alpha: 0.2),
+                                  ),
                                 ),
                                 child: Row(
                                   mainAxisSize: MainAxisSize.min,
@@ -283,14 +299,19 @@ class _SplashScreenState extends State<SplashScreen>
                               Expanded(
                                 child: Container(
                                   padding: const EdgeInsets.symmetric(
-                                      vertical: 8, horizontal: 12),
+                                    vertical: 8,
+                                    horizontal: 12,
+                                  ),
                                   decoration: BoxDecoration(
-                                    color: pn.surface.withOpacity(0.5),
+                                    color: pn.surface.withValues(alpha: 0.5),
                                     borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(color: pn.border.withOpacity(0.5)),
+                                    border: Border.all(
+                                      color: pn.border.withValues(alpha: 0.5),
+                                    ),
                                   ),
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Text(
                                         'Signal',
@@ -317,14 +338,19 @@ class _SplashScreenState extends State<SplashScreen>
                               Expanded(
                                 child: Container(
                                   padding: const EdgeInsets.symmetric(
-                                      vertical: 8, horizontal: 12),
+                                    vertical: 8,
+                                    horizontal: 12,
+                                  ),
                                   decoration: BoxDecoration(
-                                    color: pn.surface.withOpacity(0.5),
+                                    color: pn.surface.withValues(alpha: 0.5),
                                     borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(color: pn.border.withOpacity(0.5)),
+                                    border: Border.all(
+                                      color: pn.border.withValues(alpha: 0.5),
+                                    ),
                                   ),
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Text(
                                         'Sync',
@@ -348,12 +374,12 @@ class _SplashScreenState extends State<SplashScreen>
                                 ),
                               ),
                             ],
-                          )
+                          ),
                         ],
                       ),
                     ),
                     const SizedBox(height: 32),
-                    
+
                     // Connecting services progress line
                     Text(
                       'Connecting services...',
@@ -364,14 +390,14 @@ class _SplashScreenState extends State<SplashScreen>
                       ),
                     ),
                     const SizedBox(height: 12),
-                    
+
                     // Animated keyframe-like loader
                     Container(
                       width: 148,
                       height: 4,
                       clipBehavior: Clip.antiAlias,
                       decoration: BoxDecoration(
-                        color: pn.cyan.withOpacity(0.16),
+                        color: pn.cyan.withValues(alpha: 0.16),
                         borderRadius: BorderRadius.circular(999),
                       ),
                       child: AnimatedBuilder(
@@ -418,11 +444,19 @@ class _NetworkGridPainter extends CustomPainter {
 
     // Glowing circle in upper top-left
     paint.color = cyanColor;
-    canvas.drawCircle(Offset(size.width * 0.12, size.height * 0.06), 180, paint);
+    canvas.drawCircle(
+      Offset(size.width * 0.12, size.height * 0.06),
+      180,
+      paint,
+    );
 
     // Glowing circle in upper top-right
     paint.color = accentColor;
-    canvas.drawCircle(Offset(size.width * 0.88, size.height * 0.08), 240, paint);
+    canvas.drawCircle(
+      Offset(size.width * 0.88, size.height * 0.08),
+      240,
+      paint,
+    );
   }
 
   @override
@@ -442,16 +476,8 @@ class _SignalLinesPainter extends CustomPainter {
       ..style = PaintingStyle.stroke;
 
     // Diagonal signal lines running through the orbit
-    canvas.drawLine(
-      const Offset(15, 45),
-      const Offset(165, 90),
-      paint,
-    );
-    canvas.drawLine(
-      const Offset(15, 135),
-      const Offset(165, 90),
-      paint,
-    );
+    canvas.drawLine(const Offset(15, 45), const Offset(165, 90), paint);
+    canvas.drawLine(const Offset(15, 135), const Offset(165, 90), paint);
   }
 
   @override
@@ -476,7 +502,7 @@ class _PowerSymbolPainter extends CustomPainter {
 
     // Draw broken circle arc (open at top)
     const startAngle = -math.pi / 2 + 0.5; // Starts slightly right of top
-    const sweepAngle = 2 * math.pi - 1.0;  // Sweeps almost all way around
+    const sweepAngle = 2 * math.pi - 1.0; // Sweeps almost all way around
     canvas.drawArc(
       Rect.fromCircle(center: center, radius: radius),
       startAngle,
@@ -503,4 +529,3 @@ class _PowerSymbolPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
-

@@ -60,6 +60,32 @@ void main() {
       expect(provider.findBillById(_bill.id), isNotNull);
       expect(provider.findBillById('missing'), isNull);
     });
+
+    test(
+      'exposes one pending ledger per customer for recovery cards',
+      () async {
+        final provider = BillsProvider(
+          repo: _FakeBillsRepository(
+            pendingBills: [
+              _bill,
+              _bill.copyWithMonth(
+                id: 'bill-previous',
+                month: 'April 2026',
+                amount: 900,
+              ),
+            ],
+          ),
+          onlineChanges: const Stream.empty(),
+          enableRealtime: false,
+        );
+
+        await provider.loadPendingByAreas(const ['area-1'], 'staff-1');
+
+        expect(provider.pendingLedgers, hasLength(1));
+        expect(provider.pendingLedgers.single.billCount, 2);
+        expect(provider.pendingLedgers.single.totalRemaining, 1900);
+      },
+    );
   });
 }
 
@@ -84,6 +110,7 @@ final _bill = Bill(
 class _FakeBillsRepository extends BillsRepository {
   final bool failVisitWrite;
   final int initialQueuedPayments;
+  final List<Bill> pendingBills;
   final List<QueuedBillVisit> queuedVisits = [];
   int syncCalls = 0;
   var _queuedPayments = <QueuedBillPayment>[];
@@ -91,7 +118,8 @@ class _FakeBillsRepository extends BillsRepository {
   _FakeBillsRepository({
     this.failVisitWrite = false,
     this.initialQueuedPayments = 0,
-  }) {
+    List<Bill>? pendingBills,
+  }) : pendingBills = pendingBills ?? [_bill] {
     _queuedPayments = List.generate(
       initialQueuedPayments,
       (index) => QueuedBillPayment(
@@ -106,10 +134,14 @@ class _FakeBillsRepository extends BillsRepository {
   }
 
   @override
-  Future<List<Bill>> fetchPendingByAreas(List<String> areaIds) async => [_bill];
+  Future<List<Bill>> fetchPendingByAreas(List<String> areaIds) async =>
+      pendingBills;
 
   @override
   Future<List<Bill>> fetchCollectedToday(String collectorId) async => [];
+
+  @override
+  Future<List<Bill>> fetchPaidTodayByAreas(List<String> areaIds) async => [];
 
   @override
   Future<List<Bill>> fetchVisitedToday(String collectorId) async => [];
@@ -167,4 +199,29 @@ class _FakeBillsRepository extends BillsRepository {
     required List<Bill> collectedToday,
     required List<Bill> visitedToday,
   }) async {}
+}
+
+extension on Bill {
+  Bill copyWithMonth({
+    required String id,
+    required String month,
+    required double amount,
+  }) {
+    return Bill(
+      id: id,
+      customerId: customerId,
+      amount: amount,
+      paidAmount: paidAmount,
+      month: month,
+      status: status,
+      collectedBy: collectedBy,
+      paidAt: paidAt,
+      receiptNo: receiptNo,
+      paymentMethod: paymentMethod,
+      paymentNote: paymentNote,
+      paymentSource: paymentSource,
+      createdAt: createdAt,
+      customer: customer,
+    );
+  }
 }
