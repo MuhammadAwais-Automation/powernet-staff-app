@@ -89,4 +89,23 @@ class CustomerPortalRepository {
       'assigned_to': null,
     });
   }
+
+  Future<void> submitPaymentVerification({
+    required String billId,
+    required String customerId,
+    required double amount,
+    required String method,
+    required String receiptUrl,
+    String? remarks,
+  }) async {
+    await supabase.from('payment_verifications').insert({
+      'bill_id': billId,
+      'customer_id': customerId,
+      'amount': amount.toInt(),
+      'method': method,
+      'receipt_url': receiptUrl,
+      'customer_remarks': remarks?.trim(),
+      'status': 'pending',
+    });
+  }
 }

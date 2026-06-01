@@ -6,6 +6,7 @@ import '../../models/bill.dart';
 import '../../providers/customer_auth_provider.dart';
 import '../../providers/customer_portal_provider.dart';
 import '../../theme/app_theme.dart';
+import 'payment_upload_receipt_sheet.dart';
 
 class CustomerBillsScreen extends StatefulWidget {
   const CustomerBillsScreen({super.key});
@@ -26,15 +27,12 @@ class _CustomerBillsScreenState extends State<CustomerBillsScreen> {
     });
   }
 
-  void _triggerPaymentMock() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text(
-          'Payment request initiated. Please pay your recovery agent or visit manager office.',
-        ),
-        backgroundColor: accentColor,
-        behavior: SnackBarBehavior.floating,
-      ),
+  void _openPaymentUploadSheet(Bill bill) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => PaymentUploadReceiptSheet(bill: bill),
     );
   }
 
@@ -44,6 +42,11 @@ class _CustomerBillsScreenState extends State<CustomerBillsScreen> {
     final provider = context.watch<CustomerPortalProvider>();
     final pn = Theme.of(context).extension<PnColors>()!;
     final totalDue = provider.totalDue;
+
+    final hasPendingBill = provider.bills.any((b) => b.status != 'paid');
+    final Bill? pendingBill = hasPendingBill 
+        ? provider.bills.firstWhere((b) => b.status != 'paid') 
+        : (provider.bills.isNotEmpty ? provider.bills.first : null);
 
     return Scaffold(
       backgroundColor: pn.background,
@@ -129,7 +132,7 @@ class _CustomerBillsScreenState extends State<CustomerBillsScreen> {
                       ),
                       if (totalDue > 0) ...[
                         ElevatedButton(
-                          onPressed: _triggerPaymentMock,
+                          onPressed: pendingBill != null ? () => _openPaymentUploadSheet(pendingBill) : null,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: pn.accent,
                             foregroundColor: pn.primary,

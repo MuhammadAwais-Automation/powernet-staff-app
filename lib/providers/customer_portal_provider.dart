@@ -92,6 +92,38 @@ class CustomerPortalProvider extends ChangeNotifier {
     }
   }
 
+  Future<bool> submitPaymentVerification({
+    required String billId,
+    required String customerId,
+    required double amount,
+    required String method,
+    required String receiptUrl,
+    String? remarks,
+  }) async {
+    _loading = true;
+    _error = null;
+    notifyListeners();
+    try {
+      await _repo.submitPaymentVerification(
+        billId: billId,
+        customerId: customerId,
+        amount: amount,
+        method: method,
+        receiptUrl: receiptUrl,
+        remarks: remarks,
+      );
+      await refreshActive();
+      return true;
+    } catch (e) {
+      _error = 'Payment verification submission failed. Please try again.';
+      debugPrint('submitPaymentVerification failed: $e');
+      return false;
+    } finally {
+      _loading = false;
+      notifyListeners();
+    }
+  }
+
   void _ensureRealtime(String customerId) {
     if (_billsChannel != null && _complaintsChannel != null) return;
     _billsChannel = supabase
