@@ -31,6 +31,7 @@ class _CustomerBillsScreenState extends State<CustomerBillsScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      useRootNavigator: true,
       backgroundColor: Colors.transparent,
       builder: (context) => PaymentUploadReceiptSheet(bill: bill),
     );
@@ -131,18 +132,38 @@ class _CustomerBillsScreenState extends State<CustomerBillsScreen> {
                         ],
                       ),
                       if (totalDue > 0) ...[
-                        ElevatedButton(
-                          onPressed: pendingBill != null ? () => _openPaymentUploadSheet(pendingBill) : null,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: pn.accent,
-                            foregroundColor: pn.primary,
-                            minimumSize: const Size(80, 44),
-                            padding: const EdgeInsets.symmetric(horizontal: 16),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          child: const Text('Pay Now'),
+                        Builder(
+                          builder: (context) {
+                            final isPendingVerif = pendingBill != null && provider.isVerificationPending(pendingBill.id);
+                            final isRejectedVerif = pendingBill != null && provider.isVerificationRejected(pendingBill.id);
+                            
+                            return ElevatedButton(
+                              onPressed: (pendingBill != null && !isPendingVerif) 
+                                  ? () {
+                                      if (isRejectedVerif) {
+                                        showRejectionDialog(
+                                          context: context,
+                                          bill: pendingBill,
+                                          provider: provider,
+                                          onReupload: _openPaymentUploadSheet,
+                                        );
+                                      } else {
+                                        _openPaymentUploadSheet(pendingBill);
+                                      }
+                                    }
+                                  : null,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: isPendingVerif ? pn.softOrange : pn.accent,
+                                foregroundColor: isPendingVerif ? pn.warning : pn.primary,
+                                minimumSize: const Size(80, 44),
+                                padding: const EdgeInsets.symmetric(horizontal: 16),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                              child: Text(isPendingVerif ? 'Verifying ⏳' : 'Pay Now'),
+                            );
+                          }
                         ),
                       ],
                     ],
@@ -254,13 +275,24 @@ class _BillCard extends StatelessWidget {
     final pn = Theme.of(context).extension<PnColors>()!;
     final paid = bill.paidAmount ?? 0;
     final remaining = bill.remaining.clamp(0, double.infinity);
+    final provider = context.watch<CustomerPortalProvider>();
+    final isPendingVerification = provider.isVerificationPending(bill.id);
+    final isRejectedVerification = provider.isVerificationRejected(bill.id);
 
     // Resolve color scheme for status chip
     Color statusColor;
     Color statusBg;
     String statusLabel = bill.collectionStatus.toUpperCase();
 
-    if (bill.collectionStatus == 'paid') {
+    if (isPendingVerification) {
+      statusColor = pn.warning;
+      statusBg = pn.softOrange;
+      statusLabel = 'VERIFYING';
+    } else if (isRejectedVerification) {
+      statusColor = pn.danger;
+      statusBg = pn.softRed;
+      statusLabel = 'REJECTED';
+    } else if (bill.collectionStatus == 'paid') {
       statusColor = pn.success;
       statusBg = pn.softGreen;
     } else if (bill.collectionStatus == 'overdue') {
@@ -396,6 +428,77 @@ class _BillCard extends StatelessWidget {
                     ),
                   ),
                 ],
+              ),            ),
+          ],
+          if (isRejectedVerification) ...[
+            const SizedBox(height: 12),
+            InkWell(
+              onTap: () => showRejectionDialog(
+                context: context,
+                bill: bill,
+                provider: provider,
+                onReupload: (b) {
+                  showModalBottomSheet(
+                    context: context,
+                    isScrollControlled: true,
+                    useRootNavigator: true,
+                    backgroundColor: Colors.transparent,
+                    builder: (context) => PaymentUploadReceiptSheet(bill: b),
+                  );
+                },
+              ),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: pn.softRed,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: pn.danger.withValues(alpha: 0.15)),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.info_outline, size: 14, color: pn.danger),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Receipt rejected: ${provider.getRejectionReason(bill.id) ?? "Click to view reason"}',
+                        style: TextStyle(
+                          color: pn.danger,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    Icon(Icons.arrow_forward_ios, size: 10, color: pn.danger),
+                  ],
+                ),
+              ),
+            ),
+          ] else if (isPendingVerification) ...[
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: pn.softOrange,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: pn.warning.withValues(alpha: 0.15)),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.hourglass_empty_rounded, size: 14, color: pn.warning),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Admin is verifying your uploaded receipt.',
+                      style: TextStyle(
+                        color: pn.warning,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
@@ -438,3 +541,102 @@ class _BillCard extends StatelessWidget {
     );
   }
 }
+
+void showRejectionDialog({
+  required BuildContext context,
+  required Bill bill,
+  required CustomerPortalProvider provider,
+  required Function(Bill) onReupload,
+}) {
+  final pn = Theme.of(context).extension<PnColors>()!;
+  final reason = provider.getRejectionReason(bill.id) ?? 'No reason provided by administrator.';
+  showDialog(
+    context: context,
+    useRootNavigator: true,
+    builder: (context) => AlertDialog(
+      backgroundColor: pn.surface,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      title: Row(
+        children: [
+          Icon(Icons.error_outline, color: pn.danger, size: 24),
+          const SizedBox(width: 10),
+          Text(
+            'Receipt Rejected',
+            style: GoogleFonts.manrope(
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+              color: pn.text,
+            ),
+          ),
+        ],
+      ),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Your uploaded receipt for ${bill.month} was rejected during review.',
+            style: TextStyle(color: pn.textMuted, fontSize: 13),
+          ),
+          const SizedBox(height: 14),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: pn.softRed,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: pn.danger.withValues(alpha: 0.15)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'REJECTION REASON:',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w900,
+                    color: pn.danger,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  reason,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: pn.danger,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+          Text(
+            'Please verify your transaction and upload a clear screenshot of your payment receipt.',
+            style: TextStyle(color: pn.textMuted, fontSize: 12),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: Text('Close', style: TextStyle(color: pn.textMuted, fontWeight: FontWeight.bold)),
+        ),
+        ElevatedButton(
+          onPressed: () {
+            Navigator.pop(context);
+            onReupload(bill);
+          },
+          style: ElevatedButton.styleFrom(
+            backgroundColor: pn.accent,
+            foregroundColor: pn.primary,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+          child: const Text('Re-upload Receipt'),
+        ),
+      ],
+    ),
+  );
+}
+

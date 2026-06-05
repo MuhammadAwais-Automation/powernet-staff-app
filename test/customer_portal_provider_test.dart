@@ -6,6 +6,40 @@ import 'package:powernet_staff/models/customer_account.dart';
 import 'package:powernet_staff/providers/customer_portal_provider.dart';
 
 void main() {
+  group('CustomerPortalProvider load', () {
+    test('keeps bill totals visible when complaints fail to load', () async {
+      final provider = CustomerPortalProvider(
+        repo: _FakeCustomerPortalRepository(shouldFailFetchComplaints: true),
+        enableRealtime: false,
+      );
+
+      await provider.load(_customer);
+
+      expect(provider.loading, isFalse);
+      expect(provider.error, isNull);
+      expect(provider.bills, hasLength(1));
+      expect(provider.totalDue, 900);
+      expect(provider.complaints, isEmpty);
+    });
+
+    test('shows portal error only when all dashboard data fails', () async {
+      final provider = CustomerPortalProvider(
+        repo: _FakeCustomerPortalRepository(
+          shouldFailFetchBills: true,
+          shouldFailFetchComplaints: true,
+        ),
+        enableRealtime: false,
+      );
+
+      await provider.load(_customer);
+
+      expect(provider.loading, isFalse);
+      expect(provider.error, contains('Customer portal data'));
+      expect(provider.bills, isEmpty);
+      expect(provider.complaints, isEmpty);
+    });
+  });
+
   group('CustomerPortalProvider complaint intake', () {
     test('prepends submitted complaint on success', () async {
       final provider = CustomerPortalProvider(
@@ -52,15 +86,41 @@ const _customer = CustomerAccount(
 );
 
 class _FakeCustomerPortalRepository extends CustomerPortalRepository {
+  final bool shouldFailFetchBills;
+  final bool shouldFailFetchComplaints;
   final bool shouldFailCreate;
 
-  _FakeCustomerPortalRepository({this.shouldFailCreate = false});
+  _FakeCustomerPortalRepository({
+    this.shouldFailFetchBills = false,
+    this.shouldFailFetchComplaints = false,
+    this.shouldFailCreate = false,
+  });
 
   @override
-  Future<List<Bill>> fetchBills(String customerId) async => [];
+  Future<List<Bill>> fetchBills(String customerId) async {
+    if (shouldFailFetchBills) {
+      throw Exception('permission denied for table bills');
+    }
+    return [
+      Bill(
+        id: 'bill-1',
+        customerId: customerId,
+        amount: 1000,
+        paidAmount: 100,
+        month: 'May 2026',
+        status: 'pending',
+        createdAt: '2026-05-01T00:00:00.000Z',
+      ),
+    ];
+  }
 
   @override
-  Future<List<Complaint>> fetchComplaints(String customerId) async => [];
+  Future<List<Complaint>> fetchComplaints(String customerId) async {
+    if (shouldFailFetchComplaints) {
+      throw Exception('permission denied for table staff');
+    }
+    return [];
+  }
 
   @override
   Future<Complaint> createComplaint({

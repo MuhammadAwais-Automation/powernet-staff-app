@@ -2,6 +2,8 @@ import '../config/supabase_config.dart';
 import '../models/bill.dart';
 import '../models/complaint.dart';
 import '../models/customer_account.dart';
+import '../models/payment_verification.dart';
+
 
 const _customerBillSelect =
     'id, customer_id, amount, paid_amount, month, status, collected_by, '
@@ -10,15 +12,13 @@ const _customerBillSelect =
 
 const _customerComplaintSelect =
     'id, complaint_code, customer_id, issue, type, priority, status, '
-    'assigned_to, opened_at, resolved_at, resolution_notes, hardware_used, '
-    'customer:customers(id, full_name, area_id, customer_code, address_value, phone), '
-    'technician:staff(id, full_name)';
+    'assigned_to, assigned_at, in_progress_at, opened_at, resolved_at, resolution_notes, hardware_used, '
+    'customer:customers(id, full_name, area_id, customer_code, address_value, phone)';
 
 const _customerComplaintLegacySelect =
     'id, complaint_code, customer_id, issue, type, priority, status, '
     'assigned_to, opened_at, resolved_at, '
-    'customer:customers(id, full_name, area_id, customer_code, address_value, phone), '
-    'technician:staff(id, full_name)';
+    'customer:customers(id, full_name, area_id, customer_code, address_value, phone)';
 
 class CustomerPortalRepository {
   Future<List<Bill>> fetchBills(String customerId) async {
@@ -72,7 +72,9 @@ class CustomerPortalRepository {
     final text = error.toString();
     return text.contains('42703') ||
         text.contains('resolution_notes') ||
-        text.contains('hardware_used');
+        text.contains('hardware_used') ||
+        text.contains('assigned_at') ||
+        text.contains('in_progress_at');
   }
 
   Future<Complaint> createComplaint({
@@ -108,4 +110,16 @@ class CustomerPortalRepository {
       'status': 'pending',
     });
   }
+
+  Future<List<PaymentVerification>> fetchPaymentVerifications(String customerId) async {
+    final res = await supabase
+        .from('payment_verifications')
+        .select('*')
+        .eq('customer_id', customerId)
+        .order('created_at', ascending: false);
+    return (res as List)
+        .map((j) => PaymentVerification.fromJson(j as Map<String, dynamic>))
+        .toList();
+  }
 }
+

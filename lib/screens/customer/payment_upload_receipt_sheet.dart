@@ -1,4 +1,5 @@
-import 'dart:io';
+import 'dart:io' show File;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
@@ -23,7 +24,7 @@ class _PaymentUploadReceiptSheetState extends State<PaymentUploadReceiptSheet> {
   final _remarksController = TextEditingController();
   
   String _selectedMethod = 'easypaisa';
-  File? _selectedImage;
+  XFile? _selectedImage;
   bool _isUploading = false;
   final _picker = ImagePicker();
   final _cloudinaryService = CloudinaryService();
@@ -52,7 +53,7 @@ class _PaymentUploadReceiptSheetState extends State<PaymentUploadReceiptSheet> {
       );
       if (pickedFile != null) {
         setState(() {
-          _selectedImage = File(pickedFile.path);
+          _selectedImage = pickedFile;
         });
       }
     } catch (e) {
@@ -67,48 +68,52 @@ class _PaymentUploadReceiptSheetState extends State<PaymentUploadReceiptSheet> {
   }
 
   void _showImageSourceDialog() {
-    showModalBottomSheet(
+    showDialog(
       context: context,
-      backgroundColor: Colors.transparent,
+      useRootNavigator: true,
       builder: (context) {
         final pn = Theme.of(context).extension<PnColors>()!;
-        return Container(
-          decoration: BoxDecoration(
-            color: pn.surface,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        return AlertDialog(
+          backgroundColor: pn.surface,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Text(
+            'Select Receipt Source',
+            textAlign: TextAlign.center,
+            style: GoogleFonts.manrope(
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+              color: pn.text,
+            ),
           ),
-          padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 20),
-          child: Column(
+          content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(
-                'Select Receipt Image Source',
-                style: GoogleFonts.manrope(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w800,
-                  color: pn.text,
-                ),
-              ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 10),
               Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
-                  ElevatedButton.icon(
-                    onPressed: () {
-                      Navigator.pop(context);
-                      _pickImage(ImageSource.camera);
-                    },
-                    icon: const Icon(Icons.camera_alt),
-                    label: const Text('Camera'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: pn.accent,
-                      foregroundColor: pn.primary,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  if (!kIsWeb)
+                    ElevatedButton.icon(
+                      onPressed: () async {
+                        Navigator.pop(context);
+                        await Future.delayed(const Duration(milliseconds: 400));
+                        if (!mounted) return;
+                        _pickImage(ImageSource.camera);
+                      },
+                      icon: const Icon(Icons.camera_alt),
+                      label: const Text('Camera'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: pn.accent,
+                        foregroundColor: pn.primary,
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
                     ),
-                  ),
                   ElevatedButton.icon(
-                    onPressed: () {
+                    onPressed: () async {
                       Navigator.pop(context);
+                      await Future.delayed(const Duration(milliseconds: 400));
+                      if (!mounted) return;
                       _pickImage(ImageSource.gallery);
                     },
                     icon: const Icon(Icons.photo_library),
@@ -116,6 +121,7 @@ class _PaymentUploadReceiptSheetState extends State<PaymentUploadReceiptSheet> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: pn.accent,
                       foregroundColor: pn.primary,
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
                   ),
@@ -150,7 +156,7 @@ class _PaymentUploadReceiptSheetState extends State<PaymentUploadReceiptSheet> {
     final amount = double.tryParse(_amountController.text) ?? 0.0;
 
     // 1. Upload to Cloudinary
-    final imageUrl = await _cloudinaryService.uploadReceipt(_selectedImage!.path);
+    final imageUrl = await _cloudinaryService.uploadReceipt(_selectedImage!);
 
     if (imageUrl == null) {
       setState(() {
@@ -315,7 +321,9 @@ class _PaymentUploadReceiptSheetState extends State<PaymentUploadReceiptSheet> {
                           borderRadius: BorderRadius.circular(16),
                           border: Border.all(color: pn.border),
                           image: DecorationImage(
-                            image: FileImage(_selectedImage!),
+                            image: kIsWeb
+                                ? NetworkImage(_selectedImage!.path) as ImageProvider
+                                : FileImage(File(_selectedImage!.path)),
                             fit: BoxFit.cover,
                           ),
                         ),
@@ -340,7 +348,13 @@ class _PaymentUploadReceiptSheetState extends State<PaymentUploadReceiptSheet> {
                   ),
                 ] else ...[
                   InkWell(
-                    onTap: _showImageSourceDialog,
+                    onTap: () {
+                      if (kIsWeb) {
+                        _pickImage(ImageSource.gallery);
+                      } else {
+                        _showImageSourceDialog();
+                      }
+                    },
                     child: Container(
                       height: 120,
                       decoration: BoxDecoration(
@@ -389,7 +403,7 @@ class _PaymentUploadReceiptSheetState extends State<PaymentUploadReceiptSheet> {
                               child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                             ),
                             const SizedBox(width: 12),
-                            Text('Uploading to Cloudinary...', style: GoogleFonts.manrope(fontWeight: FontWeight.w800)),
+                            Text('Uploading...', style: GoogleFonts.manrope(fontWeight: FontWeight.w800)),
                           ],
                         )
                       : Text('Submit Payment Receipt', style: GoogleFonts.manrope(fontWeight: FontWeight.w800, fontSize: 15)),

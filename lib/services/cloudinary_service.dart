@@ -2,11 +2,12 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
+import 'package:image_picker/image_picker.dart';
 
 class CloudinaryService {
-  /// Uploads a file (image receipt) from local storage to Cloudinary.
+  /// Uploads a file (image receipt) from local storage or memory to Cloudinary.
   /// Returns the secure URL of the uploaded image if successful, otherwise null.
-  Future<String?> uploadReceipt(String filePath) async {
+  Future<String?> uploadReceipt(XFile file) async {
     final cloudName = dotenv.env['CLOUDINARY_CLOUD_NAME'] ?? 'dvpgd8jss';
     final uploadPreset = dotenv.env['CLOUDINARY_UPLOAD_PRESET'] ?? 'powernet_receipts';
 
@@ -14,8 +15,18 @@ class CloudinaryService {
     
     try {
       final request = http.MultipartRequest('POST', uri)
-        ..fields['upload_preset'] = uploadPreset
-        ..files.add(await http.MultipartFile.fromPath('file', filePath));
+        ..fields['upload_preset'] = uploadPreset;
+
+      if (kIsWeb) {
+        final bytes = await file.readAsBytes();
+        request.files.add(http.MultipartFile.fromBytes(
+          'file',
+          bytes,
+          filename: file.name,
+        ));
+      } else {
+        request.files.add(await http.MultipartFile.fromPath('file', file.path));
+      }
 
       final streamedResponse = await request.send();
       final response = await http.Response.fromStream(streamedResponse);

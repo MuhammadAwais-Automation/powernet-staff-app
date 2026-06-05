@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:supabase_flutter/supabase_flutter.dart' show AuthChangeEvent;
+import 'package:supabase_flutter/supabase_flutter.dart' show AuthChangeEvent, AuthException, PostgrestException;
 import '../config/supabase_config.dart';
 import '../models/staff.dart';
 import '../services/auth_service.dart';
@@ -101,6 +101,16 @@ class AuthProvider extends ChangeNotifier {
       notifyListeners();
       return (ok: true, error: null);
     } catch (e) {
+      if (e is AuthException) {
+        return (ok: false, error: e.message);
+      }
+      if (e is PostgrestException) {
+        return (ok: false, error: e.message);
+      }
+      final errStr = e.toString().toLowerCase();
+      if (errStr.contains('invalid') || errStr.contains('credential') || errStr.contains('password') || errStr.contains('username') || errStr.contains('incorrect') || errStr.contains('not found')) {
+        return (ok: false, error: 'Invalid credentials');
+      }
       return (ok: false, error: 'Connection error. Check your network.');
     }
   }

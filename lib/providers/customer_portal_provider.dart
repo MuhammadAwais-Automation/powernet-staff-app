@@ -8,9 +8,11 @@ import '../data/customer_portal_repository.dart';
 import '../models/bill.dart';
 import '../models/complaint.dart';
 import '../models/customer_account.dart';
+import '../models/payment_verification.dart';
 
 class CustomerPortalProvider extends ChangeNotifier {
   final CustomerPortalRepository _repo;
+  final bool _enableRealtime;
   RealtimeChannel? _billsChannel;
   RealtimeChannel? _complaintsChannel;
   String? _activeCustomerId;
@@ -18,14 +20,19 @@ class CustomerPortalProvider extends ChangeNotifier {
 
   List<Bill> _bills = [];
   List<Complaint> _complaints = [];
+  List<PaymentVerification> _verifications = [];
   bool _loading = false;
   String? _error;
 
-  CustomerPortalProvider({CustomerPortalRepository? repo})
-    : _repo = repo ?? CustomerPortalRepository();
+  CustomerPortalProvider({
+    CustomerPortalRepository? repo,
+    bool enableRealtime = true,
+  }) : _repo = repo ?? CustomerPortalRepository(),
+       _enableRealtime = enableRealtime;
 
   List<Bill> get bills => _bills;
   List<Complaint> get complaints => _complaints;
+  List<PaymentVerification> get verifications => _verifications;
   bool get loading => _loading;
   String? get error => _error;
 
@@ -37,35 +44,90 @@ class CustomerPortalProvider extends ChangeNotifier {
   int get openComplaintCount =>
       _complaints.where((c) => c.status != 'resolved').length;
 
+  // Verification Helper Getters
+  bool isVerificationPending(String billId) {
+    return _verifications.any((v) => v.billId == billId && v.status == 'pending');
+  }
+
+  bool isVerificationRejected(String billId) {
+    return _verifications.any((v) => v.billId == billId && v.status == 'rejected');
+  }
+
+  String? getRejectionReason(String billId) {
+    try {
+      final match = _verifications.firstWhere((v) => v.billId == billId && v.status == 'rejected');
+      return match.reviewNote;
+    } catch (_) {
+      return null;
+    }
+  }
+
+
   Future<void> load(CustomerAccount customer) async {
     _activeCustomerId = customer.id;
-    _ensureRealtime(customer.id);
+    if (_enableRealtime) _ensureRealtime(customer.id);
     _loading = true;
     _error = null;
     notifyListeners();
+    Object? billsError;
+    Object? complaintsError;
     try {
       _bills = await _repo.fetchBills(customer.id);
+    } catch (e) {
+      billsError = e;
+      _bills = [];
+      debugPrint('CustomerPortalProvider bills load failed: $e');
+    }
+    try {
       _complaints = await _repo.fetchComplaints(customer.id);
     } catch (e) {
-      _error = 'Customer portal data could not be loaded. Please retry.';
-      debugPrint('CustomerPortalProvider load failed: $e');
-    } finally {
-      _loading = false;
-      notifyListeners();
+      complaintsError = e;
+      _complaints = [];
+      debugPrint('CustomerPortalProvider complaints load failed: $e');
     }
+    try {
+      _verifications = await _repo.fetchPaymentVerifications(customer.id);
+    } catch (e) {
+      debugPrint('CustomerPortalProvider verifications load failed: $e');
+      _verifications = [];
+    }
+    if (billsError != null && complaintsError != null) {
+      _error = 'Customer portal data could not be loaded. Please retry.';
+    }
+    _loading = false;
+    notifyListeners();
   }
 
   Future<void> refreshActive() async {
     final customerId = _activeCustomerId;
     if (customerId == null) return;
+    Object? billsError;
+    Object? complaintsError;
     try {
       _bills = await _repo.fetchBills(customerId);
+    } catch (e) {
+      billsError = e;
+      debugPrint('CustomerPortalProvider bills refresh failed: $e');
+    }
+    try {
       _complaints = await _repo.fetchComplaints(customerId);
+    } catch (e) {
+      complaintsError = e;
+      debugPrint('CustomerPortalProvider complaints refresh failed: $e');
+    }
+    try {
+      _verifications = await _repo.fetchPaymentVerifications(customerId);
+    } catch (e) {
+      debugPrint('CustomerPortalProvider verifications refresh failed: $e');
+    }
+    if (billsError == null || complaintsError == null) {
       _error = null;
       notifyListeners();
-    } catch (e) {
-      debugPrint('CustomerPortalProvider refresh failed: $e');
+      return;
     }
+    debugPrint(
+      'CustomerPortalProvider refresh failed: bills=$billsError complaints=$complaintsError',
+    );
   }
 
   Future<bool> createComplaint({
@@ -169,6 +231,7 @@ class CustomerPortalProvider extends ChangeNotifier {
   void clear() {
     _bills = [];
     _complaints = [];
+    _verifications = [];
     _activeCustomerId = null;
     notifyListeners();
   }
