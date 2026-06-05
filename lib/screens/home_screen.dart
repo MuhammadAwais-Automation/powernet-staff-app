@@ -241,7 +241,7 @@ class _RoleHome extends StatelessWidget {
                   children: [
                     _buildKpiCard(
                       label: 'Assigned',
-                      value: loading ? '…' : '${q.complaints.length}',
+                      value: loading ? '…' : '${q.open.length + q.inProgress.length}',
                       pn: pn,
                       onTap: () => context.push('/technician/complaints'),
                     ),
@@ -260,8 +260,8 @@ class _RoleHome extends StatelessWidget {
                       onTap: () => context.push('/technician/complaints'),
                     ),
                     _buildKpiCard(
-                      label: 'Resolved Today',
-                      value: loading ? '…' : '${q.resolvedToday.length}',
+                      label: 'Resolved (Today / Month)',
+                      value: loading ? '…' : '${q.resolvedToday.length} / ${q.resolvedThisMonth.length}',
                       valueColor: pn.success,
                       pn: pn,
                     ),

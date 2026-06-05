@@ -254,11 +254,12 @@ class ComplaintsRepository {
     String technicianId,
     String select,
   ) async {
+    final startOfMonth = DateTime(DateTime.now().year, DateTime.now().month, 1).toUtc().toIso8601String();
     final res = await supabase
         .from('complaints')
         .select(select)
         .eq('assigned_to', technicianId)
-        .inFilter('status', ['open', 'in_progress'])
+        .or('status.in.(open,in_progress),and(status.eq.resolved,resolved_at.gte.$startOfMonth)')
         .order('opened_at', ascending: false);
     return _parseComplaintList(res);
   }

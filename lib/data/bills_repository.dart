@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/foundation.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/bill.dart';
 import '../config/supabase_config.dart';
@@ -243,17 +244,31 @@ class BillsRepository {
     required String paymentMethod,
     String? paymentNote,
   }) async {
-    await supabase.rpc(
-      'record_bill_payment',
-      params: {
-        'p_bill_id': billId,
-        'p_amount': paidAmount.round(),
-        'p_collected_by': collectorId,
-        'p_method': paymentMethod,
-        'p_source': 'agent',
-        'p_note': paymentNote,
-      },
-    );
+    try {
+      await supabase.rpc(
+        'record_bill_payment',
+        params: {
+          'p_bill_id': billId,
+          'p_amount': paidAmount.round(),
+          'p_collected_by': collectorId,
+          'p_method': paymentMethod,
+          'p_source': 'agent',
+          'p_note': paymentNote,
+        },
+      );
+    } on PostgrestException catch (e) {
+      if (e.code == 'PGRST202' || e.message.contains('record_bill_payment')) {
+        await supabase.rpc('record_bill_payment', params: {
+          'p_bill_id': billId,
+          'p_amount': paidAmount.round(),
+          'p_collected_by': collectorId,
+          'p_method': paymentMethod,
+          'p_note': paymentNote,
+        });
+      } else {
+        rethrow;
+      }
+    }
   }
 
   Future<List<QueuedBillPayment>> getQueuedPayments() async {

@@ -56,6 +56,15 @@ class ComplaintQueueProvider extends ChangeNotifier {
     }).toList();
   }
 
+  List<Complaint> get resolvedThisMonth {
+    final today = DateTime.now();
+    return _complaints.where((c) {
+      if (!c.isResolved || c.resolvedAt == null) return false;
+      final d = DateTime.tryParse(c.resolvedAt!);
+      return d != null && d.year == today.year && d.month == today.month;
+    }).toList();
+  }
+
   Future<void> loadForTechnician(String technicianId) async {
     await loadForTechnicianAndAreas(technicianId, const []);
   }

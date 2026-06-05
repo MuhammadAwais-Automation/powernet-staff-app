@@ -213,7 +213,7 @@ class _ComplaintListScreenState extends State<ComplaintListScreen>
                 _ComplaintList(
                   items: filteredResolved,
                   pn: pn,
-                  emptyMsg: 'No resolved complaints today.',
+                  emptyMsg: 'No resolved complaints this month.',
                   onRefresh: _load,
                 ),
               ],
