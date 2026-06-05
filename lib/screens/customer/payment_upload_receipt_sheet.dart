@@ -67,67 +67,135 @@ class _PaymentUploadReceiptSheetState extends State<PaymentUploadReceiptSheet> {
     }
   }
 
-  void _showImageSourceDialog() {
-    showDialog(
-      context: context,
-      useRootNavigator: true,
-      builder: (context) {
-        final pn = Theme.of(context).extension<PnColors>()!;
-        return AlertDialog(
-          backgroundColor: pn.surface,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: Text(
-            'Select Receipt Source',
-            textAlign: TextAlign.center,
-            style: GoogleFonts.manrope(
-              fontSize: 18,
-              fontWeight: FontWeight.w800,
-              color: pn.text,
+  Widget _buildSourceTile({
+    required VoidCallback onTap,
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required Color bgColor,
+    required Color iconColor,
+    required PnColors pn,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: pn.border),
+          color: pn.background,
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: bgColor,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(icon, color: iconColor, size: 22),
             ),
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const SizedBox(height: 10),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  if (!kIsWeb)
-                    ElevatedButton.icon(
-                      onPressed: () async {
-                        Navigator.pop(context);
-                        await Future.delayed(const Duration(milliseconds: 400));
-                        if (!mounted) return;
-                        _pickImage(ImageSource.camera);
-                      },
-                      icon: const Icon(Icons.camera_alt),
-                      label: const Text('Camera'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: pn.accent,
-                        foregroundColor: pn.primary,
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      ),
+                  Text(
+                    title,
+                    style: GoogleFonts.manrope(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
+                      color: pn.text,
                     ),
-                  ElevatedButton.icon(
-                    onPressed: () async {
-                      Navigator.pop(context);
-                      await Future.delayed(const Duration(milliseconds: 400));
-                      if (!mounted) return;
-                      _pickImage(ImageSource.gallery);
-                    },
-                    icon: const Icon(Icons.photo_library),
-                    label: const Text('Gallery'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: pn.accent,
-                      foregroundColor: pn.primary,
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: pn.textMuted,
                     ),
                   ),
                 ],
               ),
-            ],
+            ),
+            Icon(Icons.chevron_right_rounded, color: pn.textMuted, size: 20),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showImageSourceDialog() {
+    final pn = Theme.of(context).extension<PnColors>()!;
+    showDialog(
+      context: context,
+      useRootNavigator: true,
+      builder: (dialogContext) {
+        return Dialog(
+          backgroundColor: pn.surface,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Select Source',
+                      style: GoogleFonts.manrope(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                        color: pn.text,
+                      ),
+                    ),
+                    IconButton(
+                      icon: Icon(Icons.close_rounded, color: pn.textSoft, size: 20),
+                      onPressed: () => Navigator.pop(dialogContext),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                if (!kIsWeb) ...[
+                  _buildSourceTile(
+                    onTap: () async {
+                      Navigator.pop(dialogContext);
+                      await Future.delayed(const Duration(milliseconds: 300));
+                      if (!mounted) return;
+                      _pickImage(ImageSource.camera);
+                    },
+                    icon: Icons.camera_alt_rounded,
+                    title: 'Take Photo (Camera)',
+                    subtitle: 'Capture receipt with your camera',
+                    bgColor: pn.softOrange,
+                    iconColor: pn.accent,
+                    pn: pn,
+                  ),
+                  const SizedBox(height: 12),
+                ],
+                _buildSourceTile(
+                  onTap: () async {
+                    Navigator.pop(dialogContext);
+                    await Future.delayed(const Duration(milliseconds: 300));
+                    if (!mounted) return;
+                    _pickImage(ImageSource.gallery);
+                  },
+                  icon: Icons.photo_library_rounded,
+                  title: 'Choose from Gallery',
+                  subtitle: 'Select receipt from your gallery',
+                  bgColor: pn.softCyan,
+                  iconColor: pn.cyan,
+                  pn: pn,
+                ),
+              ],
+            ),
           ),
         );
       },

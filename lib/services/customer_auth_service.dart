@@ -40,6 +40,11 @@ class CustomerAuthService {
       // Fall back to deterministic house-ID email for local/dev schemas.
     }
 
+    final digits = trimmed.replaceAll(RegExp(r'[^0-9]'), '');
+    if (digits.length >= 10) {
+      return 'customer_$digits@powernet.local';
+    }
+
     final normalized = trimmed
         .toLowerCase()
         .replaceAll(RegExp(r'[^a-z0-9]+'), '_')

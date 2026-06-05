@@ -37,6 +37,17 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<void> _submit() async {
     FocusScope.of(context).unfocus();
+
+    if (_mode == 'customer') {
+      final phoneInput = _usernameCtrl.text.trim();
+      if (phoneInput.length != 11 || !phoneInput.startsWith('03') || int.tryParse(phoneInput) == null) {
+        setState(() {
+          _errorMessage = 'Please enter a valid 11-digit mobile number starting with 03.';
+        });
+        return;
+      }
+    }
+
     setState(() {
       _loading = true;
       _errorMessage = null;
@@ -322,7 +333,7 @@ class _LoginScreenState extends State<LoginScreen> {
         Text(
           isStaff
               ? 'Enter staff credentials to sync assigned tasks.'
-              : 'Sign in using your verified house ID or registered phone number.',
+              : 'Sign in using your registered mobile number.',
           style: TextStyle(fontSize: 13, color: pn.textMuted),
         ),
         const SizedBox(height: 28),
@@ -373,7 +384,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
         // Input username / house ID field
         Text(
-          isStaff ? 'USERNAME' : 'HOUSE ID OR PHONE',
+          isStaff ? 'USERNAME' : 'REGISTERED PHONE NUMBER',
           style: TextStyle(
             fontSize: 11,
             fontWeight: FontWeight.w800,
@@ -388,14 +399,14 @@ class _LoginScreenState extends State<LoginScreen> {
           autocorrect: false,
           enableSuggestions: false,
           textCapitalization: TextCapitalization.none,
-          keyboardType: TextInputType.text,
+          keyboardType: isStaff ? TextInputType.text : TextInputType.phone,
           style: TextStyle(
             color: pn.text,
             fontSize: 15,
             fontWeight: FontWeight.w700,
           ),
           decoration: InputDecoration(
-            hintText: isStaff ? 'e.g. technician_ahmed' : 'e.g. house_102b',
+            hintText: isStaff ? 'e.g. technician_ahmed' : 'e.g. 03001234567',
             prefixIcon: Icon(
               Icons.person_outline_rounded,
               color: pn.textMuted,

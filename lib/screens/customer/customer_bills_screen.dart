@@ -631,6 +631,7 @@ void showRejectionDialog({
           style: ElevatedButton.styleFrom(
             backgroundColor: pn.accent,
             foregroundColor: pn.primary,
+            minimumSize: const Size(120, 40),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
           ),
           child: const Text('Re-upload Receipt'),

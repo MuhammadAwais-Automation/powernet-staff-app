@@ -226,7 +226,7 @@ class _CustomerSignupScreenState extends State<CustomerSignupScreen> {
     } catch (e) {
       setState(
         () => _error =
-            'Signup submission failed. A duplicate house ID or network connectivity issue may have occurred.',
+            'Signup submission failed. A duplicate house ID, phone number or network connectivity issue may have occurred.',
       );
     } finally {
       if (mounted) setState(() => _submitting = false);
@@ -277,7 +277,7 @@ class _CustomerSignupScreenState extends State<CustomerSignupScreen> {
                 ),
                 const SizedBox(height: 10),
                 Text(
-                  'Your request is pending company verification. After approval, a verified system agent will contact you on call or WhatsApp with your temporary house ID credentials.',
+                  'Your request is pending company verification. After approval, a verified system agent will contact you on call or WhatsApp with your login password (login using your registered phone number).',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     color: pn.textSoft,
