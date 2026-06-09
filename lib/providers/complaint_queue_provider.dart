@@ -34,6 +34,21 @@ class ComplaintQueueProvider extends ChangeNotifier {
        _enableRealtime = enableRealtime {
     _isOnline = onlineChanges == null;
     _listenForConnectivity();
+    unawaited(_initConnectivity());
+  }
+
+  Future<void> _initConnectivity() async {
+    if (_onlineChanges != null) return;
+    try {
+      final results = await Connectivity().checkConnectivity();
+      _isOnline = results.any((result) => result != ConnectivityResult.none);
+      notifyListeners();
+      if (_isOnline) {
+        unawaited(syncQueuedNow());
+      }
+    } catch (e) {
+      debugPrint('POWERNET_DEBUG: checkConnectivity failed: $e');
+    }
   }
 
   List<Complaint> get complaints => _complaints;
@@ -74,6 +89,18 @@ class ComplaintQueueProvider extends ChangeNotifier {
     _error = null;
     notifyListeners();
     try {
+      if (_onlineChanges == null) {
+        try {
+          final results = await Connectivity().checkConnectivity();
+          _isOnline = results.any(
+            (result) => result != ConnectivityResult.none,
+          );
+        } catch (e) {
+          debugPrint(
+            'POWERNET_DEBUG: checkConnectivity failed in loadForAreas: $e',
+          );
+        }
+      }
       _complaints = await _repo.fetchByAreas(areaIds);
       _sortComplaints();
     } catch (e) {
@@ -95,6 +122,16 @@ class ComplaintQueueProvider extends ChangeNotifier {
     _error = null;
     notifyListeners();
     try {
+      if (_onlineChanges == null) {
+        try {
+          final results = await Connectivity().checkConnectivity();
+          _isOnline = results.any(
+            (result) => result != ConnectivityResult.none,
+          );
+        } catch (e) {
+          debugPrint('POWERNET_DEBUG: checkConnectivity failed in load: $e');
+        }
+      }
       if (_isOnline) {
         await syncQueuedNow(refreshAfterSync: false);
       } else {
@@ -137,6 +174,9 @@ class ComplaintQueueProvider extends ChangeNotifier {
     String notes,
     String hardware,
   ) async {
+    if (!_isOnline) {
+      return _queueStatus(id, 'resolved', notes: notes, hardware: hardware);
+    }
     try {
       await _repo.resolveWithDetails(id, notes, hardware);
       _applyLocalStatus(id, 'resolved', notes: notes, hardware: hardware);
@@ -147,7 +187,13 @@ class ComplaintQueueProvider extends ChangeNotifier {
       return true;
     } catch (e) {
       debugPrint('POWERNET_DEBUG: resolveComplaintWithOptions failed: $e');
-      return _queueStatus(id, 'resolved', notes: notes, hardware: hardware);
+      if (_isNetworkError(e)) {
+        return _queueStatus(id, 'resolved', notes: notes, hardware: hardware);
+      } else {
+        _error = _getErrorMessage(e);
+        notifyListeners();
+        return false;
+      }
     }
   }
 
@@ -183,6 +229,9 @@ class ComplaintQueueProvider extends ChangeNotifier {
   }
 
   Future<bool> _submitStatus(String id, String status) async {
+    if (!_isOnline) {
+      return _queueStatus(id, status);
+    }
     try {
       await _repo.updateStatus(id, status);
       _applyLocalStatus(id, status);
@@ -193,7 +242,13 @@ class ComplaintQueueProvider extends ChangeNotifier {
       return true;
     } catch (e) {
       debugPrint('POWERNET_DEBUG: submit complaint status failed: $e');
-      return _queueStatus(id, status);
+      if (_isNetworkError(e)) {
+        return _queueStatus(id, status);
+      } else {
+        _error = _getErrorMessage(e);
+        notifyListeners();
+        return false;
+      }
     }
   }
 
@@ -329,10 +384,35 @@ class ComplaintQueueProvider extends ChangeNotifier {
         );
     _onlineSubscription = stream.listen((isOnline) {
       _isOnline = isOnline;
+      notifyListeners();
       if (isOnline) {
         unawaited(syncQueuedNow());
       }
     });
+  }
+
+  bool _isNetworkError(Object error) {
+    if (error is PostgrestException || error is AuthException) {
+      return false;
+    }
+    final text = error.toString().toLowerCase();
+    return text.contains('socketexception') ||
+        text.contains('failed host lookup') ||
+        text.contains('clientexception') ||
+        text.contains('no address associated') ||
+        text.contains('network is unreachable') ||
+        text.contains('offline') ||
+        text.contains('timeout');
+  }
+
+  String _getErrorMessage(Object error) {
+    if (error is PostgrestException) {
+      return error.message;
+    }
+    if (error is AuthException) {
+      return error.message;
+    }
+    return error.toString();
   }
 
   void stopListening() {

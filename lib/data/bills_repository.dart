@@ -23,6 +23,20 @@ const _cachedPendingPrefix = 'cached_pending_bills_';
 const _cachedCollectedPrefix = 'cached_collected_bills_';
 const _cachedVisitedPrefix = 'cached_visited_bills_';
 
+class BillAlreadyPaidException implements Exception {
+  const BillAlreadyPaidException();
+
+  @override
+  String toString() => 'Bill already paid. Collection list refreshed.';
+}
+
+class BillPaymentConflictException implements Exception {
+  const BillPaymentConflictException();
+
+  @override
+  String toString() => 'Bill balance changed. Collection list refreshed.';
+}
+
 class QueuedBillPayment {
   final String id;
   final String billId;
@@ -100,13 +114,27 @@ class QueuedBillVisit {
 class BillsRepository {
   Future<List<Bill>> fetchPendingByAreas(List<String> areaIds) async {
     if (areaIds.isEmpty) return [];
-    final res = await supabase
+    final openRes = await supabase
         .from('bills')
         .select(billAreaSelect)
         .inFilter('customer.area_id', areaIds)
         .inFilter('status', ['pending', 'overdue'])
         .order('created_at', ascending: false);
-    return (res as List)
+    final openBills = (openRes as List)
+        .map((j) => Bill.fromJson(j as Map<String, dynamic>))
+        .toList();
+    if (openBills.isEmpty) return [];
+
+    final customerIds = openBills
+        .map((bill) => bill.customerId)
+        .toSet()
+        .toList();
+    final ledgerRes = await supabase
+        .from('bills')
+        .select(billBaseSelect)
+        .inFilter('customer_id', customerIds)
+        .order('month', ascending: false);
+    return (ledgerRes as List)
         .map((j) => Bill.fromJson(j as Map<String, dynamic>))
         .toList();
   }
@@ -127,15 +155,19 @@ class BillsRepository {
     final dateStr =
         '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
     final res = await supabase
-        .from('bills')
-        .select(billBaseSelect)
+        .from('payments')
+        .select(
+          'id, bill_id, customer_id, amount, collected_by, method, source, '
+          'note, receipt_no, paid_at, created_at, '
+          'bill:bills(month, amount, paid_amount, status), '
+          'customer:customers(id, customer_code, full_name, address_type, address_value, area_id)',
+        )
         .eq('collected_by', collectorId)
-        .eq('status', 'paid')
         .gte('paid_at', '${dateStr}T00:00:00Z')
         .lte('paid_at', '${dateStr}T23:59:59Z')
         .order('paid_at', ascending: false);
     return (res as List)
-        .map((j) => Bill.fromJson(j as Map<String, dynamic>))
+        .map((j) => _billFromPayment(j as Map<String, dynamic>))
         .toList();
   }
 
@@ -145,15 +177,19 @@ class BillsRepository {
     final dateStr =
         '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
     final res = await supabase
-        .from('bills')
-        .select(billAreaSelect)
+        .from('payments')
+        .select(
+          'id, bill_id, customer_id, amount, collected_by, method, source, '
+          'note, receipt_no, paid_at, created_at, '
+          'bill:bills(month, amount, paid_amount, status), '
+          'customer:customers!inner(id, customer_code, full_name, address_type, address_value, area_id)',
+        )
         .inFilter('customer.area_id', areaIds)
-        .eq('status', 'paid')
         .gte('paid_at', '${dateStr}T00:00:00Z')
         .lte('paid_at', '${dateStr}T23:59:59Z')
         .order('paid_at', ascending: false);
     return (res as List)
-        .map((j) => Bill.fromJson(j as Map<String, dynamic>))
+        .map((j) => _billFromPayment(j as Map<String, dynamic>))
         .toList();
   }
 
@@ -244,30 +280,40 @@ class BillsRepository {
     required String paymentMethod,
     String? paymentNote,
   }) async {
+    final params = {
+      'p_bill_id': billId,
+      'p_amount': paidAmount.round(),
+      'p_collected_by': collectorId,
+      'p_method': paymentMethod,
+      'p_source': 'agent',
+      'p_note': paymentNote,
+    };
     try {
-      await supabase.rpc(
-        'record_bill_payment',
-        params: {
-          'p_bill_id': billId,
-          'p_amount': paidAmount.round(),
-          'p_collected_by': collectorId,
-          'p_method': paymentMethod,
-          'p_source': 'agent',
-          'p_note': paymentNote,
-        },
-      );
+      await supabase.rpc('record_bill_payment', params: params);
     } on PostgrestException catch (e) {
-      if (e.code == 'PGRST202' || e.message.contains('record_bill_payment')) {
-        await supabase.rpc('record_bill_payment', params: {
-          'p_bill_id': billId,
-          'p_amount': paidAmount.round(),
-          'p_collected_by': collectorId,
-          'p_method': paymentMethod,
-          'p_note': paymentNote,
-        });
-      } else {
-        rethrow;
+      final message = e.message.toLowerCase();
+      if (message.contains('already fully paid')) {
+        throw const BillAlreadyPaidException();
       }
+      if (message.contains('exceeds remaining balance')) {
+        throw const BillPaymentConflictException();
+      }
+      if (message.contains('could not find the function') ||
+          message.contains('record_bill_payment') &&
+              message.contains('schema cache')) {
+        await supabase.rpc(
+          'record_bill_payment',
+          params: {
+            'p_bill_id': billId,
+            'p_amount': paidAmount.round(),
+            'p_collected_by': collectorId,
+            'p_method': paymentMethod,
+            'p_note': paymentNote,
+          },
+        );
+        return;
+      }
+      rethrow;
     }
   }
 
@@ -327,6 +373,20 @@ class BillsRepository {
     await _saveQueuedVisits([...queued, draft]);
   }
 
+  bool _isNetworkError(Object error) {
+    if (error is PostgrestException || error is AuthException) {
+      return false;
+    }
+    final text = error.toString().toLowerCase();
+    return text.contains('socketexception') ||
+        text.contains('failed host lookup') ||
+        text.contains('clientexception') ||
+        text.contains('no address associated') ||
+        text.contains('network is unreachable') ||
+        text.contains('offline') ||
+        text.contains('timeout');
+  }
+
   Future<int> syncQueuedPayments() async {
     final queued = await getQueuedPayments();
     if (queued.isEmpty) return 0;
@@ -347,7 +407,13 @@ class BillsRepository {
         debugPrint(
           'POWERNET_DEBUG: syncQueuedPayments failed for bill ${payment.billId}: $e',
         );
-        remaining.add(payment);
+        if (_isNetworkError(e)) {
+          remaining.add(payment);
+        } else {
+          debugPrint(
+            'POWERNET_DEBUG: Discarding queued payment for bill ${payment.billId} due to permanent error: $e',
+          );
+        }
       }
     }
     await _saveQueuedPayments(remaining);
@@ -373,7 +439,13 @@ class BillsRepository {
           'POWERNET_DEBUG: syncQueuedVisits failed for bill '
           '${visit.billId}: $e',
         );
-        remaining.add(visit);
+        if (_isNetworkError(e)) {
+          remaining.add(visit);
+        } else {
+          debugPrint(
+            'POWERNET_DEBUG: Discarding queued visit for bill ${visit.billId} due to permanent error: $e',
+          );
+        }
       }
     }
     await _saveQueuedVisits(remaining);
@@ -416,6 +488,26 @@ class BillsRepository {
 
   String _encodeBills(List<Bill> bills) {
     return jsonEncode(bills.map((bill) => bill.toJson()).toList());
+  }
+
+  Bill _billFromPayment(Map<String, dynamic> payment) {
+    final bill = payment['bill'] as Map<String, dynamic>? ?? {};
+    return Bill.fromJson({
+      'id': payment['bill_id'] ?? payment['id'],
+      'customer_id': payment['customer_id'],
+      'amount': payment['amount'],
+      'paid_amount': payment['amount'],
+      'month': bill['month'] ?? '',
+      'status': 'paid',
+      'collected_by': payment['collected_by'],
+      'paid_at': payment['paid_at'],
+      'receipt_no': payment['receipt_no'],
+      'payment_method': payment['method'],
+      'payment_note': payment['note'],
+      'payment_source': payment['source'],
+      'created_at': payment['created_at'],
+      'customer': payment['customer'],
+    });
   }
 
   String _cacheKey(String prefix, String value) => '$prefix$value';

@@ -86,6 +86,164 @@ void main() {
         expect(provider.pendingLedgers.single.totalRemaining, 1900);
       },
     );
+
+    test(
+      'marks customer partial when paid history exists with open bills',
+      () async {
+        final provider = BillsProvider(
+          repo: _FakeBillsRepository(
+            pendingBills: [
+              _bill.copyWithMonth(
+                id: 'jun-open',
+                month: 'June 2026',
+                amount: 2200,
+              ),
+              _bill.copyWithMonth(
+                id: 'may-open',
+                month: 'May 2026',
+                amount: 2200,
+              ),
+              _bill.copyWithMonth(
+                id: 'apr-paid',
+                month: 'April 2026',
+                amount: 2200,
+                paidAmount: 2200,
+                status: 'paid',
+              ),
+            ],
+          ),
+          onlineChanges: const Stream.empty(),
+          enableRealtime: false,
+        );
+
+        await provider.loadPendingByAreas(const ['area-1'], 'staff-1');
+
+        final ledger = provider.pendingLedgers.single;
+        expect(ledger.currentBill.id, 'jun-open');
+        expect(ledger.billCount, 2);
+        expect(ledger.totalPaid, 2200);
+        expect(ledger.totalRemaining, 4400);
+        expect(ledger.hasPartialPayment, isTrue);
+        expect(ledger.collectionStatus, 'partial');
+      },
+    );
+
+    test(
+      'skips stale fully paid bills and records against remaining ledger bills',
+      () async {
+        final staleBill = _bill.copyWithMonth(
+          id: 'bill-stale',
+          month: 'April 2026',
+          amount: 1000,
+        );
+        final liveBill = _bill.copyWithMonth(
+          id: 'bill-live',
+          month: 'May 2026',
+          amount: 1000,
+        );
+        final repo = _FakeBillsRepository(
+          pendingBills: [liveBill, staleBill],
+          alreadyPaidBillIds: {'bill-stale'},
+        );
+        final online = StreamController<bool>();
+        final provider = BillsProvider(
+          repo: repo,
+          onlineChanges: online.stream,
+          enableRealtime: false,
+        );
+        online.add(true);
+        await Future<void>.delayed(Duration.zero);
+        await provider.loadPendingByAreas(const ['area-1'], 'staff-1');
+
+        final result = await provider.submitLedgerPayment(
+          ledger: provider.pendingLedgers.single,
+          amount: 2000,
+          collectorId: 'staff-1',
+          paymentMethod: 'cash',
+        );
+
+        expect(result, PaymentSubmissionResult.synced);
+        expect(repo.recordedPayments, ['bill-live:1000.0']);
+        expect(provider.pendingLedgers, isEmpty);
+        await online.close();
+        provider.dispose();
+      },
+    );
+
+    test(
+      'keeps remaining customer ledger partial after oldest bill is fully paid',
+      () async {
+        final online = StreamController<bool>();
+        final provider = BillsProvider(
+          repo: _FakeBillsRepository(
+            pendingBills: [
+              _bill.copyWithMonth(
+                id: 'may-open',
+                month: 'May 2026',
+                amount: 1000,
+              ),
+              _bill.copyWithMonth(
+                id: 'apr-open',
+                month: 'April 2026',
+                amount: 1000,
+              ),
+            ],
+          ),
+          onlineChanges: online.stream,
+          enableRealtime: false,
+        );
+        online.add(true);
+        await Future<void>.delayed(Duration.zero);
+
+        await provider.loadPendingByAreas(const ['area-1'], 'staff-1');
+
+        final result = await provider.submitLedgerPayment(
+          ledger: provider.pendingLedgers.single,
+          amount: 1000,
+          collectorId: 'staff-1',
+          paymentMethod: 'cash',
+        );
+
+        final ledger = provider.pendingLedgers.single;
+        expect(result, PaymentSubmissionResult.synced);
+        expect(ledger.currentBill.id, 'may-open');
+        expect(ledger.totalPaid, 1000);
+        expect(ledger.totalRemaining, 1000);
+        expect(ledger.hasPartialPayment, isTrue);
+        expect(ledger.collectionStatus, 'partial');
+        await online.close();
+        provider.dispose();
+      },
+    );
+
+    test('reports stale fully paid bill without generic failure', () async {
+      final repo = _FakeBillsRepository(
+        pendingBills: [_bill],
+        alreadyPaidBillIds: {_bill.id},
+      );
+      final online = StreamController<bool>();
+      final provider = BillsProvider(
+        repo: repo,
+        onlineChanges: online.stream,
+        enableRealtime: false,
+      );
+      online.add(true);
+      await Future<void>.delayed(Duration.zero);
+      await provider.loadPendingByAreas(const ['area-1'], 'staff-1');
+
+      final result = await provider.submitLedgerPayment(
+        ledger: provider.pendingLedgers.single,
+        amount: 1000,
+        collectorId: 'staff-1',
+        paymentMethod: 'cash',
+      );
+
+      expect(result, PaymentSubmissionResult.alreadyPaid);
+      expect(provider.error, 'Bill already paid. Collection list refreshed.');
+      expect(provider.bills, isEmpty);
+      await online.close();
+      provider.dispose();
+    });
   });
 }
 
@@ -111,15 +269,20 @@ class _FakeBillsRepository extends BillsRepository {
   final bool failVisitWrite;
   final int initialQueuedPayments;
   final List<Bill> pendingBills;
+  final Set<String> alreadyPaidBillIds;
   final List<QueuedBillVisit> queuedVisits = [];
+  final List<String> recordedPayments = [];
+  int fetchPendingCalls = 0;
   int syncCalls = 0;
   var _queuedPayments = <QueuedBillPayment>[];
 
   _FakeBillsRepository({
     this.failVisitWrite = false,
     this.initialQueuedPayments = 0,
+    Set<String> alreadyPaidBillIds = const {},
     List<Bill>? pendingBills,
-  }) : pendingBills = pendingBills ?? [_bill] {
+  }) : pendingBills = pendingBills ?? [_bill],
+       alreadyPaidBillIds = {...alreadyPaidBillIds} {
     _queuedPayments = List.generate(
       initialQueuedPayments,
       (index) => QueuedBillPayment(
@@ -134,8 +297,23 @@ class _FakeBillsRepository extends BillsRepository {
   }
 
   @override
-  Future<List<Bill>> fetchPendingByAreas(List<String> areaIds) async =>
-      pendingBills;
+  Future<List<Bill>> fetchPendingByAreas(List<String> areaIds) async {
+    fetchPendingCalls++;
+    if (fetchPendingCalls == 1) return pendingBills;
+    return pendingBills
+        .where((bill) => !alreadyPaidBillIds.contains(bill.id))
+        .toList();
+  }
+
+  @override
+  Future<Bill?> fetchById(String id) async {
+    final bill = pendingBills.where((bill) => bill.id == id).firstOrNull;
+    if (bill == null) return null;
+    if (alreadyPaidBillIds.contains(id)) {
+      return bill.copyWith(paidAmount: bill.amount, status: 'paid');
+    }
+    return bill;
+  }
 
   @override
   Future<List<Bill>> fetchCollectedToday(String collectorId) async => [];
@@ -153,6 +331,21 @@ class _FakeBillsRepository extends BillsRepository {
     required String visitType,
   }) async {
     if (failVisitWrite) throw Exception('offline');
+  }
+
+  @override
+  Future<void> recordPayment({
+    required String billId,
+    required double paidAmount,
+    required String collectorId,
+    required String paymentMethod,
+    String? paymentNote,
+  }) async {
+    if (alreadyPaidBillIds.contains(billId)) {
+      throw const BillAlreadyPaidException();
+    }
+    recordedPayments.add('$billId:$paidAmount');
+    alreadyPaidBillIds.add(billId);
   }
 
   @override
@@ -206,14 +399,16 @@ extension on Bill {
     required String id,
     required String month,
     required double amount,
+    double? paidAmount,
+    String? status,
   }) {
     return Bill(
       id: id,
       customerId: customerId,
       amount: amount,
-      paidAmount: paidAmount,
+      paidAmount: paidAmount ?? this.paidAmount,
       month: month,
-      status: status,
+      status: status ?? this.status,
       collectedBy: collectedBy,
       paidAt: paidAt,
       receiptNo: receiptNo,

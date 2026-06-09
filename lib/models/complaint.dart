@@ -13,8 +13,10 @@ class Complaint {
   final String? resolvedAt;
   final String? resolutionNotes;
   final String? hardwareUsed;
+  final String? teamId;
   final Map<String, dynamic>? customer;
   final Map<String, dynamic>? technician;
+  final Map<String, dynamic>? team;
 
   const Complaint({
     required this.id,
@@ -31,8 +33,10 @@ class Complaint {
     this.resolvedAt,
     this.resolutionNotes,
     this.hardwareUsed,
+    this.teamId,
     this.customer,
     this.technician,
+    this.team,
   });
 
   factory Complaint.fromJson(Map<String, dynamic> j) => Complaint(
@@ -50,8 +54,10 @@ class Complaint {
     resolvedAt: j['resolved_at'] as String?,
     resolutionNotes: j['resolution_notes'] as String?,
     hardwareUsed: j['hardware_used'] as String?,
+    teamId: j['team_id'] as String?,
     customer: j['customer'] as Map<String, dynamic>?,
     technician: j['technician'] as Map<String, dynamic>?,
+    team: j['team'] as Map<String, dynamic>?,
   );
 
   Map<String, dynamic> toJson() => {
@@ -69,8 +75,10 @@ class Complaint {
     'resolved_at': resolvedAt,
     'resolution_notes': resolutionNotes,
     'hardware_used': hardwareUsed,
+    'team_id': teamId,
     'customer': customer,
     'technician': technician,
+    'team': team,
   };
 
   Complaint copyWith({
@@ -95,8 +103,10 @@ class Complaint {
     resolvedAt: resolvedAt ?? this.resolvedAt,
     resolutionNotes: resolutionNotes ?? this.resolutionNotes,
     hardwareUsed: hardwareUsed ?? this.hardwareUsed,
+    teamId: teamId,
     customer: customer,
     technician: technician,
+    team: team,
   );
 
   bool get isOpen => status == 'open';
@@ -107,7 +117,18 @@ class Complaint {
   bool get isMedium => priority == 'medium';
 
   String get customerName => customer?['full_name'] as String? ?? '—';
-  String get technicianName => technician?['full_name'] as String? ?? '—';
+
+  String get technicianName {
+    if (technician != null) {
+      return technician?['full_name'] as String? ?? '—';
+    }
+    if (team != null) {
+      return team?['name'] as String? ?? '—';
+    }
+    return '—';
+  }
+
+  String get teamName => team?['name'] as String? ?? '—';
   String get customerCode => customer?['customer_code'] as String? ?? '—';
   String get customerPhone => customer?['phone'] as String? ?? '';
   String get customerAddress => customer?['address_value'] as String? ?? '';

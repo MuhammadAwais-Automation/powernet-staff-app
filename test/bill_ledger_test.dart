@@ -39,6 +39,41 @@ void main() {
         'customer-2',
       ]);
     });
+
+    test('uses paid history to mark open customer ledger as partial', () {
+      final ledgers = CustomerBillLedger.groupBills([
+        _bill(
+          id: 'jun-open',
+          customerId: 'customer-1',
+          month: 'June 2026',
+          amount: 2200,
+        ),
+        _bill(
+          id: 'may-open',
+          customerId: 'customer-1',
+          month: 'May 2026',
+          amount: 2200,
+        ),
+        _bill(
+          id: 'apr-paid',
+          customerId: 'customer-1',
+          month: 'April 2026',
+          amount: 2200,
+          paidAmount: 2200,
+          status: 'paid',
+        ),
+      ]);
+
+      final ledger = ledgers.single;
+      expect(ledger.currentBill.id, 'jun-open');
+      expect(ledger.billCount, 2);
+      expect(ledger.currentDue, 2200);
+      expect(ledger.previousDue, 2200);
+      expect(ledger.totalPaid, 2200);
+      expect(ledger.totalRemaining, 4400);
+      expect(ledger.hasPartialPayment, isTrue);
+      expect(ledger.collectionStatus, 'partial');
+    });
   });
 }
 
@@ -48,6 +83,7 @@ Bill _bill({
   required String month,
   double amount = 1000,
   double paidAmount = 0,
+  String status = 'pending',
 }) {
   return Bill(
     id: id,
@@ -55,7 +91,7 @@ Bill _bill({
     amount: amount,
     paidAmount: paidAmount,
     month: month,
-    status: 'pending',
+    status: status,
     createdAt: '2026-05-01T00:00:00Z',
     customer: {
       'id': customerId,

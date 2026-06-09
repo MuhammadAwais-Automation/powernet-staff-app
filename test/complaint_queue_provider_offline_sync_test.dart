@@ -171,6 +171,7 @@ class _FakeComplaintsRepository extends ComplaintsRepository {
     String? notes,
     String? hardware,
   }) async {
+    queuedActions.removeWhere((action) => action.complaintId == complaintId);
     queuedActions.add(
       QueuedComplaintAction(
         id: 'queued-${queuedActions.length}',

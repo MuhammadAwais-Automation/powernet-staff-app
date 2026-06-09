@@ -8,7 +8,7 @@ import '../config/supabase_config.dart';
 import '../data/bills_repository.dart';
 import '../models/bill.dart';
 
-enum PaymentSubmissionResult { synced, queued, failed }
+enum PaymentSubmissionResult { synced, queued, failed, alreadyPaid }
 
 class BillsProvider extends ChangeNotifier {
   final BillsRepository _repo;
@@ -52,6 +52,21 @@ class BillsProvider extends ChangeNotifier {
        _enableRealtime = enableRealtime {
     _isOnline = onlineChanges == null;
     _listenForConnectivity();
+    unawaited(_initConnectivity());
+  }
+
+  Future<void> _initConnectivity() async {
+    if (_onlineChanges != null) return;
+    try {
+      final results = await Connectivity().checkConnectivity();
+      _isOnline = results.any((result) => result != ConnectivityResult.none);
+      notifyListeners();
+      if (_isOnline) {
+        unawaited(syncQueuedNow());
+      }
+    } catch (e) {
+      debugPrint('POWERNET_DEBUG: checkConnectivity failed: $e');
+    }
   }
 
   Future<void> loadPendingByAreas(
@@ -65,6 +80,16 @@ class BillsProvider extends ChangeNotifier {
     _error = null;
     notifyListeners();
     try {
+      if (_onlineChanges == null) {
+        try {
+          final results = await Connectivity().checkConnectivity();
+          _isOnline = results.any(
+            (result) => result != ConnectivityResult.none,
+          );
+        } catch (e) {
+          debugPrint('POWERNET_DEBUG: checkConnectivity failed in load: $e');
+        }
+      }
       if (_isOnline) {
         await syncQueuedNow(refreshAfterSync: false);
       } else {
@@ -119,21 +144,7 @@ class BillsProvider extends ChangeNotifier {
     required String collectorId,
     required String visitType,
   }) async {
-    try {
-      await _repo.recordVisit(
-        billId: billId,
-        collectorId: collectorId,
-        visitType: visitType,
-      );
-      _applyLocalVisit(
-        billId: billId,
-        collectorId: collectorId,
-        visitType: visitType,
-      );
-      notifyListeners();
-      return PaymentSubmissionResult.synced;
-    } on Exception catch (e) {
-      debugPrint('POWERNET_DEBUG: submitVisit failed: $e');
+    if (!_isOnline) {
       try {
         await _repo.queueVisit(
           billId: billId,
@@ -156,6 +167,50 @@ class BillsProvider extends ChangeNotifier {
         return PaymentSubmissionResult.failed;
       }
     }
+
+    try {
+      await _repo.recordVisit(
+        billId: billId,
+        collectorId: collectorId,
+        visitType: visitType,
+      );
+      _applyLocalVisit(
+        billId: billId,
+        collectorId: collectorId,
+        visitType: visitType,
+      );
+      notifyListeners();
+      return PaymentSubmissionResult.synced;
+    } on Exception catch (e) {
+      debugPrint('POWERNET_DEBUG: submitVisit failed: $e');
+      if (_isNetworkError(e)) {
+        try {
+          await _repo.queueVisit(
+            billId: billId,
+            collectorId: collectorId,
+            visitType: visitType,
+          );
+          _applyLocalVisit(
+            billId: billId,
+            collectorId: collectorId,
+            visitType: visitType,
+          );
+          _pendingSyncCount = await _repo.countQueuedOperations();
+          _error = null;
+          notifyListeners();
+          return PaymentSubmissionResult.queued;
+        } on Exception catch (queueError) {
+          debugPrint('POWERNET_DEBUG: queueVisit failed: $queueError');
+          _error = 'Local save failed. Please try again.';
+          notifyListeners();
+          return PaymentSubmissionResult.failed;
+        }
+      } else {
+        _error = _getErrorMessage(e);
+        notifyListeners();
+        return PaymentSubmissionResult.failed;
+      }
+    }
   }
 
   Future<PaymentSubmissionResult> submitPayment({
@@ -165,26 +220,7 @@ class BillsProvider extends ChangeNotifier {
     required String paymentMethod,
     String? paymentNote,
   }) async {
-    try {
-      await _repo.recordPayment(
-        billId: billId,
-        paidAmount: amount,
-        collectorId: collectorId,
-        paymentMethod: paymentMethod,
-        paymentNote: paymentNote,
-      );
-      _applyLocalPayment(
-        billId: billId,
-        amount: amount,
-        collectorId: collectorId,
-        paymentMethod: paymentMethod,
-        paymentNote: paymentNote,
-      );
-      _pendingSyncCount = await _repo.countQueuedOperations();
-      notifyListeners();
-      return PaymentSubmissionResult.synced;
-    } on Exception catch (e) {
-      debugPrint('POWERNET_DEBUG: submitPayment failed: $e');
+    if (!_isOnline) {
       try {
         await _repo.queuePayment(
           billId: billId,
@@ -207,6 +243,70 @@ class BillsProvider extends ChangeNotifier {
       } on Exception catch (queueError) {
         debugPrint('POWERNET_DEBUG: queuePayment failed: $queueError');
         _error = 'Local save failed. Please try again.';
+        notifyListeners();
+        return PaymentSubmissionResult.failed;
+      }
+    }
+
+    try {
+      await _repo.recordPayment(
+        billId: billId,
+        paidAmount: amount,
+        collectorId: collectorId,
+        paymentMethod: paymentMethod,
+        paymentNote: paymentNote,
+      );
+      _applyLocalPayment(
+        billId: billId,
+        amount: amount,
+        collectorId: collectorId,
+        paymentMethod: paymentMethod,
+        paymentNote: paymentNote,
+      );
+      _pendingSyncCount = await _repo.countQueuedOperations();
+      notifyListeners();
+      return PaymentSubmissionResult.synced;
+    } on BillAlreadyPaidException catch (e) {
+      _removeBillFromPending(billId);
+      await refreshActive();
+      _error = e.toString();
+      notifyListeners();
+      return PaymentSubmissionResult.alreadyPaid;
+    } on BillPaymentConflictException catch (e) {
+      await refreshActive();
+      _error = e.toString();
+      notifyListeners();
+      return PaymentSubmissionResult.failed;
+    } on Exception catch (e) {
+      debugPrint('POWERNET_DEBUG: submitPayment failed: $e');
+      if (_isNetworkError(e)) {
+        try {
+          await _repo.queuePayment(
+            billId: billId,
+            paidAmount: amount,
+            collectorId: collectorId,
+            paymentMethod: paymentMethod,
+            paymentNote: paymentNote,
+          );
+          _applyLocalPayment(
+            billId: billId,
+            amount: amount,
+            collectorId: collectorId,
+            paymentMethod: paymentMethod,
+            paymentNote: paymentNote,
+          );
+          _pendingSyncCount = await _repo.countQueuedOperations();
+          _error = null;
+          notifyListeners();
+          return PaymentSubmissionResult.queued;
+        } on Exception catch (queueError) {
+          debugPrint('POWERNET_DEBUG: queuePayment failed: $queueError');
+          _error = 'Local save failed. Please try again.';
+          notifyListeners();
+          return PaymentSubmissionResult.failed;
+        }
+      } else {
+        _error = _getErrorMessage(e);
         notifyListeners();
         return PaymentSubmissionResult.failed;
       }
@@ -252,29 +352,51 @@ class BillsProvider extends ChangeNotifier {
   }) async {
     var remainingPayment = amount;
     var finalResult = PaymentSubmissionResult.synced;
+    var appliedAnyPayment = false;
+    var skippedStalePaid = false;
     final oldestFirst = [...ledger.bills.reversed];
 
     for (final bill in oldestFirst) {
       if (remainingPayment <= 0) break;
-      final amountForBill = remainingPayment > bill.remaining
-          ? bill.remaining
+      final liveBill = _isOnline ? await _repo.fetchById(bill.id) : bill;
+      if (liveBill == null || liveBill.remaining <= 0 || liveBill.isPaid) {
+        skippedStalePaid = true;
+        _removeBillFromPending(bill.id);
+        continue;
+      }
+      final amountForBill = remainingPayment > liveBill.remaining
+          ? liveBill.remaining
           : remainingPayment;
       if (amountForBill <= 0) continue;
 
       final result = await submitPayment(
-        billId: bill.id,
+        billId: liveBill.id,
         amount: amountForBill,
         collectorId: collectorId,
         paymentMethod: paymentMethod,
         paymentNote: paymentNote,
       );
       if (result == PaymentSubmissionResult.failed) return result;
+      if (result == PaymentSubmissionResult.alreadyPaid) {
+        skippedStalePaid = true;
+        continue;
+      }
       if (result == PaymentSubmissionResult.queued) {
         finalResult = PaymentSubmissionResult.queued;
       }
+      appliedAnyPayment = true;
       remainingPayment -= amountForBill;
     }
 
+    if (!appliedAnyPayment && skippedStalePaid) {
+      await refreshActive();
+      _error = 'Bill already paid. Collection list refreshed.';
+      notifyListeners();
+      return PaymentSubmissionResult.alreadyPaid;
+    }
+    if (skippedStalePaid) {
+      await refreshActive();
+    }
     return finalResult;
   }
 
@@ -358,18 +480,16 @@ class BillsProvider extends ChangeNotifier {
     final bill = _bills[idx];
     final newPaid = (bill.paidAmount ?? 0) + amount;
     if (newPaid >= bill.amount) {
-      _bills = _bills.where((b) => b.id != billId).toList();
-      _collectedToday = [
-        bill.copyWith(
-          paidAmount: newPaid,
-          status: 'paid',
-          collectedBy: collectorId,
-          paidAt: DateTime.now().toUtc().toIso8601String(),
-          paymentMethod: paymentMethod,
-          paymentNote: paymentNote,
-        ),
-        ..._collectedToday,
-      ];
+      final paidBill = bill.copyWith(
+        paidAmount: newPaid,
+        status: 'paid',
+        collectedBy: collectorId,
+        paidAt: DateTime.now().toUtc().toIso8601String(),
+        paymentMethod: paymentMethod,
+        paymentNote: paymentNote,
+      );
+      _bills = [..._bills.take(idx), paidBill, ..._bills.skip(idx + 1)];
+      _collectedToday = [paidBill, ..._collectedToday];
       return;
     }
 
@@ -383,6 +503,10 @@ class BillsProvider extends ChangeNotifier {
       ),
       ..._bills.skip(idx + 1),
     ];
+  }
+
+  void _removeBillFromPending(String billId) {
+    _bills = _bills.where((bill) => bill.id != billId).toList();
   }
 
   void _ensureRealtimeSubscription() {
@@ -410,10 +534,35 @@ class BillsProvider extends ChangeNotifier {
         );
     _onlineSubscription = stream.listen((isOnline) {
       _isOnline = isOnline;
+      notifyListeners();
       if (isOnline) {
         unawaited(syncQueuedNow());
       }
     });
+  }
+
+  bool _isNetworkError(Object error) {
+    if (error is PostgrestException || error is AuthException) {
+      return false;
+    }
+    final text = error.toString().toLowerCase();
+    return text.contains('socketexception') ||
+        text.contains('failed host lookup') ||
+        text.contains('clientexception') ||
+        text.contains('no address associated') ||
+        text.contains('network is unreachable') ||
+        text.contains('offline') ||
+        text.contains('timeout');
+  }
+
+  String _getErrorMessage(Object error) {
+    if (error is PostgrestException) {
+      return error.message;
+    }
+    if (error is AuthException) {
+      return error.message;
+    }
+    return error.toString();
   }
 
   Future<void> _handleRealtimeChange() async {

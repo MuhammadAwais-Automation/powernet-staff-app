@@ -3,14 +3,16 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../config/supabase_config.dart';
 import '../models/complaint.dart';
 
 const complaintBaseSelect =
     'id, complaint_code, customer_id, issue, type, priority, status, '
-    'assigned_to, assigned_at, in_progress_at, opened_at, resolved_at, resolution_notes, hardware_used, '
+    'assigned_to, assigned_at, in_progress_at, opened_at, resolved_at, resolution_notes, hardware_used, team_id, '
     'customer:customers(id, full_name, area_id, customer_code, address_value, phone), '
-    'technician:staff(id, full_name)';
+    'technician:staff(id, full_name), '
+    'team:teams(id, name)';
 
 const complaintLegacyBaseSelect =
     'id, complaint_code, customer_id, issue, type, priority, status, '
@@ -20,9 +22,10 @@ const complaintLegacyBaseSelect =
 
 const complaintAreaSelect =
     'id, complaint_code, customer_id, issue, type, priority, status, '
-    'assigned_to, assigned_at, in_progress_at, opened_at, resolved_at, resolution_notes, hardware_used, '
+    'assigned_to, assigned_at, in_progress_at, opened_at, resolved_at, resolution_notes, hardware_used, team_id, '
     'customer:customers!inner(id, full_name, area_id, customer_code, address_value, phone), '
-    'technician:staff(id, full_name)';
+    'technician:staff(id, full_name), '
+    'team:teams(id, name)';
 
 const complaintLegacyAreaSelect =
     'id, complaint_code, customer_id, issue, type, priority, status, '
@@ -176,7 +179,24 @@ class ComplaintsRepository {
       hardware: hardware,
       queuedAt: DateTime.now().toUtc().toIso8601String(),
     );
-    await _saveQueuedActions([...queued, draft]);
+    await _saveQueuedActions([
+      ...queued.where((action) => action.complaintId != complaintId),
+      draft,
+    ]);
+  }
+
+  bool _isNetworkError(Object error) {
+    if (error is PostgrestException || error is AuthException) {
+      return false;
+    }
+    final text = error.toString().toLowerCase();
+    return text.contains('socketexception') ||
+        text.contains('failed host lookup') ||
+        text.contains('clientexception') ||
+        text.contains('no address associated') ||
+        text.contains('network is unreachable') ||
+        text.contains('offline') ||
+        text.contains('timeout');
   }
 
   Future<int> syncQueuedActions() async {
@@ -202,7 +222,13 @@ class ComplaintsRepository {
           'POWERNET_DEBUG: syncQueuedComplaint failed for '
           '${action.complaintId}: $e',
         );
-        remaining.add(action);
+        if (_isNetworkError(e)) {
+          remaining.add(action);
+        } else {
+          debugPrint(
+            'POWERNET_DEBUG: Discarding queued complaint action for complaint ${action.complaintId} due to permanent error: $e',
+          );
+        }
       }
     }
     await _saveQueuedActions(remaining);
@@ -254,12 +280,41 @@ class ComplaintsRepository {
     String technicianId,
     String select,
   ) async {
-    final startOfMonth = DateTime(DateTime.now().year, DateTime.now().month, 1).toUtc().toIso8601String();
+    final startOfMonth = DateTime(
+      DateTime.now().year,
+      DateTime.now().month,
+      1,
+    ).toUtc().toIso8601String();
+
+    List<String> teamIds = [];
+    try {
+      final teamMembersRes = await supabase
+          .from('team_members')
+          .select('team_id')
+          .eq('staff_id', technicianId);
+      for (final row in teamMembersRes) {
+        if (row['team_id'] != null) {
+          teamIds.add(row['team_id'].toString());
+        }
+      }
+    } catch (e) {
+      debugPrint(
+        'POWERNET_DEBUG: failed to fetch technician team memberships: $e',
+      );
+    }
+
+    var orCondition = 'assigned_to.eq.$technicianId';
+    if (teamIds.isNotEmpty) {
+      orCondition += ',team_id.in.(${teamIds.join(",")})';
+    }
+
     final res = await supabase
         .from('complaints')
         .select(select)
-        .eq('assigned_to', technicianId)
-        .or('status.in.(open,in_progress),and(status.eq.resolved,resolved_at.gte.$startOfMonth)')
+        .or(orCondition)
+        .or(
+          'status.in.(open,in_progress),and(status.eq.resolved,resolved_at.gte.$startOfMonth)',
+        )
         .order('opened_at', ascending: false);
     return _parseComplaintList(res);
   }

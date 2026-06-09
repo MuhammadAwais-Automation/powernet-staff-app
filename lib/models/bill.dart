@@ -185,6 +185,7 @@ class CustomerBillLedger {
 
     final ledgers = grouped.entries
         .map((entry) => CustomerBillLedger.fromBills(entry.value))
+        .where((ledger) => ledger.totalRemaining > 0)
         .toList();
     ledgers.sort((a, b) {
       final billCompare = _compareNewestFirst(a.currentBill, b.currentBill);
@@ -194,22 +195,24 @@ class CustomerBillLedger {
     return ledgers;
   }
 
-  Bill get currentBill => bills.first;
-  List<Bill> get previousBills => bills.skip(1).toList();
-  int get billCount => bills.length;
+  List<Bill> get openBills =>
+      bills.where((bill) => !bill.isPaid && bill.remaining > 0).toList();
+  Bill get currentBill => openBills.isNotEmpty ? openBills.first : bills.first;
+  List<Bill> get previousBills => openBills.skip(1).toList();
+  int get billCount => openBills.length;
   String get customerName => currentBill.customerName;
   String get customerCode => currentBill.customerCode;
   String get customerAddress => currentBill.customerAddress;
   String get customerAddressType => currentBill.customerAddressType;
   String? get customerAreaId => currentBill.customerAreaId;
   bool get hasAddress => currentBill.hasAddress;
-  bool get isOverdue => bills.any((bill) => bill.isOverdue);
-  bool get hasPartialPayment => bills.any((bill) => bill.hasPartialPayment);
-  double get totalAmount => bills.fold(0, (sum, bill) => sum + bill.amount);
+  bool get isOverdue => openBills.any((bill) => bill.isOverdue);
+  bool get hasPartialPayment => totalPaid > 0 && totalRemaining > 0;
+  double get totalAmount => totalPaid + totalRemaining;
   double get totalPaid =>
       bills.fold(0, (sum, bill) => sum + (bill.paidAmount ?? 0));
   double get totalRemaining =>
-      bills.fold(0, (sum, bill) => sum + bill.remaining);
+      openBills.fold(0, (sum, bill) => sum + bill.remaining);
   double get currentDue => currentBill.remaining;
   double get previousDue =>
       previousBills.fold(0, (sum, bill) => sum + bill.remaining);
@@ -217,8 +220,8 @@ class CustomerBillLedger {
       totalAmount <= 0 ? 0 : (totalPaid / totalAmount).clamp(0, 1).toDouble();
 
   String get monthRange {
-    if (bills.length == 1) return currentBill.month;
-    return '${bills.last.month} to ${currentBill.month}';
+    if (openBills.length <= 1) return currentBill.month;
+    return '${openBills.last.month} to ${currentBill.month}';
   }
 
   String get collectionStatus {

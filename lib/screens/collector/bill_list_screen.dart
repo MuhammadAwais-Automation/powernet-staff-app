@@ -842,7 +842,7 @@ class _CollectedBillTile extends StatelessWidget {
               child: Row(
                 children: [
                   Expanded(
-                    child: _buildCollectedMiniCell('Bill', bill.amount, pn),
+                    child: _buildCollectedMiniCell('Payment', bill.amount, pn),
                   ),
                   Expanded(
                     child: _buildCollectedMiniCell(

@@ -63,14 +63,12 @@ class _CollectPaymentScreenState extends State<CollectPaymentScreen> {
         } else {
           final customerBills = await _repo.fetchByCustomer(bill.customerId);
           final pendingBills = customerBills
-              .where(
-                (item) => item.status == 'pending' || item.status == 'overdue',
-              )
+              .where((item) => !item.isPaid && item.remaining > 0)
               .toList();
           _applyLoadedLedger(
             pendingBills.isEmpty
                 ? CustomerBillLedger.fromBills([bill])
-                : CustomerBillLedger.fromBills(pendingBills),
+                : CustomerBillLedger.fromBills(customerBills),
           );
         }
       }
@@ -187,11 +185,20 @@ class _CollectPaymentScreenState extends State<CollectPaymentScreen> {
         break;
       case PaymentSubmissionResult.failed:
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Failed to save. Try again.'),
+          SnackBar(
+            content: Text(bills.error ?? 'Failed to save. Try again.'),
             backgroundColor: danger,
           ),
         );
+        break;
+      case PaymentSubmissionResult.alreadyPaid:
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(bills.error ?? 'Bill already paid. List refreshed.'),
+            backgroundColor: warning,
+          ),
+        );
+        context.go('/collector/bills');
         break;
     }
   }
