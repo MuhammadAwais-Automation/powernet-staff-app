@@ -83,6 +83,7 @@ class Complaint {
 
   Complaint copyWith({
     String? status,
+    String? assignedTo,
     String? assignedAt,
     String? inProgressAt,
     String? resolvedAt,
@@ -96,7 +97,7 @@ class Complaint {
     type: type,
     priority: priority,
     status: status ?? this.status,
-    assignedTo: assignedTo,
+    assignedTo: assignedTo ?? this.assignedTo,
     assignedAt: assignedAt ?? this.assignedAt,
     inProgressAt: inProgressAt ?? this.inProgressAt,
     openedAt: openedAt,

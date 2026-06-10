@@ -28,6 +28,7 @@ class _HomeScreenState extends State<HomeScreen> {
     if (staff == null) return;
     switch (staff.normalizedRole) {
       case 'technician':
+      case 'helper':
         context.read<ComplaintQueueProvider>().loadForTechnicianAndAreas(
           staff.id,
           staff.areaIds,
@@ -81,7 +82,7 @@ class _RoleHome extends StatelessWidget {
 
     if (staff == null) return const SizedBox.shrink();
 
-    if (role == 'technician') {
+    if (role == 'technician' || role == 'helper') {
       return _buildTechnicianHome(context, staff, pn);
     } else if (role == 'recovery_agent') {
       return _buildRecoveryHome(context, staff, pn);
@@ -135,7 +136,7 @@ class _RoleHome extends StatelessWidget {
 
     return Column(
       children: [
-        _buildAppBar(context, staff.fullName, 'Technician', pn),
+        _buildAppBar(context, staff.fullName, staff.roleLabel, pn),
         Expanded(
           child: RefreshIndicator(
             onRefresh: () async => onRefresh(),
@@ -241,7 +242,9 @@ class _RoleHome extends StatelessWidget {
                   children: [
                     _buildKpiCard(
                       label: 'Assigned',
-                      value: loading ? '…' : '${q.open.length + q.inProgress.length}',
+                      value: loading
+                          ? '…'
+                          : '${q.open.length + q.inProgress.length}',
                       pn: pn,
                       onTap: () => context.push('/technician/complaints'),
                     ),
@@ -261,7 +264,9 @@ class _RoleHome extends StatelessWidget {
                     ),
                     _buildKpiCard(
                       label: 'Resolved (Today / Month)',
-                      value: loading ? '…' : '${q.resolvedToday.length} / ${q.resolvedThisMonth.length}',
+                      value: loading
+                          ? '…'
+                          : '${q.resolvedToday.length} / ${q.resolvedThisMonth.length}',
                       valueColor: pn.success,
                       pn: pn,
                     ),
@@ -862,6 +867,7 @@ class _KpiGrid extends StatelessWidget {
   List<Widget> _cards(BuildContext context) {
     switch (role) {
       case 'technician':
+      case 'helper':
         final q = context.watch<ComplaintQueueProvider>();
         final loading = q.loading;
         return [
@@ -1035,6 +1041,7 @@ class _QuickActions extends StatelessWidget {
   List<(String, IconData, String)> _actionsForRole(String role) {
     switch (role) {
       case 'technician':
+      case 'helper':
         return [
           (
             'View Complaints',

@@ -38,8 +38,16 @@ void main() {
     test('base complaint select keeps related customer and technician', () {
       expect(complaintBaseSelect, contains('customer:customers('));
       expect(complaintBaseSelect, contains('technician:staff('));
+      expect(complaintBaseSelect, contains('team_id'));
+      expect(complaintBaseSelect, contains('team:teams('));
       expect(complaintBaseSelect, contains('resolution_notes'));
       expect(complaintBaseSelect, contains('hardware_used'));
+    });
+
+    test('team complaint select can load assigned team details', () {
+      expect(complaintAreaSelect, contains('team_id'));
+      expect(complaintAreaSelect, contains('team:teams(id, name)'));
+      expect(complaintLegacyBaseSelect, isNot(contains('team:teams(')));
     });
   });
 }

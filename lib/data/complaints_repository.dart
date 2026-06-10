@@ -110,7 +110,11 @@ class ComplaintsRepository {
     }
   }
 
-  Future<void> updateStatus(String id, String status) async {
+  Future<void> updateStatus(
+    String id,
+    String status, {
+    String? technicianId,
+  }) async {
     final update = <String, dynamic>{'status': status};
     if (status == 'in_progress') {
       update['in_progress_at'] = DateTime.now().toUtc().toIso8601String();
@@ -118,27 +122,34 @@ class ComplaintsRepository {
     if (status == 'resolved') {
       update['resolved_at'] = DateTime.now().toUtc().toIso8601String();
     }
+    if (technicianId != null) {
+      update['assigned_to'] = technicianId;
+      update['assigned_at'] = DateTime.now().toUtc().toIso8601String();
+    }
     await supabase.from('complaints').update(update).eq('id', id);
   }
 
   Future<void> resolveWithDetails(
     String id,
     String notes,
-    String hardware,
-  ) async {
+    String hardware, {
+    String? technicianId,
+  }) async {
     try {
-      await supabase
-          .from('complaints')
-          .update({
-            'status': 'resolved',
-            'resolved_at': DateTime.now().toUtc().toIso8601String(),
-            'resolution_notes': notes,
-            'hardware_used': hardware,
-          })
-          .eq('id', id);
+      final update = <String, dynamic>{
+        'status': 'resolved',
+        'resolved_at': DateTime.now().toUtc().toIso8601String(),
+        'resolution_notes': notes,
+        'hardware_used': hardware,
+      };
+      if (technicianId != null) {
+        update['assigned_to'] = technicianId;
+        update['assigned_at'] = DateTime.now().toUtc().toIso8601String();
+      }
+      await supabase.from('complaints').update(update).eq('id', id);
     } catch (e) {
       if (!_isMissingResolutionColumns(e)) rethrow;
-      await updateStatus(id, 'resolved');
+      await updateStatus(id, 'resolved', technicianId: technicianId);
     }
   }
 
@@ -199,7 +210,7 @@ class ComplaintsRepository {
         text.contains('timeout');
   }
 
-  Future<int> syncQueuedActions() async {
+  Future<int> syncQueuedActions({String? technicianId}) async {
     final queued = await getQueuedActions();
     if (queued.isEmpty) return 0;
 
@@ -212,9 +223,14 @@ class ComplaintsRepository {
             action.complaintId,
             action.notes!,
             action.hardware ?? '',
+            technicianId: technicianId,
           );
         } else {
-          await updateStatus(action.complaintId, action.status);
+          await updateStatus(
+            action.complaintId,
+            action.status,
+            technicianId: technicianId,
+          );
         }
         synced++;
       } catch (e) {

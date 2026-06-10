@@ -178,8 +178,19 @@ class ComplaintQueueProvider extends ChangeNotifier {
       return _queueStatus(id, 'resolved', notes: notes, hardware: hardware);
     }
     try {
-      await _repo.resolveWithDetails(id, notes, hardware);
-      _applyLocalStatus(id, 'resolved', notes: notes, hardware: hardware);
+      await _repo.resolveWithDetails(
+        id,
+        notes,
+        hardware,
+        technicianId: _activeTechnicianId,
+      );
+      _applyLocalStatus(
+        id,
+        'resolved',
+        technicianId: _activeTechnicianId,
+        notes: notes,
+        hardware: hardware,
+      );
       await _cacheActiveSnapshot();
       _pendingSyncCount = await _repo.countQueuedActions();
       _error = null;
@@ -212,7 +223,7 @@ class ComplaintQueueProvider extends ChangeNotifier {
     if (_syncing) return;
     _syncing = true;
     try {
-      await _repo.syncQueuedActions();
+      await _repo.syncQueuedActions(technicianId: _activeTechnicianId);
       _pendingSyncCount = await _repo.countQueuedActions();
       if (refreshAfterSync) {
         final technicianId = _activeTechnicianId;
@@ -233,8 +244,8 @@ class ComplaintQueueProvider extends ChangeNotifier {
       return _queueStatus(id, status);
     }
     try {
-      await _repo.updateStatus(id, status);
-      _applyLocalStatus(id, status);
+      await _repo.updateStatus(id, status, technicianId: _activeTechnicianId);
+      _applyLocalStatus(id, status, technicianId: _activeTechnicianId);
       await _cacheActiveSnapshot();
       _pendingSyncCount = await _repo.countQueuedActions();
       _error = null;
@@ -265,7 +276,13 @@ class ComplaintQueueProvider extends ChangeNotifier {
         notes: notes,
         hardware: hardware,
       );
-      _applyLocalStatus(id, status, notes: notes, hardware: hardware);
+      _applyLocalStatus(
+        id,
+        status,
+        technicianId: _activeTechnicianId,
+        notes: notes,
+        hardware: hardware,
+      );
       await _cacheActiveSnapshot();
       _pendingSyncCount = await _repo.countQueuedActions();
       _error = null;
@@ -282,6 +299,7 @@ class ComplaintQueueProvider extends ChangeNotifier {
   void _applyLocalStatus(
     String id,
     String status, {
+    String? technicianId,
     String? notes,
     String? hardware,
   }) {
@@ -290,8 +308,12 @@ class ComplaintQueueProvider extends ChangeNotifier {
     final resolvedAt = status == 'resolved'
         ? DateTime.now().toUtc().toIso8601String()
         : null;
+    final statusAt = DateTime.now().toUtc().toIso8601String();
     final updated = _complaints[idx].copyWith(
       status: status,
+      assignedTo: technicianId,
+      assignedAt: technicianId == null ? null : statusAt,
+      inProgressAt: status == 'in_progress' ? statusAt : null,
       resolvedAt: resolvedAt,
       resolutionNotes: notes,
       hardwareUsed: hardware,
@@ -355,6 +377,14 @@ class ComplaintQueueProvider extends ChangeNotifier {
           event: PostgresChangeEvent.all,
           schema: 'public',
           table: 'complaints',
+          callback: (_) {
+            unawaited(_handleRealtimeChange(technicianId, areaIds));
+          },
+        )
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'team_members',
           callback: (_) {
             unawaited(_handleRealtimeChange(technicianId, areaIds));
           },

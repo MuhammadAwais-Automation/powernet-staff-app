@@ -74,6 +74,8 @@ class Staff {
     switch (normalizedRole) {
       case 'technician':
         return 'Technician';
+      case 'helper':
+        return 'Helper';
       case 'recovery_agent':
         return 'Recovery Agent';
       case 'cable_operator':
@@ -102,6 +104,7 @@ String normalizeStaffRole(String? role) {
     case 'recovery_agent':
       return 'recovery_agent';
     case 'technician':
+    case 'helper':
     case 'field_agent':
     case 'cable_operator':
     case 'complaint_manager':

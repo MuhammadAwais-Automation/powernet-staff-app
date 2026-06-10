@@ -88,6 +88,61 @@ void main() {
       expect(provider.findComplaintById('missing'), isNull);
       provider.dispose();
     });
+
+    test('passes active technician id when team complaint starts', () async {
+      final online = StreamController<bool>();
+      final repo = _FakeComplaintsRepository(complaints: [_teamComplaint]);
+      final provider = ComplaintQueueProvider(
+        repo: repo,
+        onlineChanges: online.stream,
+        enableRealtime: false,
+      );
+
+      online.add(true);
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      await provider.loadForTechnicianAndAreas('tech-2', const ['area-1']);
+      final ok = await provider.startComplaint(_teamComplaint.id);
+
+      expect(ok, isTrue);
+      expect(repo.lastStatusTechnicianId, 'tech-2');
+      expect(
+        provider.findComplaintById(_teamComplaint.id)?.teamId,
+        _teamComplaint.teamId,
+      );
+      expect(
+        provider.findComplaintById(_teamComplaint.id)?.assignedTo,
+        'tech-2',
+      );
+      await online.close();
+      provider.dispose();
+    });
+
+    test(
+      'syncs queued team complaint actions with active technician id',
+      () async {
+        final online = StreamController<bool>();
+        final repo = _FakeComplaintsRepository(
+          complaints: [_teamComplaint],
+          initialQueuedActions: 1,
+        );
+        final provider = ComplaintQueueProvider(
+          repo: repo,
+          onlineChanges: online.stream,
+          enableRealtime: false,
+        );
+
+        await provider.loadForTechnicianAndAreas('tech-2', const ['area-1']);
+        expect(provider.pendingSyncCount, 1);
+
+        online.add(true);
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+
+        expect(repo.syncCalls, 1);
+        expect(repo.lastSyncTechnicianId, 'tech-2');
+        await online.close();
+        provider.dispose();
+      },
+    );
   });
 }
 
@@ -112,18 +167,44 @@ final _complaint = Complaint(
   technician: const {'id': 'tech-1', 'full_name': 'Tech One'},
 );
 
+final _teamComplaint = Complaint(
+  id: 'complaint-team-1',
+  complaintCode: 'CMP-T01',
+  customerId: 'customer-1',
+  issue: 'Team assigned fault',
+  type: 'fiber',
+  priority: 'high',
+  status: 'open',
+  teamId: 'team-1',
+  openedAt: '2026-05-25T00:00:00Z',
+  customer: const {
+    'id': 'customer-1',
+    'full_name': 'Team Customer',
+    'area_id': 'area-1',
+    'customer_code': 'C-002',
+    'address_value': 'Street 2',
+    'phone': '03000000001',
+  },
+  team: const {'id': 'team-1', 'name': 'Urgent Team'},
+);
+
 class _FakeComplaintsRepository extends ComplaintsRepository {
   final bool failStatusWrite;
   final bool failResolutionWrite;
   final int initialQueuedActions;
+  final List<Complaint> complaints;
   final List<QueuedComplaintAction> queuedActions = [];
+  String? lastStatusTechnicianId;
+  String? lastResolutionTechnicianId;
+  String? lastSyncTechnicianId;
   int syncCalls = 0;
 
   _FakeComplaintsRepository({
     this.failStatusWrite = false,
     this.failResolutionWrite = false,
     this.initialQueuedActions = 0,
-  }) {
+    List<Complaint>? complaints,
+  }) : complaints = complaints ?? [_complaint] {
     queuedActions.addAll(
       List.generate(
         initialQueuedActions,
@@ -138,17 +219,20 @@ class _FakeComplaintsRepository extends ComplaintsRepository {
   }
 
   @override
-  Future<List<Complaint>> fetchAssigned(String technicianId) async => [
-    _complaint,
-  ];
+  Future<List<Complaint>> fetchAssigned(String technicianId) async =>
+      complaints;
 
   @override
-  Future<List<Complaint>> fetchByAreas(List<String> areaIds) async => [
-    _complaint,
-  ];
+  Future<List<Complaint>> fetchByAreas(List<String> areaIds) async =>
+      complaints;
 
   @override
-  Future<void> updateStatus(String id, String status) async {
+  Future<void> updateStatus(
+    String id,
+    String status, {
+    String? technicianId,
+  }) async {
+    lastStatusTechnicianId = technicianId;
     if (failStatusWrite) throw Exception('offline');
   }
 
@@ -156,8 +240,10 @@ class _FakeComplaintsRepository extends ComplaintsRepository {
   Future<void> resolveWithDetails(
     String id,
     String notes,
-    String hardware,
-  ) async {
+    String hardware, {
+    String? technicianId,
+  }) async {
+    lastResolutionTechnicianId = technicianId;
     if (failResolutionWrite) throw Exception('offline');
   }
 
@@ -185,7 +271,8 @@ class _FakeComplaintsRepository extends ComplaintsRepository {
   }
 
   @override
-  Future<int> syncQueuedActions() async {
+  Future<int> syncQueuedActions({String? technicianId}) async {
+    lastSyncTechnicianId = technicianId;
     syncCalls++;
     final synced = queuedActions.length;
     queuedActions.clear();
