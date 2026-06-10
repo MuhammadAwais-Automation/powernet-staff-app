@@ -40,16 +40,12 @@ class _ComplaintListScreenState extends State<ComplaintListScreen>
     final staff = auth.currentStaff;
     if (staff == null) return;
     queue.loadForTechnicianAndAreas(staff.id, staff.areaIds);
-    queue.listenToComplaints(staff.id, staff.areaIds);
   }
 
   @override
   void dispose() {
     _tabs.dispose();
     _searchCtrl.dispose();
-    try {
-      context.read<ComplaintQueueProvider>().stopListening();
-    } catch (_) {}
     super.dispose();
   }
 

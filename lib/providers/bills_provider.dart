@@ -92,24 +92,25 @@ class BillsProvider extends ChangeNotifier {
       }
       if (_isOnline) {
         await syncQueuedNow(refreshAfterSync: false);
+        final results = await Future.wait([
+          _repo.fetchPendingByAreas(areaIds),
+          _repo.fetchPaidTodayByAreas(areaIds),
+          _repo.fetchVisitedToday(collectorId),
+        ]).timeout(const Duration(seconds: 4));
+        _bills = results[0];
+        _collectedToday = results[1];
+        _visitedToday = results[2];
+        await _repo.cacheRecoverySnapshot(
+          areaIds: areaIds,
+          collectorId: collectorId,
+          pending: _bills,
+          collectedToday: _collectedToday,
+          visitedToday: _visitedToday,
+        );
       } else {
         _pendingSyncCount = await _repo.countQueuedOperations();
+        await _loadCachedSnapshot(areaIds, collectorId);
       }
-      final results = await Future.wait([
-        _repo.fetchPendingByAreas(areaIds),
-        _repo.fetchPaidTodayByAreas(areaIds),
-        _repo.fetchVisitedToday(collectorId),
-      ]);
-      _bills = results[0];
-      _collectedToday = results[1];
-      _visitedToday = results[2];
-      await _repo.cacheRecoverySnapshot(
-        areaIds: areaIds,
-        collectorId: collectorId,
-        pending: _bills,
-        collectedToday: _collectedToday,
-        visitedToday: _visitedToday,
-      );
     } catch (e) {
       await _loadCachedSnapshot(areaIds, collectorId);
       _error =
@@ -173,7 +174,7 @@ class BillsProvider extends ChangeNotifier {
         billId: billId,
         collectorId: collectorId,
         visitType: visitType,
-      );
+      ).timeout(const Duration(seconds: 4));
       _applyLocalVisit(
         billId: billId,
         collectorId: collectorId,
@@ -255,7 +256,7 @@ class BillsProvider extends ChangeNotifier {
         collectorId: collectorId,
         paymentMethod: paymentMethod,
         paymentNote: paymentNote,
-      );
+      ).timeout(const Duration(seconds: 4));
       _applyLocalPayment(
         billId: billId,
         amount: amount,
@@ -358,7 +359,17 @@ class BillsProvider extends ChangeNotifier {
 
     for (final bill in oldestFirst) {
       if (remainingPayment <= 0) break;
-      final liveBill = _isOnline ? await _repo.fetchById(bill.id) : bill;
+      Bill? liveBill;
+      if (_isOnline) {
+        try {
+          liveBill = await _repo.fetchById(bill.id).timeout(const Duration(seconds: 4));
+        } catch (e) {
+          debugPrint('POWERNET_DEBUG: fetchById failed or timed out: $e. Using local data.');
+          liveBill = bill;
+        }
+      } else {
+        liveBill = bill;
+      }
       if (liveBill == null || liveBill.remaining <= 0 || liveBill.isPaid) {
         skippedStalePaid = true;
         _removeBillFromPending(bill.id);

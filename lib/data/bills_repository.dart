@@ -393,7 +393,13 @@ class BillsRepository {
 
     final remaining = <QueuedBillPayment>[];
     var synced = 0;
+    bool connectionFailed = false;
+
     for (final payment in queued) {
+      if (connectionFailed) {
+        remaining.add(payment);
+        continue;
+      }
       try {
         await recordPayment(
           billId: payment.billId,
@@ -401,7 +407,7 @@ class BillsRepository {
           collectorId: payment.collectorId,
           paymentMethod: payment.paymentMethod,
           paymentNote: payment.paymentNote,
-        );
+        ).timeout(const Duration(seconds: 4));
         synced++;
       } catch (e) {
         debugPrint(
@@ -409,6 +415,7 @@ class BillsRepository {
         );
         if (_isNetworkError(e)) {
           remaining.add(payment);
+          connectionFailed = true;
         } else {
           debugPrint(
             'POWERNET_DEBUG: Discarding queued payment for bill ${payment.billId} due to permanent error: $e',
@@ -426,13 +433,19 @@ class BillsRepository {
 
     final remaining = <QueuedBillVisit>[];
     var synced = 0;
+    bool connectionFailed = false;
+
     for (final visit in queued) {
+      if (connectionFailed) {
+        remaining.add(visit);
+        continue;
+      }
       try {
         await recordVisit(
           billId: visit.billId,
           collectorId: visit.collectorId,
           visitType: visit.visitType,
-        );
+        ).timeout(const Duration(seconds: 4));
         synced++;
       } catch (e) {
         debugPrint(
@@ -441,6 +454,7 @@ class BillsRepository {
         );
         if (_isNetworkError(e)) {
           remaining.add(visit);
+          connectionFailed = true;
         } else {
           debugPrint(
             'POWERNET_DEBUG: Discarding queued visit for bill ${visit.billId} due to permanent error: $e',

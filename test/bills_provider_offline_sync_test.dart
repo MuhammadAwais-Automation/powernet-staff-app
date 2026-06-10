@@ -325,6 +325,15 @@ class _FakeBillsRepository extends BillsRepository {
   Future<List<Bill>> fetchVisitedToday(String collectorId) async => [];
 
   @override
+  Future<List<Bill>> getCachedPendingByAreas(List<String> areaIds) async => pendingBills;
+
+  @override
+  Future<List<Bill>> getCachedCollectedToday(String collectorId) async => [];
+
+  @override
+  Future<List<Bill>> getCachedVisitedToday(String collectorId) async => [];
+
+  @override
   Future<void> recordVisit({
     required String billId,
     required String collectorId,

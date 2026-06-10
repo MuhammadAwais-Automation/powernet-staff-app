@@ -226,10 +226,11 @@ class CustomerBillLedger {
 
   String get collectionStatus {
     if (totalRemaining <= 0) return 'paid';
+    if (isOverdue) return 'overdue'; // overdue takes priority — shown in Overdue tab
     if (hasPartialPayment) return 'partial';
-    if (isOverdue) return 'overdue';
     return currentBill.status;
   }
+
 
   static int _compareNewestFirst(Bill a, Bill b) {
     final monthCompare = _monthRank(b.month).compareTo(_monthRank(a.month));

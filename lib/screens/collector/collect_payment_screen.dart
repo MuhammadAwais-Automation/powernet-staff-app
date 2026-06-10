@@ -680,38 +680,148 @@ class _BillBreakdown extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Show each open bill as its own row, oldest first (FIFO order)
+    final openBills = [...ledger.openBills].reversed.toList();
+
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: pn.softOrange.withValues(alpha: 0.45),
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: pn.warning.withValues(alpha: 0.25)),
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _BreakdownRow(
-            label: 'Previous months',
-            value: ledger.previousDue,
-            pn: pn,
-          ),
-          const SizedBox(height: 8),
-          _BreakdownRow(
-            label: 'Current month',
-            value: ledger.currentDue,
-            pn: pn,
-          ),
+          // Per-month rows
+          ...openBills.map((bill) => _MonthBillRow(bill: bill, pn: pn)),
           const Divider(height: 18),
+          // Total
           _BreakdownRow(
             label: 'Total payable',
             value: ledger.totalRemaining,
             pn: pn,
             strong: true,
           ),
+          const SizedBox(height: 10),
+          // FIFO note
+          Row(
+            children: [
+              Icon(Icons.info_outline, size: 12, color: pn.textMuted),
+              const SizedBox(width: 5),
+              Expanded(
+                child: Text(
+                  'Payment clears oldest bills first (FIFO)',
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: pn.textMuted,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );
   }
 }
+
+class _MonthBillRow extends StatelessWidget {
+  final Bill bill;
+  final PnColors pn;
+
+  const _MonthBillRow({required this.bill, required this.pn});
+
+  Color _statusColor() {
+    if (bill.isOverdue) return pn.danger;
+    if ((bill.paidAmount ?? 0) > 0) return pn.cyan;
+    return pn.warning;
+  }
+
+  String _statusLabel() {
+    if (bill.isOverdue) return 'OVERDUE';
+    if ((bill.paidAmount ?? 0) > 0) return 'PARTIAL';
+    return 'PENDING';
+  }
+
+  String _formatMonth(String month) {
+    // Convert '2026-04' to 'Apr 2026'
+    const months = [
+      '', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    ];
+    final parts = month.split('-');
+    if (parts.length == 2) {
+      final m = int.tryParse(parts[1]) ?? 0;
+      final y = parts[0];
+      if (m >= 1 && m <= 12) return '${months[m]} $y';
+    }
+    return month;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final color = _statusColor();
+    final remaining = bill.remaining;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        children: [
+          // Color dot
+          Container(
+            width: 8,
+            height: 8,
+            margin: const EdgeInsets.only(right: 8, top: 1),
+            decoration: BoxDecoration(
+              color: color,
+              shape: BoxShape.circle,
+            ),
+          ),
+          // Month label
+          Expanded(
+            child: Text(
+              _formatMonth(bill.month),
+              style: TextStyle(
+                color: pn.textSoft,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          // Status badge
+          Container(
+            margin: const EdgeInsets.only(right: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(99),
+            ),
+            child: Text(
+              _statusLabel(),
+              style: TextStyle(
+                fontSize: 9,
+                fontWeight: FontWeight.w800,
+                color: color,
+                letterSpacing: 0.3,
+              ),
+            ),
+          ),
+          // Remaining amount
+          Text(
+            'Rs. ${remaining.toStringAsFixed(0)}',
+            style: TextStyle(
+              color: pn.text,
+              fontSize: 13,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 
 class _BreakdownRow extends StatelessWidget {
   final String label;

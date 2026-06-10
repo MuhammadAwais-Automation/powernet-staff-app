@@ -122,6 +122,9 @@ class _ComplaintDetailScreenState extends State<ComplaintDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final pn = Theme.of(context).extension<PnColors>()!;
+    final queue = context.watch<ComplaintQueueProvider>();
+    final complaint = queue.findComplaintById(widget.complaintId) ?? _complaint;
+
     return Scaffold(
       backgroundColor: pn.background,
       appBar: AppBar(
@@ -138,7 +141,7 @@ class _ComplaintDetailScreenState extends State<ComplaintDetailScreen> {
           },
         ),
         title: Text(
-          _complaint?.complaintCode ?? 'Complaint Details',
+          complaint?.complaintCode ?? 'Complaint Details',
           style: TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.w900,
@@ -147,7 +150,7 @@ class _ComplaintDetailScreenState extends State<ComplaintDetailScreen> {
           ),
         ),
         actions: [
-          if (_complaint != null && !_complaint!.isResolved)
+          if (complaint != null && !complaint.isResolved)
             IconButton(
               icon: Icon(Icons.refresh, color: pn.text),
               onPressed: _load,
@@ -158,10 +161,10 @@ class _ComplaintDetailScreenState extends State<ComplaintDetailScreen> {
           ? const Center(child: CircularProgressIndicator())
           : _error != null
           ? ErrorState(message: _error!, onRetry: _load)
-          : _complaint == null
+          : complaint == null
           ? const EmptyState(message: 'Complaint not found')
           : _Body(
-              complaint: _complaint!,
+              complaint: complaint,
               pn: pn,
               updating: _updating,
               onUpdateStatus: _updateStatus,

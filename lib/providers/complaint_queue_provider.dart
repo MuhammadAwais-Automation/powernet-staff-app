@@ -18,6 +18,8 @@ class ComplaintQueueProvider extends ChangeNotifier {
   List<String> _activeAreaIds = const [];
   DateTime? _lastRealtimeReloadAt;
   late bool _isOnline;
+  String? _subscribedTechnicianId;
+  List<String> _subscribedAreaIds = const [];
   bool _syncing = false;
 
   List<Complaint> _complaints = [];
@@ -84,10 +86,15 @@ class ComplaintQueueProvider extends ChangeNotifier {
     await loadForTechnicianAndAreas(technicianId, const []);
   }
 
-  Future<void> loadForAreas(List<String> areaIds) async {
-    _loading = true;
-    _error = null;
-    notifyListeners();
+  Future<void> loadForAreas(List<String> areaIds, {bool silent = false}) async {
+    _activeAreaIds = areaIds;
+    _activeTechnicianId = null;
+    _ensureRealtimeSubscription(null, areaIds);
+    if (!silent) {
+      _loading = true;
+      _error = null;
+      notifyListeners();
+    }
     try {
       if (_onlineChanges == null) {
         try {
@@ -114,13 +121,17 @@ class ComplaintQueueProvider extends ChangeNotifier {
 
   Future<void> loadForTechnicianAndAreas(
     String technicianId,
-    List<String> areaIds,
-  ) async {
+    List<String> areaIds, {
+    bool silent = false,
+  }) async {
     _activeTechnicianId = technicianId;
     _activeAreaIds = areaIds;
-    _loading = true;
-    _error = null;
-    notifyListeners();
+    _ensureRealtimeSubscription(technicianId, areaIds);
+    if (!silent) {
+      _loading = true;
+      _error = null;
+      notifyListeners();
+    }
     try {
       if (_onlineChanges == null) {
         try {
@@ -369,10 +380,21 @@ class ComplaintQueueProvider extends ChangeNotifier {
   }
 
   void listenToComplaints(String technicianId, List<String> areaIds) {
+    _ensureRealtimeSubscription(technicianId, areaIds);
+  }
+
+  void _ensureRealtimeSubscription(String? technicianId, List<String> areaIds) {
     if (!_enableRealtime) return;
+    final isSameTech = _subscribedTechnicianId == technicianId;
+    final isSameAreas = listEquals(_subscribedAreaIds, areaIds);
+    if (_channel != null && isSameTech && isSameAreas) {
+      return;
+    }
     stopListening();
+    _subscribedTechnicianId = technicianId;
+    _subscribedAreaIds = areaIds;
     _channel = supabase
-        .channel('complaints-realtime-queue')
+        .channel('complaints-realtime-${identityHashCode(this)}')
         .onPostgresChanges(
           event: PostgresChangeEvent.all,
           schema: 'public',
@@ -393,7 +415,7 @@ class ComplaintQueueProvider extends ChangeNotifier {
   }
 
   Future<void> _handleRealtimeChange(
-    String technicianId,
+    String? technicianId,
     List<String> areaIds,
   ) async {
     final now = DateTime.now();
@@ -402,7 +424,11 @@ class ComplaintQueueProvider extends ChangeNotifier {
       return;
     }
     _lastRealtimeReloadAt = now;
-    await loadForTechnicianAndAreas(technicianId, areaIds);
+    if (technicianId != null) {
+      await loadForTechnicianAndAreas(technicianId, areaIds, silent: true);
+    } else {
+      await loadForAreas(areaIds, silent: true);
+    }
   }
 
   void _listenForConnectivity() {
@@ -451,6 +477,8 @@ class ComplaintQueueProvider extends ChangeNotifier {
       unawaited(supabase.removeChannel(channel));
     }
     _channel = null;
+    _subscribedTechnicianId = null;
+    _subscribedAreaIds = const [];
   }
 
   @override
