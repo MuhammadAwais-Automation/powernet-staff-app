@@ -40,6 +40,8 @@ class QueuedComplaintAction {
   final String id;
   final String complaintId;
   final String status;
+  final bool assignToTechnician;
+  final bool clearAssignedTo;
   final String? notes;
   final String? hardware;
   final String queuedAt;
@@ -48,6 +50,8 @@ class QueuedComplaintAction {
     required this.id,
     required this.complaintId,
     required this.status,
+    required this.assignToTechnician,
+    this.clearAssignedTo = false,
     this.notes,
     this.hardware,
     required this.queuedAt,
@@ -58,6 +62,8 @@ class QueuedComplaintAction {
         id: json['id'] as String,
         complaintId: json['complaint_id'] as String,
         status: json['status'] as String,
+        assignToTechnician: json['assign_to_technician'] as bool? ?? true,
+        clearAssignedTo: json['clear_assigned_to'] as bool? ?? false,
         notes: json['notes'] as String?,
         hardware: json['hardware'] as String?,
         queuedAt: json['queued_at'] as String,
@@ -67,6 +73,8 @@ class QueuedComplaintAction {
     'id': id,
     'complaint_id': complaintId,
     'status': status,
+    'assign_to_technician': assignToTechnician,
+    'clear_assigned_to': clearAssignedTo,
     'notes': notes,
     'hardware': hardware,
     'queued_at': queuedAt,
@@ -114,6 +122,7 @@ class ComplaintsRepository {
     String id,
     String status, {
     String? technicianId,
+    bool clearAssignedTo = false,
   }) async {
     final update = <String, dynamic>{'status': status};
     if (status == 'in_progress') {
@@ -125,6 +134,8 @@ class ComplaintsRepository {
     if (technicianId != null) {
       update['assigned_to'] = technicianId;
       update['assigned_at'] = DateTime.now().toUtc().toIso8601String();
+    } else if (clearAssignedTo) {
+      update['assigned_to'] = null;
     }
     await supabase.from('complaints').update(update).eq('id', id);
   }
@@ -134,6 +145,7 @@ class ComplaintsRepository {
     String notes,
     String hardware, {
     String? technicianId,
+    bool clearAssignedTo = false,
   }) async {
     try {
       final update = <String, dynamic>{
@@ -145,11 +157,18 @@ class ComplaintsRepository {
       if (technicianId != null) {
         update['assigned_to'] = technicianId;
         update['assigned_at'] = DateTime.now().toUtc().toIso8601String();
+      } else if (clearAssignedTo) {
+        update['assigned_to'] = null;
       }
       await supabase.from('complaints').update(update).eq('id', id);
     } catch (e) {
       if (!_isMissingResolutionColumns(e)) rethrow;
-      await updateStatus(id, 'resolved', technicianId: technicianId);
+      await updateStatus(
+        id,
+        'resolved',
+        technicianId: technicianId,
+        clearAssignedTo: clearAssignedTo,
+      );
     }
   }
 
@@ -178,6 +197,8 @@ class ComplaintsRepository {
   Future<void> queueStatusUpdate({
     required String complaintId,
     required String status,
+    required bool assignToTechnician,
+    bool clearAssignedTo = false,
     String? notes,
     String? hardware,
   }) async {
@@ -186,6 +207,8 @@ class ComplaintsRepository {
       id: '${DateTime.now().microsecondsSinceEpoch}-$complaintId',
       complaintId: complaintId,
       status: status,
+      assignToTechnician: assignToTechnician,
+      clearAssignedTo: clearAssignedTo,
       notes: notes,
       hardware: hardware,
       queuedAt: DateTime.now().toUtc().toIso8601String(),
@@ -218,18 +241,23 @@ class ComplaintsRepository {
     var synced = 0;
     for (final action in queued) {
       try {
+        final actionTechnicianId = action.assignToTechnician
+            ? technicianId
+            : null;
         if (action.status == 'resolved' && action.notes != null) {
           await resolveWithDetails(
             action.complaintId,
             action.notes!,
             action.hardware ?? '',
-            technicianId: technicianId,
+            technicianId: actionTechnicianId,
+            clearAssignedTo: action.clearAssignedTo,
           );
         } else {
           await updateStatus(
             action.complaintId,
             action.status,
-            technicianId: technicianId,
+            technicianId: actionTechnicianId,
+            clearAssignedTo: action.clearAssignedTo,
           );
         }
         synced++;

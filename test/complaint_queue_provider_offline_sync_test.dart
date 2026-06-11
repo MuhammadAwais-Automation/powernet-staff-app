@@ -21,6 +21,7 @@ void main() {
       expect(ok, isTrue);
       expect(provider.pendingSyncCount, 1);
       expect(repo.queuedActions, hasLength(1));
+      expect(repo.queuedActions.single.assignToTechnician, isTrue);
       expect(provider.findComplaintById(_complaint.id)?.status, 'in_progress');
       provider.dispose();
     });
@@ -89,7 +90,7 @@ void main() {
       provider.dispose();
     });
 
-    test('passes active technician id when team complaint starts', () async {
+    test('preserves team assignment when team complaint starts', () async {
       final online = StreamController<bool>();
       final repo = _FakeComplaintsRepository(complaints: [_teamComplaint]);
       final provider = ComplaintQueueProvider(
@@ -104,26 +105,59 @@ void main() {
       final ok = await provider.startComplaint(_teamComplaint.id);
 
       expect(ok, isTrue);
-      expect(repo.lastStatusTechnicianId, 'tech-2');
+      expect(repo.lastStatusTechnicianId, isNull);
+      expect(repo.lastStatusClearAssignedTo, isTrue);
       expect(
         provider.findComplaintById(_teamComplaint.id)?.teamId,
         _teamComplaint.teamId,
       );
-      expect(
-        provider.findComplaintById(_teamComplaint.id)?.assignedTo,
-        'tech-2',
-      );
+      expect(provider.findComplaintById(_teamComplaint.id)?.assignedTo, isNull);
       await online.close();
       provider.dispose();
     });
 
     test(
-      'syncs queued team complaint actions with active technician id',
+      'queues team complaint actions without technician assignment',
+      () async {
+        final repo = _FakeComplaintsRepository(
+          complaints: [_teamComplaint],
+          failStatusWrite: true,
+        );
+        final provider = ComplaintQueueProvider(
+          repo: repo,
+          onlineChanges: const Stream.empty(),
+          enableRealtime: false,
+        );
+
+        await provider.loadForTechnicianAndAreas('tech-2', const ['area-1']);
+        final ok = await provider.startComplaint(_teamComplaint.id);
+
+        expect(ok, isTrue);
+        expect(repo.queuedActions, hasLength(1));
+        expect(repo.queuedActions.single.assignToTechnician, isFalse);
+        expect(repo.queuedActions.single.clearAssignedTo, isTrue);
+        expect(
+          provider.findComplaintById(_teamComplaint.id)?.teamId,
+          _teamComplaint.teamId,
+        );
+        expect(
+          provider.findComplaintById(_teamComplaint.id)?.assignedTo,
+          isNull,
+        );
+        provider.dispose();
+      },
+    );
+
+    test(
+      'syncs queued team complaint actions without technician assignment',
       () async {
         final online = StreamController<bool>();
         final repo = _FakeComplaintsRepository(
           complaints: [_teamComplaint],
           initialQueuedActions: 1,
+          initialQueuedComplaintId: _teamComplaint.id,
+          initialQueuedAssignToTechnician: false,
+          initialQueuedClearAssignedTo: true,
         );
         final provider = ComplaintQueueProvider(
           repo: repo,
@@ -139,6 +173,8 @@ void main() {
 
         expect(repo.syncCalls, 1);
         expect(repo.lastSyncTechnicianId, 'tech-2');
+        expect(repo.lastStatusTechnicianId, isNull);
+        expect(repo.lastStatusClearAssignedTo, isTrue);
         await online.close();
         provider.dispose();
       },
@@ -192,17 +228,25 @@ class _FakeComplaintsRepository extends ComplaintsRepository {
   final bool failStatusWrite;
   final bool failResolutionWrite;
   final int initialQueuedActions;
+  final String? initialQueuedComplaintId;
+  final bool initialQueuedAssignToTechnician;
+  final bool initialQueuedClearAssignedTo;
   final List<Complaint> complaints;
   final List<QueuedComplaintAction> queuedActions = [];
   String? lastStatusTechnicianId;
   String? lastResolutionTechnicianId;
   String? lastSyncTechnicianId;
+  bool? lastStatusClearAssignedTo;
+  bool? lastResolutionClearAssignedTo;
   int syncCalls = 0;
 
   _FakeComplaintsRepository({
     this.failStatusWrite = false,
     this.failResolutionWrite = false,
     this.initialQueuedActions = 0,
+    this.initialQueuedComplaintId,
+    this.initialQueuedAssignToTechnician = true,
+    this.initialQueuedClearAssignedTo = false,
     List<Complaint>? complaints,
   }) : complaints = complaints ?? [_complaint] {
     queuedActions.addAll(
@@ -210,8 +254,10 @@ class _FakeComplaintsRepository extends ComplaintsRepository {
         initialQueuedActions,
         (index) => QueuedComplaintAction(
           id: 'queued-$index',
-          complaintId: _complaint.id,
+          complaintId: initialQueuedComplaintId ?? _complaint.id,
           status: 'in_progress',
+          assignToTechnician: initialQueuedAssignToTechnician,
+          clearAssignedTo: initialQueuedClearAssignedTo,
           queuedAt: '2026-05-25T00:00:00Z',
         ),
       ),
@@ -231,8 +277,10 @@ class _FakeComplaintsRepository extends ComplaintsRepository {
     String id,
     String status, {
     String? technicianId,
+    bool clearAssignedTo = false,
   }) async {
     lastStatusTechnicianId = technicianId;
+    lastStatusClearAssignedTo = clearAssignedTo;
     if (failStatusWrite) throw Exception('offline');
   }
 
@@ -242,8 +290,10 @@ class _FakeComplaintsRepository extends ComplaintsRepository {
     String notes,
     String hardware, {
     String? technicianId,
+    bool clearAssignedTo = false,
   }) async {
     lastResolutionTechnicianId = technicianId;
+    lastResolutionClearAssignedTo = clearAssignedTo;
     if (failResolutionWrite) throw Exception('offline');
   }
 
@@ -254,6 +304,8 @@ class _FakeComplaintsRepository extends ComplaintsRepository {
   Future<void> queueStatusUpdate({
     required String complaintId,
     required String status,
+    required bool assignToTechnician,
+    bool clearAssignedTo = false,
     String? notes,
     String? hardware,
   }) async {
@@ -263,6 +315,8 @@ class _FakeComplaintsRepository extends ComplaintsRepository {
         id: 'queued-${queuedActions.length}',
         complaintId: complaintId,
         status: status,
+        assignToTechnician: assignToTechnician,
+        clearAssignedTo: clearAssignedTo,
         notes: notes,
         hardware: hardware,
         queuedAt: '2026-05-25T00:00:00Z',
@@ -275,6 +329,27 @@ class _FakeComplaintsRepository extends ComplaintsRepository {
     lastSyncTechnicianId = technicianId;
     syncCalls++;
     final synced = queuedActions.length;
+    for (final action in List<QueuedComplaintAction>.of(queuedActions)) {
+      final actionTechnicianId = action.assignToTechnician
+          ? technicianId
+          : null;
+      if (action.status == 'resolved' && action.notes != null) {
+        await resolveWithDetails(
+          action.complaintId,
+          action.notes!,
+          action.hardware ?? '',
+          technicianId: actionTechnicianId,
+          clearAssignedTo: action.clearAssignedTo,
+        );
+      } else {
+        await updateStatus(
+          action.complaintId,
+          action.status,
+          technicianId: actionTechnicianId,
+          clearAssignedTo: action.clearAssignedTo,
+        );
+      }
+    }
     queuedActions.clear();
     return synced;
   }

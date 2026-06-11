@@ -188,17 +188,20 @@ class ComplaintQueueProvider extends ChangeNotifier {
     if (!_isOnline) {
       return _queueStatus(id, 'resolved', notes: notes, hardware: hardware);
     }
+    final technicianId = _technicianIdForAssignmentWrite(id);
+    final clearAssignedTo = _isTeamComplaint(id);
     try {
       await _repo.resolveWithDetails(
         id,
         notes,
         hardware,
-        technicianId: _activeTechnicianId,
+        technicianId: technicianId,
+        clearAssignedTo: clearAssignedTo,
       );
       _applyLocalStatus(
         id,
         'resolved',
-        technicianId: _activeTechnicianId,
+        technicianId: technicianId,
         notes: notes,
         hardware: hardware,
       );
@@ -254,9 +257,16 @@ class ComplaintQueueProvider extends ChangeNotifier {
     if (!_isOnline) {
       return _queueStatus(id, status);
     }
+    final technicianId = _technicianIdForAssignmentWrite(id);
+    final clearAssignedTo = _isTeamComplaint(id);
     try {
-      await _repo.updateStatus(id, status, technicianId: _activeTechnicianId);
-      _applyLocalStatus(id, status, technicianId: _activeTechnicianId);
+      await _repo.updateStatus(
+        id,
+        status,
+        technicianId: technicianId,
+        clearAssignedTo: clearAssignedTo,
+      );
+      _applyLocalStatus(id, status, technicianId: technicianId);
       await _cacheActiveSnapshot();
       _pendingSyncCount = await _repo.countQueuedActions();
       _error = null;
@@ -280,17 +290,21 @@ class ComplaintQueueProvider extends ChangeNotifier {
     String? notes,
     String? hardware,
   }) async {
+    final technicianId = _technicianIdForAssignmentWrite(id);
+    final clearAssignedTo = _isTeamComplaint(id);
     try {
       await _repo.queueStatusUpdate(
         complaintId: id,
         status: status,
+        assignToTechnician: technicianId != null,
+        clearAssignedTo: clearAssignedTo,
         notes: notes,
         hardware: hardware,
       );
       _applyLocalStatus(
         id,
         status,
-        technicianId: _activeTechnicianId,
+        technicianId: technicianId,
         notes: notes,
         hardware: hardware,
       );
@@ -305,6 +319,17 @@ class ComplaintQueueProvider extends ChangeNotifier {
       notifyListeners();
       return false;
     }
+  }
+
+  String? _technicianIdForAssignmentWrite(String complaintId) {
+    if (_isTeamComplaint(complaintId)) return null;
+    return _activeTechnicianId;
+  }
+
+  bool _isTeamComplaint(String complaintId) {
+    final complaint = findComplaintById(complaintId);
+    final teamId = complaint?.teamId;
+    return teamId != null && teamId.isNotEmpty;
   }
 
   void _applyLocalStatus(
