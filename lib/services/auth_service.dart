@@ -28,6 +28,7 @@ class AuthService {
       await signOut();
       return null;
     } catch (_) {
+      await signOut().catchError((_) {});
       return _loginWithLegacyPassword(normalizedUsername, password);
     }
   }

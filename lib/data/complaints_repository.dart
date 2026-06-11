@@ -1,6 +1,8 @@
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -35,6 +37,7 @@ const complaintLegacyAreaSelect =
 
 const _queuedActionsKey = 'queued_complaint_actions';
 const _cachedTechnicianPrefix = 'cached_technician_complaints_';
+const _defaultManagerApiBaseUrl = 'https://powernet-manager.vercel.app';
 
 class QueuedComplaintAction {
   final String id;
@@ -330,22 +333,7 @@ class ComplaintsRepository {
       1,
     ).toUtc().toIso8601String();
 
-    List<String> teamIds = [];
-    try {
-      final teamMembersRes = await supabase
-          .from('team_members')
-          .select('team_id')
-          .eq('staff_id', technicianId);
-      for (final row in teamMembersRes) {
-        if (row['team_id'] != null) {
-          teamIds.add(row['team_id'].toString());
-        }
-      }
-    } catch (e) {
-      debugPrint(
-        'POWERNET_DEBUG: failed to fetch technician team memberships: $e',
-      );
-    }
+    final teamIds = await _fetchTeamIdsForStaff(technicianId);
 
     var orCondition = 'assigned_to.eq.$technicianId';
     if (teamIds.isNotEmpty) {
@@ -361,6 +349,61 @@ class ComplaintsRepository {
         )
         .order('opened_at', ascending: false);
     return _parseComplaintList(res);
+  }
+
+  Future<List<String>> _fetchTeamIdsForStaff(String technicianId) async {
+    try {
+      final teamMembersRes = await supabase
+          .from('team_members')
+          .select('team_id')
+          .eq('staff_id', technicianId);
+      final directIds = _teamIdsFromRows(teamMembersRes);
+      if (directIds.isNotEmpty) return directIds;
+    } catch (e) {
+      debugPrint('POWERNET_DEBUG: failed to fetch direct team memberships: $e');
+    }
+
+    try {
+      final uri = Uri.parse(
+        '${_managerApiBaseUrl()}/api/mobile/staff-team-ids',
+      ).replace(queryParameters: {'staffId': technicianId});
+      final response = await http.get(uri).timeout(const Duration(seconds: 10));
+      if (response.statusCode != 200) {
+        debugPrint(
+          'POWERNET_DEBUG: staff team fallback failed with ${response.statusCode}',
+        );
+        return const [];
+      }
+      final decoded = jsonDecode(response.body) as Map<String, dynamic>;
+      final teamIds = decoded['teamIds'];
+      if (teamIds is! List) return const [];
+      return teamIds
+          .whereType<String>()
+          .where((teamId) => teamId.isNotEmpty)
+          .toSet()
+          .toList();
+    } catch (e) {
+      debugPrint('POWERNET_DEBUG: staff team fallback failed: $e');
+      return const [];
+    }
+  }
+
+  List<String> _teamIdsFromRows(List<dynamic> rows) {
+    final ids = <String>{};
+    for (final row in rows) {
+      if (row is Map && row['team_id'] != null) {
+        ids.add(row['team_id'].toString());
+      }
+    }
+    return ids.toList();
+  }
+
+  String _managerApiBaseUrl() {
+    final configured = dotenv.env['POWER_NET_API_BASE_URL']?.trim();
+    final base = configured == null || configured.isEmpty
+        ? _defaultManagerApiBaseUrl
+        : configured;
+    return base.replaceFirst(RegExp(r'/+$'), '');
   }
 
   Future<List<Complaint>> _fetchByAreas(
