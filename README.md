@@ -1,30 +1,48 @@
+<div align="center">
+
 # PowerNet Staff App
 
-Flutter mobile app for ISP field teams, recovery agents, cable operators, and customers.
+### Flutter companion app for ISP field teams, recovery agents, operators, and customers.
 
-PowerNet Staff App is the mobile companion for the PowerNet ISP management system. It gives field users a focused workflow for customer lookup, complaint handling, bill collection, payment verification, and customer self-service.
+![Flutter](https://img.shields.io/badge/Flutter-Dart-111111?style=flat-square&logo=flutter)
+![Supabase](https://img.shields.io/badge/Supabase-Backend-111111?style=flat-square&logo=supabase)
+![Mobile](https://img.shields.io/badge/Mobile-Field%20Operations-111111?style=flat-square)
+![Status](https://img.shields.io/badge/Portfolio--safe-Public%20Showcase-111111?style=flat-square)
 
-## Highlights
+</div>
 
-- Multi-role mobile workflows for ISP operations
-- Staff login through Supabase-backed authentication
-- Field agent customer lists and customer detail views
-- Complaint tracking and assignment support
-- Billing and recovery flows for payment collection
-- Customer portal for bills, complaints, profile, and signup requests
-- Offline queue support for selected payment/visit actions
-- Receipt upload flow with Cloudinary configuration through environment variables
+PowerNet Staff App is the mobile side of the PowerNet ISP management system. It gives field users focused workflows for customer lookup, complaint handling, bill collection, payment verification, receipt upload, and customer self-service.
+
+## At a Glance
+
+| Area | Details |
+|---|---|
+| Product type | Multi-role ISP mobile app |
+| Users | Field agents, recovery agents, cable operators, customers |
+| Backend | Supabase Auth and data APIs |
+| Mobile stack | Flutter, Dart, go_router, environment-based config |
+| Showcase value | Real field workflow design connected to backend operations |
+
+## What It Proves
+
+| Capability | Example in this project |
+|---|---|
+| Mobile operations UX | Role-specific screens for field, recovery, operator, and customer flows |
+| Backend integration | Supabase-backed authentication and data access |
+| Field-service workflows | Customer lookup, complaint status, bill collection, payment visits |
+| Media handling | Receipt upload flow with Cloudinary configured through environment variables |
+| Offline thinking | Queue support for selected payment and visit actions |
 
 ## Roles
 
-| Role | Purpose |
+| Role | Workflow |
 |---|---|
-| Field Agent | View assigned customers and field details |
-| Recovery Agent | Collect payments and record visits |
-| Cable Operator | Manage cable/operator-side customer flows |
-| Customer | View bills, complaints, profile, and signup status |
+| Field Agent | Assigned customers, customer details, and field work |
+| Recovery Agent | Payment collection, visit tracking, and bill recovery |
+| Cable Operator | Cable/operator-side customer workflows |
+| Customer | Bills, complaints, profile, and signup status |
 
-## Tech Stack
+## Stack
 
 | Layer | Technology |
 |---|---|
@@ -32,7 +50,7 @@ PowerNet Staff App is the mobile companion for the PowerNet ISP management syste
 | Routing | go_router |
 | Backend | Supabase |
 | Config | flutter_dotenv |
-| Media Uploads | Cloudinary unsigned upload preset |
+| Media | Cloudinary unsigned upload preset |
 | State | Provider-style app state |
 
 ## Environment
@@ -55,12 +73,12 @@ flutter pub get
 flutter run
 ```
 
-## Project Structure
+## Project Map
 
 ```text
 lib/
   app/          Router and app setup
-  config/       Supabase/environment configuration
+  config/       Supabase and environment configuration
   data/         Repository classes
   models/       Domain models
   providers/    App state providers
@@ -70,6 +88,6 @@ assets/
   app_icon/     App icon assets
 ```
 
-## Notes
+## Portfolio Note
 
-This repository is prepared as a portfolio-safe showcase. Environment files, generated analysis artifacts, and private deployment data are excluded.
+This public repository is prepared as a portfolio-safe showcase. Real credentials, local generated artifacts, and private deployment data are excluded.
