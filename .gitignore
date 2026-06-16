@@ -46,3 +46,6 @@ app.*.map.json
 
 # Supabase secrets
 assets/.env
+
+# generated/local analysis artifacts
+graphify-out/

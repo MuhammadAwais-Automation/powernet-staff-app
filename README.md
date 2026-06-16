@@ -1,17 +1,75 @@
-# powernet_staff
+# PowerNet Staff App
 
-A new Flutter project.
+Flutter mobile app for ISP field teams, recovery agents, cable operators, and customers.
 
-## Getting Started
+PowerNet Staff App is the mobile companion for the PowerNet ISP management system. It gives field users a focused workflow for customer lookup, complaint handling, bill collection, payment verification, and customer self-service.
 
-This project is a starting point for a Flutter application.
+## Highlights
 
-A few resources to get you started if this is your first Flutter project:
+- Multi-role mobile workflows for ISP operations
+- Staff login through Supabase-backed authentication
+- Field agent customer lists and customer detail views
+- Complaint tracking and assignment support
+- Billing and recovery flows for payment collection
+- Customer portal for bills, complaints, profile, and signup requests
+- Offline queue support for selected payment/visit actions
+- Receipt upload flow with Cloudinary configuration through environment variables
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+## Roles
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+| Role | Purpose |
+|---|---|
+| Field Agent | View assigned customers and field details |
+| Recovery Agent | Collect payments and record visits |
+| Cable Operator | Manage cable/operator-side customer flows |
+| Customer | View bills, complaints, profile, and signup status |
+
+## Tech Stack
+
+| Layer | Technology |
+|---|---|
+| Mobile | Flutter, Dart |
+| Routing | go_router |
+| Backend | Supabase |
+| Config | flutter_dotenv |
+| Media Uploads | Cloudinary unsigned upload preset |
+| State | Provider-style app state |
+
+## Environment
+
+Update the placeholder `assets/.env` values before running against a real backend:
+
+```env
+SUPABASE_URL=your_supabase_project_url
+SUPABASE_ANON_KEY=your_supabase_anon_key
+CLOUDINARY_CLOUD_NAME=your_cloudinary_cloud_name
+CLOUDINARY_UPLOAD_PRESET=your_unsigned_upload_preset
+```
+
+The committed file contains placeholder values only. Never commit real production credentials.
+
+## Run Locally
+
+```bash
+flutter pub get
+flutter run
+```
+
+## Project Structure
+
+```text
+lib/
+  app/          Router and app setup
+  config/       Supabase/environment configuration
+  data/         Repository classes
+  models/       Domain models
+  providers/    App state providers
+  screens/      Role-based screens
+  services/     Auth, customer auth, uploads
+assets/
+  app_icon/     App icon assets
+```
+
+## Notes
+
+This repository is prepared as a portfolio-safe showcase. Environment files, generated analysis artifacts, and private deployment data are excluded.

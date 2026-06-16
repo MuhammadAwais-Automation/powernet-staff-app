@@ -8,8 +8,16 @@ class CloudinaryService {
   /// Uploads a file (image receipt) from local storage or memory to Cloudinary.
   /// Returns the secure URL of the uploaded image if successful, otherwise null.
   Future<String?> uploadReceipt(XFile file) async {
-    final cloudName = dotenv.env['CLOUDINARY_CLOUD_NAME'] ?? 'dvpgd8jss';
-    final uploadPreset = dotenv.env['CLOUDINARY_UPLOAD_PRESET'] ?? 'powernet_receipts';
+    final cloudName = dotenv.env['CLOUDINARY_CLOUD_NAME'];
+    final uploadPreset = dotenv.env['CLOUDINARY_UPLOAD_PRESET'];
+
+    if (cloudName == null ||
+        cloudName.trim().isEmpty ||
+        uploadPreset == null ||
+        uploadPreset.trim().isEmpty) {
+      debugPrint('Cloudinary upload skipped: missing upload configuration.');
+      return null;
+    }
 
     final uri = Uri.parse('https://api.cloudinary.com/v1_1/$cloudName/image/upload');
     
