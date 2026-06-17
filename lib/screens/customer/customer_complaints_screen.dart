@@ -508,9 +508,7 @@ class _ComplaintCard extends StatelessWidget {
               _buildMiniCell(
                 pn,
                 'Technician',
-                complaint.technician == null
-                    ? 'Not Assigned'
-                    : complaint.technicianName,
+                complaint.assigneeLabel,
               ),
               _buildMiniCell(pn, 'Notes', complaint.resolutionNotes ?? '—'),
             ],

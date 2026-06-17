@@ -119,6 +119,26 @@ class Complaint {
 
   String get customerName => customer?['full_name'] as String? ?? '—';
 
+  bool get isAssigned =>
+      assignedTo != null ||
+      teamId != null ||
+      technician != null ||
+      team != null;
+
+  String get assigneeLabel {
+    final techName = technician?['full_name'] as String?;
+    if (techName != null && techName.trim().isNotEmpty) return techName;
+
+    final teamLabel = team?['name'] as String?;
+    if (teamLabel != null && teamLabel.trim().isNotEmpty) {
+      return '$teamLabel (Team)';
+    }
+
+    if (assignedTo != null || teamId != null) return 'Assigned';
+
+    return 'Not Assigned';
+  }
+
   String get technicianName {
     if (technician != null) {
       return technician?['full_name'] as String? ?? '—';

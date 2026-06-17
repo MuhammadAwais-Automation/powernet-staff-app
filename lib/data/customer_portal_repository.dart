@@ -12,13 +12,16 @@ const _customerBillSelect =
 
 const _customerComplaintSelect =
     'id, complaint_code, customer_id, issue, type, priority, status, '
-    'assigned_to, assigned_at, in_progress_at, opened_at, resolved_at, resolution_notes, hardware_used, '
-    'customer:customers(id, full_name, area_id, customer_code, address_value, phone)';
+    'assigned_to, assigned_at, in_progress_at, opened_at, resolved_at, resolution_notes, hardware_used, team_id, '
+    'customer:customers(id, full_name, area_id, customer_code, address_value, phone), '
+    'technician:staff(id, full_name), '
+    'team:teams(id, name)';
 
 const _customerComplaintLegacySelect =
     'id, complaint_code, customer_id, issue, type, priority, status, '
     'assigned_to, opened_at, resolved_at, '
-    'customer:customers(id, full_name, area_id, customer_code, address_value, phone)';
+    'customer:customers(id, full_name, area_id, customer_code, address_value, phone), '
+    'technician:staff(id, full_name)';
 
 class CustomerPortalRepository {
   Future<List<Bill>> fetchBills(String customerId) async {
@@ -52,7 +55,7 @@ class CustomerPortalRepository {
           .toList();
     } catch (e) {
       if (select == _customerComplaintLegacySelect ||
-          !_isMissingResolutionColumns(e)) {
+          !_isMissingComplaintColumns(e)) {
         rethrow;
       }
       return _fetchComplaints(customerId, _customerComplaintLegacySelect);
@@ -68,13 +71,15 @@ class CustomerPortalRepository {
     return Complaint.fromJson(data);
   }
 
-  bool _isMissingResolutionColumns(Object error) {
+  bool _isMissingComplaintColumns(Object error) {
     final text = error.toString();
     return text.contains('42703') ||
         text.contains('resolution_notes') ||
         text.contains('hardware_used') ||
         text.contains('assigned_at') ||
-        text.contains('in_progress_at');
+        text.contains('in_progress_at') ||
+        text.contains('team_id') ||
+        text.contains('teams');
   }
 
   Future<Complaint> createComplaint({
