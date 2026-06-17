@@ -177,7 +177,10 @@ class CustomerPortalProvider extends ChangeNotifier {
       await refreshActive();
       return true;
     } catch (e) {
-      _error = 'Payment verification submission failed. Please try again.';
+      final message = e.toString().replaceFirst('Exception: ', '');
+      _error = message.isNotEmpty
+          ? message
+          : 'Payment verification submission failed. Please try again.';
       debugPrint('submitPaymentVerification failed: $e');
       return false;
     } finally {
