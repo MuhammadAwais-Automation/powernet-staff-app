@@ -7,6 +7,37 @@ import 'package:powernet_staff/providers/bills_provider.dart';
 
 void main() {
   group('BillsProvider offline sync', () {
+    test('queues promise-to-pay visit with promised date', () async {
+      final repo = _FakeBillsRepository(failVisitWrite: true);
+      final provider = BillsProvider(
+        repo: repo,
+        onlineChanges: const Stream.empty(),
+        enableRealtime: false,
+      );
+
+      final result = await provider.submitVisit(
+        billId: _bill.id,
+        collectorId: 'staff-1',
+        visitType: VisitType.promiseToPay.value,
+        promisedDate: '2026-07-05',
+      );
+
+      expect(result, PaymentSubmissionResult.queued);
+      expect(repo.queuedVisits.single.promisedDate, '2026-07-05');
+    });
+
+    test('Bill model round-trips promised_date', () {
+      final bill = Bill.fromJson({
+        ..._bill.toJson(),
+        'payment_method': 'visit',
+        'payment_note': 'promise_to_pay',
+        'promised_date': '2026-07-05',
+      });
+
+      expect(bill.promisedDate, '2026-07-05');
+      expect(bill.isPromiseToPay, isTrue);
+    });
+
     test('queues visit logs when network write fails', () async {
       final repo = _FakeBillsRepository(failVisitWrite: true);
       final provider = BillsProvider(
@@ -338,6 +369,7 @@ class _FakeBillsRepository extends BillsRepository {
     required String billId,
     required String collectorId,
     required String visitType,
+    String? promisedDate,
   }) async {
     if (failVisitWrite) throw Exception('offline');
   }
@@ -349,6 +381,8 @@ class _FakeBillsRepository extends BillsRepository {
     required String collectorId,
     required String paymentMethod,
     String? paymentNote,
+    String? receiptUrl,
+    RemainderAction remainderAction = RemainderAction.leave,
   }) async {
     if (alreadyPaidBillIds.contains(billId)) {
       throw const BillAlreadyPaidException();
@@ -368,6 +402,7 @@ class _FakeBillsRepository extends BillsRepository {
     required String billId,
     required String collectorId,
     required String visitType,
+    String? promisedDate,
   }) async {
     queuedVisits.add(
       QueuedBillVisit(
@@ -375,6 +410,7 @@ class _FakeBillsRepository extends BillsRepository {
         billId: billId,
         collectorId: collectorId,
         visitType: visitType,
+        promisedDate: promisedDate,
         queuedAt: '2026-05-25T00:00:00Z',
       ),
     );

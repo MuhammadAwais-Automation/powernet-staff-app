@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import '../../providers/customer_auth_provider.dart';
 import '../../providers/customer_portal_provider.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/customer_tdc_banner.dart';
 
 class CustomerHomeScreen extends StatefulWidget {
   const CustomerHomeScreen({super.key});
@@ -43,7 +44,12 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
       backgroundColor: pn.background,
       body: SafeArea(
         child: RefreshIndicator(
-          onRefresh: portal.refreshActive,
+          onRefresh: () async {
+            await portal.refreshActive();
+            if (context.mounted) {
+              await context.read<CustomerAuthProvider>().refreshProfile();
+            }
+          },
           color: pn.accent,
           backgroundColor: pn.surface,
           child: ListView(
@@ -109,17 +115,19 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                     ],
                   ),
 
-                  // Live indicator sync chip
+                  // Live / TDC status chip
                   Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 8,
                       vertical: 4,
                     ),
                     decoration: BoxDecoration(
-                      color: pn.softGreen,
+                      color: customer.isTdc ? pn.softOrange : pn.softGreen,
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(
-                        color: pn.success.withValues(alpha: 0.2),
+                        color: customer.isTdc
+                            ? pn.warning.withValues(alpha: 0.25)
+                            : pn.success.withValues(alpha: 0.2),
                       ),
                     ),
                     child: Row(
@@ -130,21 +138,23 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                           height: 6,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            color: pn.cyan,
-                            boxShadow: [
-                              BoxShadow(
-                                color: pn.cyan,
-                                blurRadius: 4,
-                                spreadRadius: 1,
-                              ),
-                            ],
+                            color: customer.isTdc ? pn.warning : pn.cyan,
+                            boxShadow: customer.isTdc
+                                ? null
+                                : [
+                                    BoxShadow(
+                                      color: pn.cyan,
+                                      blurRadius: 4,
+                                      spreadRadius: 1,
+                                    ),
+                                  ],
                           ),
                         ),
                         const SizedBox(width: 5),
                         Text(
-                          'Live',
+                          customer.isTdc ? 'TDC' : 'Live',
                           style: TextStyle(
-                            color: pn.success,
+                            color: customer.isTdc ? pn.warning : pn.success,
                             fontSize: 10,
                             fontWeight: FontWeight.w800,
                           ),
@@ -154,7 +164,14 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                   ),
                 ],
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 16),
+
+              if (customer.isTdc) ...[
+                CustomerTdcBanner(
+                  onPayTap: () => context.push('/customer/bills'),
+                ),
+                const SizedBox(height: 16),
+              ],
 
               // Active Internet Package details glass card
               Container(
@@ -334,12 +351,38 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
 
               _buildActionCard(
                 pn,
+                'Payment Commitments',
+                'See visit promises, office calls, and your payment timeline.',
+                Icons.history_rounded,
+                pn.softCyan,
+                pn.warning,
+                () => context.push('/customer/commitments'),
+              ),
+              const SizedBox(height: 12),
+
+              _buildActionCard(
+                pn,
                 'Support Complaints',
-                'Report connection issues or browse active support tickets.',
+                customer.canCreateComplaints
+                    ? 'Report connection issues or browse active support tickets.'
+                    : 'View existing tickets only while disconnected.',
                 Icons.support_agent_rounded,
                 pn.softCyan,
                 pn.cyan,
-                () => context.push('/customer/complaints'),
+                customer.canCreateComplaints
+                    ? () => context.push('/customer/complaints')
+                    : () {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: const Text(
+                              'New complaints unavailable during TDC. Pay overdue bill first.',
+                            ),
+                            behavior: SnackBarBehavior.floating,
+                            backgroundColor: pn.warning,
+                          ),
+                        );
+                        context.push('/customer/complaints');
+                      },
               ),
               const SizedBox(height: 40),
             ],

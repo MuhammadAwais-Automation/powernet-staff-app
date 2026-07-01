@@ -46,6 +46,7 @@ class Bill {
   final String? paymentMethod;
   final String? paymentNote;
   final String? paymentSource;
+  final String? promisedDate;
   final String createdAt;
   final Map<String, dynamic>? customer;
 
@@ -62,6 +63,7 @@ class Bill {
     this.paymentMethod,
     this.paymentNote,
     this.paymentSource,
+    this.promisedDate,
     required this.createdAt,
     this.customer,
   });
@@ -79,6 +81,7 @@ class Bill {
     paymentMethod: j['payment_method'] as String?,
     paymentNote: j['payment_note'] as String?,
     paymentSource: j['payment_source'] as String?,
+    promisedDate: j['promised_date'] as String?,
     createdAt: j['created_at'] as String,
     customer: j['customer'] as Map<String, dynamic>?,
   );
@@ -96,6 +99,7 @@ class Bill {
     'payment_method': paymentMethod,
     'payment_note': paymentNote,
     'payment_source': paymentSource,
+    'promised_date': promisedDate,
     'created_at': createdAt,
     'customer': customer,
   };
@@ -108,6 +112,7 @@ class Bill {
     String? paymentMethod,
     String? paymentNote,
     String? paymentSource,
+    String? promisedDate,
   }) => Bill(
     id: id,
     customerId: customerId,
@@ -121,6 +126,7 @@ class Bill {
     paymentMethod: paymentMethod ?? this.paymentMethod,
     paymentNote: paymentNote ?? this.paymentNote,
     paymentSource: paymentSource ?? this.paymentSource,
+    promisedDate: promisedDate ?? this.promisedDate,
     createdAt: createdAt,
     customer: customer,
   );
@@ -154,6 +160,7 @@ class Bill {
 
   bool get hasAddress => customerAddress.isNotEmpty;
   String? get customerAreaId => customer?['area_id'] as String?;
+  bool get isPromiseToPay => paymentNote == VisitType.promiseToPay.value;
 }
 
 class CustomerBillLedger {

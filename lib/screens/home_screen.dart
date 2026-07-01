@@ -6,6 +6,7 @@ import '../providers/bills_provider.dart';
 import '../providers/complaint_queue_provider.dart';
 import '../providers/customers_provider.dart';
 import '../theme/app_theme.dart';
+import '../services/push_notification_service.dart';
 import '../widgets/pn_kpi_card.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -16,22 +17,54 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  final _pushService = PushNotificationService();
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) => _loadData());
   }
 
+  @override
+  void dispose() {
+    super.dispose();
+  }
+
   void _loadData() {
     final auth = context.read<AuthProvider>();
     final staff = auth.currentStaff;
     if (staff == null) return;
+    _pushService.initializeForStaff(staffId: staff.id);
     switch (staff.normalizedRole) {
       case 'technician':
       case 'helper':
         context.read<ComplaintQueueProvider>().loadForTechnicianAndAreas(
           staff.id,
           staff.areaIds,
+        );
+        _pushService.listenForegroundAlerts(
+          onAlert: (title, body) {
+            if (!mounted) return;
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('$title — $body'),
+                behavior: SnackBarBehavior.floating,
+                duration: const Duration(seconds: 6),
+              ),
+            );
+          },
+        );
+        _pushService.subscribeComplaintAlerts(
+          onAlert: (title, body) {
+            if (!mounted) return;
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('$title — $body'),
+                behavior: SnackBarBehavior.floating,
+                duration: const Duration(seconds: 6),
+              ),
+            );
+          },
         );
         break;
       case 'recovery_agent':

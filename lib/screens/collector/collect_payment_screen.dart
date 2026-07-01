@@ -1,10 +1,15 @@
+import 'dart:io' show File;
+
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import '../../data/bills_repository.dart';
 import '../../models/bill.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/bills_provider.dart';
+import '../../services/cloudinary_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/empty_state.dart';
 
@@ -28,6 +33,11 @@ class _CollectPaymentScreenState extends State<CollectPaymentScreen> {
   String? _error;
   String _method = 'cash';
   VisitType _visitType = VisitType.paymentCollected;
+  DateTime? _promisedDate;
+  XFile? _proofImage;
+  RemainderAction _remainderAction = RemainderAction.leave;
+  final _cloudinaryService = CloudinaryService();
+  final _imagePicker = ImagePicker();
 
   static const _methods = [
     ('cash', 'Cash'),
@@ -104,6 +114,15 @@ class _CollectPaymentScreenState extends State<CollectPaymentScreen> {
     }
   }
 
+  DateTime _defaultPromisedDate() {
+    final now = DateTime.now();
+    return DateTime(now.year, now.month, now.day).add(const Duration(days: 3));
+  }
+
+  String _formatDateOnly(DateTime date) {
+    return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+  }
+
   void _onVisitTypeChanged(VisitType? type) {
     if (type == null) return;
     setState(() {
@@ -111,7 +130,13 @@ class _CollectPaymentScreenState extends State<CollectPaymentScreen> {
       if (type.isVisitOnly) {
         _amountCtrl.text = '0';
         if (_noteCtrl.text.isEmpty) _noteCtrl.text = type.label;
+        if (type == VisitType.promiseToPay) {
+          _promisedDate ??= _defaultPromisedDate();
+        } else {
+          _promisedDate = null;
+        }
       } else {
+        _promisedDate = null;
         final ledger = _ledger;
         if (ledger != null) {
           _amountCtrl.text = ledger.totalRemaining.toStringAsFixed(0);
@@ -122,8 +147,51 @@ class _CollectPaymentScreenState extends State<CollectPaymentScreen> {
     });
   }
 
+  Future<void> _pickPromisedDate() async {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _promisedDate ?? _defaultPromisedDate(),
+      firstDate: today,
+      lastDate: today.add(const Duration(days: 30)),
+      helpText: 'Select promised pay date',
+    );
+    if (picked != null && mounted) {
+      setState(() => _promisedDate = DateTime(picked.year, picked.month, picked.day));
+    }
+  }
+
+  Future<void> _pickProofImage(ImageSource source) async {
+    try {
+      final picked = await _imagePicker.pickImage(
+        source: source,
+        maxWidth: 1200,
+        maxHeight: 1200,
+        imageQuality: 85,
+      );
+      if (picked != null && mounted) {
+        setState(() => _proofImage = picked);
+      }
+    } on Exception catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not pick image: $e'), backgroundColor: danger),
+      );
+    }
+  }
+
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
+    if (_visitType == VisitType.promiseToPay && _promisedDate == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Select the promised payment date'),
+          backgroundColor: danger,
+        ),
+      );
+      return;
+    }
     final auth = context.read<AuthProvider>();
     final bills = context.read<BillsProvider>();
     final staff = auth.currentStaff;
@@ -139,16 +207,38 @@ class _CollectPaymentScreenState extends State<CollectPaymentScreen> {
         billId: ledger.currentBill.id,
         collectorId: staff.id,
         visitType: _visitType.value,
+        promisedDate: _visitType == VisitType.promiseToPay && _promisedDate != null
+            ? _formatDateOnly(_promisedDate!)
+            : null,
       );
     } else {
       paidAmount = double.tryParse(_amountCtrl.text.trim()) ?? 0;
       final rawNote = _noteCtrl.text.trim();
+      String? receiptUrl;
+      if (_proofImage != null) {
+        receiptUrl = await _cloudinaryService.uploadReceipt(_proofImage!);
+        if (receiptUrl == null) {
+          if (mounted) {
+            setState(() => _submitting = false);
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Proof upload failed. Try again or continue without proof.'),
+                backgroundColor: danger,
+              ),
+            );
+          }
+          return;
+        }
+      }
+      final isPartial = paidAmount < ledger.totalRemaining;
       result = await bills.submitLedgerPayment(
         ledger: ledger,
         amount: paidAmount,
         collectorId: staff.id,
         paymentMethod: _method,
         paymentNote: rawNote.isEmpty ? null : rawNote,
+        receiptUrl: receiptUrl,
+        remainderAction: isPartial ? _remainderAction : RemainderAction.leave,
       );
     }
     if (mounted) setState(() => _submitting = false);
@@ -156,6 +246,8 @@ class _CollectPaymentScreenState extends State<CollectPaymentScreen> {
 
     final fullPayment =
         paidAmount != null && paidAmount >= ledger.totalRemaining;
+    final isPartialPayment =
+        paidAmount != null && paidAmount < ledger.totalRemaining;
     switch (result) {
       case PaymentSubmissionResult.synced:
         ScaffoldMessenger.of(context).showSnackBar(
@@ -165,7 +257,10 @@ class _CollectPaymentScreenState extends State<CollectPaymentScreen> {
                   ? '${_visitType.label} logged'
                   : fullPayment
                   ? 'Full payment recorded'
-                  : 'Partial payment recorded',
+                  : isPartialPayment &&
+                        _remainderAction == RemainderAction.carryForward
+                  ? 'Less paid recorded — remainder added to next month bill'
+                  : 'Less paid recorded — remainder stays on current bill',
             ),
             backgroundColor: success,
           ),
@@ -253,6 +348,14 @@ class _CollectPaymentScreenState extends State<CollectPaymentScreen> {
               methods: _methods,
               submitting: _submitting,
               visitType: _visitType,
+              promisedDate: _promisedDate,
+              proofImage: _proofImage,
+              remainderAction: _remainderAction,
+              onPickPromisedDate: _pickPromisedDate,
+              onPickProof: _pickProofImage,
+              onClearProof: () => setState(() => _proofImage = null),
+              onRemainderActionChanged: (action) =>
+                  setState(() => _remainderAction = action),
               onVisitTypeChanged: _onVisitTypeChanged,
               onMethodChanged: (value) {
                 if (value != null) setState(() => _method = value);
@@ -263,7 +366,7 @@ class _CollectPaymentScreenState extends State<CollectPaymentScreen> {
   }
 }
 
-class _PaymentForm extends StatelessWidget {
+class _PaymentForm extends StatefulWidget {
   final CustomerBillLedger ledger;
   final GlobalKey<FormState> formKey;
   final TextEditingController amountCtrl;
@@ -272,6 +375,13 @@ class _PaymentForm extends StatelessWidget {
   final List<(String, String)> methods;
   final bool submitting;
   final VisitType visitType;
+  final DateTime? promisedDate;
+  final XFile? proofImage;
+  final RemainderAction remainderAction;
+  final VoidCallback onPickPromisedDate;
+  final void Function(ImageSource source) onPickProof;
+  final VoidCallback onClearProof;
+  final void Function(RemainderAction action) onRemainderActionChanged;
   final void Function(VisitType?) onVisitTypeChanged;
   final void Function(String?) onMethodChanged;
   final VoidCallback onSubmit;
@@ -285,37 +395,112 @@ class _PaymentForm extends StatelessWidget {
     required this.methods,
     required this.submitting,
     required this.visitType,
+    required this.promisedDate,
+    required this.proofImage,
+    required this.remainderAction,
+    required this.onPickPromisedDate,
+    required this.onPickProof,
+    required this.onClearProof,
+    required this.onRemainderActionChanged,
     required this.onVisitTypeChanged,
     required this.onMethodChanged,
     required this.onSubmit,
   });
 
   @override
+  State<_PaymentForm> createState() => _PaymentFormState();
+}
+
+class _PaymentFormState extends State<_PaymentForm> {
+  @override
+  void initState() {
+    super.initState();
+    widget.amountCtrl.addListener(_onAmountChanged);
+  }
+
+  @override
+  void dispose() {
+    widget.amountCtrl.removeListener(_onAmountChanged);
+    super.dispose();
+  }
+
+  void _onAmountChanged() => setState(() {});
+
+  double get _enteredAmount =>
+      double.tryParse(widget.amountCtrl.text.trim()) ?? 0;
+
+  bool get _isLessPaid =>
+      !widget.visitType.isVisitOnly &&
+      _enteredAmount > 0 &&
+      _enteredAmount < widget.ledger.totalRemaining;
+
+  double get _remainderAmount =>
+      (widget.ledger.totalRemaining - _enteredAmount).clamp(0, double.infinity);
+
+  Future<void> _showProofSourceDialog() async {
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_camera_outlined),
+              title: const Text('Take photo'),
+              onTap: () => Navigator.pop(ctx, ImageSource.camera),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library_outlined),
+              title: const Text('Choose from gallery'),
+              onTap: () => Navigator.pop(ctx, ImageSource.gallery),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (source != null) widget.onPickProof(source);
+  }
+
+  @override
   Widget build(BuildContext context) {
     final pn = Theme.of(context).extension<PnColors>()!;
-    final isVisitOnly = visitType.isVisitOnly;
+    final isVisitOnly = widget.visitType.isVisitOnly;
     return Form(
-      key: formKey,
+      key: widget.formKey,
       child: ListView(
         padding: const EdgeInsets.fromLTRB(20, 10, 20, 32),
         children: [
-          _BillHeader(ledger: ledger),
+          _BillHeader(ledger: widget.ledger),
           const SizedBox(height: 20),
           _FieldLabel(label: 'Visit type', pn: pn),
           const SizedBox(height: 8),
           _VisitTypeSelector(
-            selected: visitType,
-            onChanged: onVisitTypeChanged,
+            selected: widget.visitType,
+            onChanged: widget.onVisitTypeChanged,
             pn: pn,
           ),
+          if (widget.visitType == VisitType.promiseToPay) ...[
+            const SizedBox(height: 20),
+            _FieldLabel(label: 'Promised pay date', pn: pn),
+            const SizedBox(height: 8),
+            _PromisedDateField(
+              promisedDate: widget.promisedDate,
+              onPick: widget.onPickPromisedDate,
+              pn: pn,
+            ),
+          ],
           const SizedBox(height: 20),
           if (!isVisitOnly) ...[
-            _QuickAmountRow(ledger: ledger, amountCtrl: amountCtrl, pn: pn),
+            _QuickAmountRow(
+              ledger: widget.ledger,
+              amountCtrl: widget.amountCtrl,
+              pn: pn,
+            ),
             const SizedBox(height: 18),
             _FieldLabel(label: 'Collected amount', pn: pn),
             const SizedBox(height: 8),
             TextFormField(
-              controller: amountCtrl,
+              controller: widget.amountCtrl,
               keyboardType: const TextInputType.numberWithOptions(
                 decimal: true,
               ),
@@ -338,18 +523,27 @@ class _PaymentForm extends StatelessWidget {
                 if (isVisitOnly) return null;
                 final amount = double.tryParse(value ?? '');
                 if (amount == null || amount <= 0) return 'Enter valid amount';
-                if (amount > ledger.totalRemaining) {
-                  return 'Amount cannot exceed Rs. ${ledger.totalRemaining.toStringAsFixed(0)}';
+                if (amount > widget.ledger.totalRemaining) {
+                  return 'Amount cannot exceed Rs. ${widget.ledger.totalRemaining.toStringAsFixed(0)}';
                 }
                 return null;
               },
             ),
+            if (_isLessPaid) ...[
+              const SizedBox(height: 16),
+              _LessPaidRemainderCard(
+                remainderAmount: _remainderAmount,
+                selectedAction: widget.remainderAction,
+                onActionChanged: widget.onRemainderActionChanged,
+                pn: pn,
+              ),
+            ],
             const SizedBox(height: 20),
             _FieldLabel(label: 'Payment method', pn: pn),
             const SizedBox(height: 8),
             DropdownButtonFormField<String>(
-              initialValue: method,
-              items: methods
+              initialValue: widget.method,
+              items: widget.methods
                   .map(
                     (m) => DropdownMenuItem(
                       value: m.$1,
@@ -363,7 +557,7 @@ class _PaymentForm extends StatelessWidget {
                     ),
                   )
                   .toList(),
-              onChanged: onMethodChanged,
+              onChanged: widget.onMethodChanged,
               dropdownColor: pn.surface,
               decoration: InputDecoration(
                 filled: true,
@@ -375,11 +569,26 @@ class _PaymentForm extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 20),
+            _FieldLabel(label: 'Payment proof (optional)', pn: pn),
+            const SizedBox(height: 8),
+            _ProofPicker(
+              proofImage: widget.proofImage,
+              onPick: () {
+                if (kIsWeb) {
+                  widget.onPickProof(ImageSource.gallery);
+                } else {
+                  _showProofSourceDialog();
+                }
+              },
+              onClear: widget.onClearProof,
+              pn: pn,
+            ),
           ],
+          const SizedBox(height: 20),
           _FieldLabel(label: 'Recovery / Visit note', pn: pn),
           const SizedBox(height: 8),
           TextFormField(
-            controller: noteCtrl,
+            controller: widget.noteCtrl,
             maxLines: 3,
             decoration: InputDecoration(
               hintText: isVisitOnly
@@ -400,7 +609,7 @@ class _PaymentForm extends StatelessWidget {
           SizedBox(
             height: 54,
             child: ElevatedButton.icon(
-              onPressed: submitting ? null : onSubmit,
+              onPressed: widget.submitting ? null : widget.onSubmit,
               style: ElevatedButton.styleFrom(
                 backgroundColor: pn.accent,
                 foregroundColor: Colors.white,
@@ -409,7 +618,7 @@ class _PaymentForm extends StatelessWidget {
                 ),
                 elevation: 0,
               ),
-              icon: submitting
+              icon: widget.submitting
                   ? const SizedBox(
                       width: 18,
                       height: 18,
@@ -425,10 +634,12 @@ class _PaymentForm extends StatelessWidget {
                       size: 20,
                     ),
               label: Text(
-                submitting
+                widget.submitting
                     ? 'Saving...'
                     : isVisitOnly
                     ? 'Log Visit Only'
+                    : _isLessPaid
+                    ? 'Record Less Paid'
                     : 'Collect Payment',
                 style: const TextStyle(
                   fontWeight: FontWeight.w900,
@@ -439,6 +650,304 @@ class _PaymentForm extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _LessPaidRemainderCard extends StatelessWidget {
+  final double remainderAmount;
+  final RemainderAction selectedAction;
+  final void Function(RemainderAction action) onActionChanged;
+  final PnColors pn;
+
+  const _LessPaidRemainderCard({
+    required this.remainderAmount,
+    required this.selectedAction,
+    required this.onActionChanged,
+    required this.pn,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: pn.warning.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: pn.warning.withValues(alpha: 0.35)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.info_outline, size: 18, color: pn.warning),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Rs. ${remainderAmount.toStringAsFixed(0)} will remain after this payment',
+                  style: TextStyle(
+                    color: pn.text,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 13,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'What should happen to the remaining amount?',
+            style: TextStyle(
+              color: pn.textMuted,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 10),
+          _RemainderOption(
+            title: 'Leave outstanding',
+            subtitle: 'Keep remainder on current bill(s)',
+            icon: Icons.schedule_outlined,
+            color: pn.warning,
+            selected: selectedAction == RemainderAction.leave,
+            onTap: () => onActionChanged(RemainderAction.leave),
+            pn: pn,
+          ),
+          const SizedBox(height: 8),
+          _RemainderOption(
+            title: 'Add to next month bill',
+            subtitle: 'Carry remainder forward to next billing cycle',
+            icon: Icons.forward_outlined,
+            color: pn.cyan,
+            selected: selectedAction == RemainderAction.carryForward,
+            onTap: () => onActionChanged(RemainderAction.carryForward),
+            pn: pn,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _RemainderOption extends StatelessWidget {
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final Color color;
+  final bool selected;
+  final VoidCallback onTap;
+  final PnColors pn;
+
+  const _RemainderOption({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.color,
+    required this.selected,
+    required this.onTap,
+    required this.pn,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        decoration: BoxDecoration(
+          color: selected ? color.withValues(alpha: 0.1) : pn.surface,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: selected ? color : pn.border,
+            width: selected ? 2 : 1.2,
+          ),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, size: 20, color: selected ? color : pn.textMuted),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      color: selected ? color : pn.text,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 13,
+                    ),
+                  ),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      color: pn.textMuted,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (selected)
+              Icon(Icons.check_circle_rounded, size: 18, color: color),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ProofPicker extends StatelessWidget {
+  final XFile? proofImage;
+  final VoidCallback onPick;
+  final VoidCallback onClear;
+  final PnColors pn;
+
+  const _ProofPicker({
+    required this.proofImage,
+    required this.onPick,
+    required this.onClear,
+    required this.pn,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (proofImage != null) {
+      return Stack(
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(16),
+            child: Container(
+              height: 140,
+              width: double.infinity,
+              decoration: BoxDecoration(
+                border: Border.all(color: pn.border),
+                image: DecorationImage(
+                  image: kIsWeb
+                      ? NetworkImage(proofImage!.path) as ImageProvider
+                      : FileImage(File(proofImage!.path)),
+                  fit: BoxFit.cover,
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            top: 8,
+            right: 8,
+            child: CircleAvatar(
+              backgroundColor: Colors.black.withValues(alpha: 0.6),
+              radius: 18,
+              child: IconButton(
+                icon: const Icon(Icons.delete, size: 16, color: Colors.white),
+                onPressed: onClear,
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+
+    return InkWell(
+      onTap: onPick,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        height: 110,
+        decoration: BoxDecoration(
+          color: pn.cyan.withValues(alpha: 0.06),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: pn.cyan.withValues(alpha: 0.35)),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.receipt_long_outlined, size: 32, color: pn.cyan),
+            const SizedBox(height: 8),
+            Text(
+              'Attach payment proof (Camera / Gallery)',
+              style: TextStyle(
+                color: pn.textMuted,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PromisedDateField extends StatelessWidget {
+  final DateTime? promisedDate;
+  final VoidCallback onPick;
+  final PnColors pn;
+
+  const _PromisedDateField({
+    required this.promisedDate,
+    required this.onPick,
+    required this.pn,
+  });
+
+  String _formatDisplay(DateTime date) {
+    const months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    ];
+    return '${date.day} ${months[date.month - 1]} ${date.year}';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onPick,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          decoration: BoxDecoration(
+            color: pn.cyan.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: pn.cyan.withValues(alpha: 0.35), width: 1.5),
+          ),
+          child: Row(
+            children: [
+              Icon(Icons.calendar_month_rounded, color: pn.cyan, size: 22),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      promisedDate == null
+                          ? 'Tap to select date'
+                          : _formatDisplay(promisedDate!),
+                      style: TextStyle(
+                        color: promisedDate == null ? pn.textMuted : pn.text,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 15,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Customer committed to pay on this date',
+                      style: TextStyle(
+                        color: pn.textMuted,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(Icons.chevron_right_rounded, color: pn.textMuted),
+            ],
+          ),
+        ),
       ),
     );
   }

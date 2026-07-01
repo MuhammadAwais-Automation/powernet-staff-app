@@ -15,6 +15,8 @@ import '../screens/technician/complaint_list_screen.dart';
 import '../screens/technician/complaint_detail_screen.dart';
 import '../screens/collector/bill_list_screen.dart';
 import '../screens/collector/collect_payment_screen.dart';
+import '../screens/collector/follow_up_call_screen.dart';
+import '../screens/customer/customer_commitments_screen.dart';
 import '../screens/field_agent/customer_list_screen.dart';
 import '../screens/field_agent/customer_detail_screen.dart';
 import '../screens/cable_operator/co_customer_list_screen.dart';
@@ -85,6 +87,10 @@ GoRouter buildRouter(AuthProvider auth, CustomerAuthProvider customerAuth) {
         path: '/customer/profile',
         builder: (context, state) => const CustomerProfileScreen(),
       ),
+      GoRoute(
+        path: '/customer/commitments',
+        builder: (context, state) => const CustomerCommitmentsScreen(),
+      ),
 
       // Technician routes
       GoRoute(
@@ -134,6 +140,11 @@ GoRouter buildRouter(AuthProvider auth, CustomerAuthProvider customerAuth) {
             path: ':id/collect',
             builder: (context, state) =>
                 CollectPaymentScreen(billId: state.pathParameters['id']!),
+          ),
+          GoRoute(
+            path: ':id/follow-up',
+            builder: (context, state) =>
+                FollowUpCallScreen(billId: state.pathParameters['id']!),
           ),
         ],
       ),

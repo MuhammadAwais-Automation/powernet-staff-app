@@ -105,4 +105,12 @@ class CustomerAccount {
   };
 
   String get displayHouseId => houseId ?? addressValue ?? customerCode;
+
+  bool get isTdc => status == 'tdc';
+
+  bool get isActive => status == 'active';
+
+  bool get canAccessPortal => isActive || isTdc;
+
+  bool get canCreateComplaints => isActive;
 }

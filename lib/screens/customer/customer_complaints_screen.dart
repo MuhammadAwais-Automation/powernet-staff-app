@@ -3,9 +3,11 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
 import '../../models/complaint.dart';
+import '../../models/complaint_types.dart';
 import '../../providers/customer_auth_provider.dart';
 import '../../providers/customer_portal_provider.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/customer_tdc_banner.dart';
 
 class CustomerComplaintsScreen extends StatefulWidget {
   const CustomerComplaintsScreen({super.key});
@@ -28,6 +30,18 @@ class _CustomerComplaintsScreenState extends State<CustomerComplaintsScreen> {
   }
 
   void _openCreateSheet() {
+    final customer = context.read<CustomerAuthProvider>().currentCustomer;
+    if (customer != null && !customer.canCreateComplaints) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'New complaints unavailable during TDC. Pay your overdue bill first.',
+          ),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -38,8 +52,10 @@ class _CustomerComplaintsScreenState extends State<CustomerComplaintsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final customer = context.watch<CustomerAuthProvider>().currentCustomer;
     final provider = context.watch<CustomerPortalProvider>();
     final pn = Theme.of(context).extension<PnColors>()!;
+    final canCreate = customer?.canCreateComplaints ?? false;
 
     // Count open complaints
     final openCount = provider.complaints
@@ -51,19 +67,22 @@ class _CustomerComplaintsScreenState extends State<CustomerComplaintsScreen> {
       appBar: AppBar(
         title: const Text('My Complaints'),
         actions: [
-          IconButton(
-            icon: Icon(Icons.add_rounded, color: pn.text),
-            onPressed: _openCreateSheet,
-          ),
+          if (canCreate)
+            IconButton(
+              icon: Icon(Icons.add_rounded, color: pn.text),
+              onPressed: _openCreateSheet,
+            ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _openCreateSheet,
-        backgroundColor: pn.accent,
-        foregroundColor: pn.primary,
-        icon: const Icon(Icons.add_comment_rounded),
-        label: const Text('New Complaint'),
-      ),
+      floatingActionButton: canCreate
+          ? FloatingActionButton.extended(
+              onPressed: _openCreateSheet,
+              backgroundColor: pn.accent,
+              foregroundColor: pn.primary,
+              icon: const Icon(Icons.add_comment_rounded),
+              label: const Text('New Complaint'),
+            )
+          : null,
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: provider.refreshActive,
@@ -72,6 +91,13 @@ class _CustomerComplaintsScreenState extends State<CustomerComplaintsScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              if (customer?.isTdc ?? false) ...[
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+                  child: CustomerTdcBanner(),
+                ),
+                const SizedBox(height: 8),
+              ],
               // Count Subheader Details
               Padding(
                 padding: const EdgeInsets.symmetric(
@@ -107,7 +133,7 @@ class _CustomerComplaintsScreenState extends State<CustomerComplaintsScreen> {
                 child: provider.loading && provider.complaints.isEmpty
                     ? const Center(child: CircularProgressIndicator())
                     : provider.complaints.isEmpty
-                    ? const _EmptyComplaints()
+                    ? _EmptyComplaints(isTdc: customer?.isTdc ?? false)
                     : ListView.separated(
                         physics: const BouncingScrollPhysics(),
                         padding: const EdgeInsets.symmetric(
@@ -139,7 +165,7 @@ class _CreateComplaintSheet extends StatefulWidget {
 
 class _CreateComplaintSheetState extends State<_CreateComplaintSheet> {
   final _issue = TextEditingController();
-  String _type = 'connectivity';
+  String _type = 'fiber_issue';
   bool _saving = false;
   String? _error;
 
@@ -151,7 +177,15 @@ class _CreateComplaintSheetState extends State<_CreateComplaintSheet> {
 
   Future<void> _submit() async {
     final customer = context.read<CustomerAuthProvider>().currentCustomer;
-    if (customer == null || _issue.text.trim().isEmpty) return;
+    if (customer == null) return;
+    if (_type == 'other' && _issue.text.trim().length < 10) {
+      setState(() => _error = 'Please describe your other concern (min 10 characters).');
+      return;
+    }
+    if (_type != 'other' && _issue.text.trim().isEmpty) {
+      setState(() => _error = 'Please add a short issue description.');
+      return;
+    }
     setState(() {
       _saving = true;
       _error = null;
@@ -273,25 +307,16 @@ class _CreateComplaintSheetState extends State<_CreateComplaintSheet> {
           const SizedBox(height: 6),
           DropdownButtonFormField<String>(
             initialValue: _type,
-            items: const [
-              DropdownMenuItem(
-                value: 'connectivity',
-                child: Text('Connectivity'),
-              ),
-              DropdownMenuItem(value: 'speed', child: Text('Speed Limit')),
-              DropdownMenuItem(
-                value: 'hardware',
-                child: Text('Hardware / Fiber'),
-              ),
-              DropdownMenuItem(value: 'billing', child: Text('Billing Issues')),
-              DropdownMenuItem(
-                value: 'upgrade',
-                child: Text('Package Upgrade'),
-              ),
-              DropdownMenuItem(value: 'other', child: Text('Other Concerns')),
-            ],
+            items: complaintTypeOptions
+                .map(
+                  (o) => DropdownMenuItem(
+                    value: o.value,
+                    child: Text(o.label),
+                  ),
+                )
+                .toList(),
             onChanged: (value) =>
-                setState(() => _type = value ?? 'connectivity'),
+                setState(() => _type = value ?? 'fiber_issue'),
           ),
           const SizedBox(height: 18),
 
@@ -309,9 +334,10 @@ class _CreateComplaintSheetState extends State<_CreateComplaintSheet> {
             controller: _issue,
             maxLines: 4,
             style: TextStyle(color: pn.text, fontSize: 14),
-            decoration: const InputDecoration(
-              hintText:
-                  'Describe the connectivity or hardware issue clearly so technicians can understand...',
+            decoration: InputDecoration(
+              hintText: _type == 'other'
+                  ? 'Describe your concern in detail (required for Other Concern)...'
+                  : 'Add details to help our team understand the issue...',
             ),
             onChanged: (_) => setState(() {}),
           ),
@@ -349,7 +375,8 @@ class _CreateComplaintSheetState extends State<_CreateComplaintSheet> {
 }
 
 class _EmptyComplaints extends StatelessWidget {
-  const _EmptyComplaints();
+  final bool isTdc;
+  const _EmptyComplaints({this.isTdc = false});
 
   @override
   Widget build(BuildContext context) {
@@ -361,6 +388,7 @@ class _EmptyComplaints extends StatelessWidget {
         Container(
           width: 72,
           height: 72,
+          margin: const EdgeInsets.symmetric(horizontal: 20),
           decoration: BoxDecoration(
             color: pn.softCyan,
             shape: BoxShape.circle,
@@ -385,9 +413,15 @@ class _EmptyComplaints extends StatelessWidget {
         ),
         const SizedBox(height: 4),
         Center(
-          child: Text(
-            'If you have connection issues, file a new support ticket.',
-            style: TextStyle(color: pn.textMuted, fontSize: 12),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 32),
+            child: Text(
+              isTdc
+                  ? 'New complaints are paused while your connection is temporarily disconnected.'
+                  : 'If you have connection issues, file a new support ticket.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: pn.textMuted, fontSize: 12),
+            ),
           ),
         ),
       ],
@@ -423,8 +457,7 @@ class _ComplaintCard extends StatelessWidget {
 
     // Resolve Type Capitalization
     final typeName =
-        complaint.type.substring(0, 1).toUpperCase() +
-        complaint.type.substring(1);
+        formatComplaintTypeLabel(complaint.type);
 
     // Format Date from opened_at
     String openedDate = 'Recent';

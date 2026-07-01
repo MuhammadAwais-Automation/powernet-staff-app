@@ -134,11 +134,13 @@ class CustomerAuthProvider extends ChangeNotifier {
       final updated = await _service.fetchCustomerByAuthId(
         customer!.authUserId!,
       );
-      if (updated != null) {
-        _currentCustomer = updated;
-        await _persist(updated);
-        notifyListeners();
+      if (updated == null) {
+        await logout();
+        return;
       }
+      _currentCustomer = updated;
+      await _persist(updated);
+      notifyListeners();
     } catch (e) {
       debugPrint('CustomerAuthProvider: refreshProfile failed: $e');
     }

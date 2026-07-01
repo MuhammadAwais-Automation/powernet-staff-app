@@ -9,12 +9,12 @@ import '../config/supabase_config.dart';
 
 const billBaseSelect =
     'id, customer_id, amount, paid_amount, month, status, collected_by, '
-    'paid_at, receipt_no, payment_method, payment_note, payment_source, created_at, '
+    'paid_at, receipt_no, payment_method, payment_note, payment_source, promised_date, created_at, '
     'customer:customers(id, customer_code, full_name, address_type, address_value, area_id)';
 
 const billAreaSelect =
     'id, customer_id, amount, paid_amount, month, status, collected_by, '
-    'paid_at, receipt_no, payment_method, payment_note, payment_source, created_at, '
+    'paid_at, receipt_no, payment_method, payment_note, payment_source, promised_date, created_at, '
     'customer:customers!inner(id, customer_code, full_name, address_type, address_value, area_id)';
 
 const _queuedPaymentsKey = 'queued_bill_payments';
@@ -37,6 +37,22 @@ class BillPaymentConflictException implements Exception {
   String toString() => 'Bill balance changed. Collection list refreshed.';
 }
 
+enum RemainderAction {
+  leave,
+  carryForward;
+
+  String get value => switch (this) {
+    RemainderAction.leave => 'leave',
+    RemainderAction.carryForward => 'carry_forward',
+  };
+
+  static RemainderAction fromValue(String? value) {
+    return value == 'carry_forward'
+        ? RemainderAction.carryForward
+        : RemainderAction.leave;
+  }
+}
+
 class QueuedBillPayment {
   final String id;
   final String billId;
@@ -44,6 +60,8 @@ class QueuedBillPayment {
   final String collectorId;
   final String paymentMethod;
   final String? paymentNote;
+  final String? receiptUrl;
+  final String remainderAction;
   final String queuedAt;
 
   const QueuedBillPayment({
@@ -53,6 +71,8 @@ class QueuedBillPayment {
     required this.collectorId,
     required this.paymentMethod,
     this.paymentNote,
+    this.receiptUrl,
+    this.remainderAction = 'leave',
     required this.queuedAt,
   });
 
@@ -64,6 +84,8 @@ class QueuedBillPayment {
         collectorId: json['collector_id'] as String,
         paymentMethod: json['payment_method'] as String,
         paymentNote: json['payment_note'] as String?,
+        receiptUrl: json['receipt_url'] as String?,
+        remainderAction: json['remainder_action'] as String? ?? 'leave',
         queuedAt: json['queued_at'] as String,
       );
 
@@ -74,6 +96,8 @@ class QueuedBillPayment {
     'collector_id': collectorId,
     'payment_method': paymentMethod,
     'payment_note': paymentNote,
+    'receipt_url': receiptUrl,
+    'remainder_action': remainderAction,
     'queued_at': queuedAt,
   };
 }
@@ -83,6 +107,7 @@ class QueuedBillVisit {
   final String billId;
   final String collectorId;
   final String visitType;
+  final String? promisedDate;
   final String queuedAt;
 
   const QueuedBillVisit({
@@ -90,6 +115,7 @@ class QueuedBillVisit {
     required this.billId,
     required this.collectorId,
     required this.visitType,
+    this.promisedDate,
     required this.queuedAt,
   });
 
@@ -99,6 +125,7 @@ class QueuedBillVisit {
         billId: json['bill_id'] as String,
         collectorId: json['collector_id'] as String,
         visitType: json['visit_type'] as String,
+        promisedDate: json['promised_date'] as String?,
         queuedAt: json['queued_at'] as String,
       );
 
@@ -107,6 +134,7 @@ class QueuedBillVisit {
     'bill_id': billId,
     'collector_id': collectorId,
     'visit_type': visitType,
+    'promised_date': promisedDate,
     'queued_at': queuedAt,
   };
 }
@@ -261,6 +289,7 @@ class BillsRepository {
     required String billId,
     required String collectorId,
     required String visitType,
+    String? promisedDate,
   }) async {
     await supabase
         .from('bills')
@@ -269,6 +298,9 @@ class BillsRepository {
           'payment_note': visitType,
           'collected_by': collectorId,
           'paid_at': DateTime.now().toUtc().toIso8601String(),
+          'promised_date': visitType == VisitType.promiseToPay.value
+              ? promisedDate
+              : null,
         })
         .eq('id', billId);
   }
@@ -279,6 +311,8 @@ class BillsRepository {
     required String collectorId,
     required String paymentMethod,
     String? paymentNote,
+    String? receiptUrl,
+    RemainderAction remainderAction = RemainderAction.leave,
   }) async {
     final params = {
       'p_bill_id': billId,
@@ -287,6 +321,8 @@ class BillsRepository {
       'p_method': paymentMethod,
       'p_source': 'agent',
       'p_note': paymentNote,
+      'p_receipt_url': receiptUrl,
+      'p_remainder_action': remainderAction.value,
     };
     try {
       await supabase.rpc('record_bill_payment', params: params);
@@ -309,6 +345,8 @@ class BillsRepository {
             'p_collected_by': collectorId,
             'p_method': paymentMethod,
             'p_note': paymentNote,
+            'p_receipt_url': receiptUrl,
+            'p_remainder_action': remainderAction.value,
           },
         );
         return;
@@ -343,6 +381,8 @@ class BillsRepository {
     required String collectorId,
     required String paymentMethod,
     String? paymentNote,
+    String? receiptUrl,
+    RemainderAction remainderAction = RemainderAction.leave,
   }) async {
     final queued = await getQueuedPayments();
     final draft = QueuedBillPayment(
@@ -352,6 +392,8 @@ class BillsRepository {
       collectorId: collectorId,
       paymentMethod: paymentMethod,
       paymentNote: paymentNote,
+      receiptUrl: receiptUrl,
+      remainderAction: remainderAction.value,
       queuedAt: DateTime.now().toUtc().toIso8601String(),
     );
     await _saveQueuedPayments([...queued, draft]);
@@ -361,6 +403,7 @@ class BillsRepository {
     required String billId,
     required String collectorId,
     required String visitType,
+    String? promisedDate,
   }) async {
     final queued = await getQueuedVisits();
     final draft = QueuedBillVisit(
@@ -368,6 +411,9 @@ class BillsRepository {
       billId: billId,
       collectorId: collectorId,
       visitType: visitType,
+      promisedDate: visitType == VisitType.promiseToPay.value
+          ? promisedDate
+          : null,
       queuedAt: DateTime.now().toUtc().toIso8601String(),
     );
     await _saveQueuedVisits([...queued, draft]);
@@ -407,6 +453,8 @@ class BillsRepository {
           collectorId: payment.collectorId,
           paymentMethod: payment.paymentMethod,
           paymentNote: payment.paymentNote,
+          receiptUrl: payment.receiptUrl,
+          remainderAction: RemainderAction.fromValue(payment.remainderAction),
         ).timeout(const Duration(seconds: 4));
         synced++;
       } catch (e) {
@@ -445,6 +493,7 @@ class BillsRepository {
           billId: visit.billId,
           collectorId: visit.collectorId,
           visitType: visit.visitType,
+          promisedDate: visit.promisedDate,
         ).timeout(const Duration(seconds: 4));
         synced++;
       } catch (e) {

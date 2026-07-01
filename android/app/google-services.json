@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "919233009146",
+    "project_id": "first-demo-53c4b",
+    "storage_bucket": "first-demo-53c4b.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:919233009146:android:858e9a00b189228ddb4043",
+        "android_client_info": {
+          "package_name": "com.powernet.staff"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAv1XdZCS9DAXkjVO7mzKomeObxqAYkJSM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

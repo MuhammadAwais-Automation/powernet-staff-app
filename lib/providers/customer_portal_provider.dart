@@ -135,6 +135,12 @@ class CustomerPortalProvider extends ChangeNotifier {
     required String issue,
     required String type,
   }) async {
+    if (!customer.canCreateComplaints) {
+      _error =
+          'New complaints are unavailable while your connection is temporarily disconnected. Pay your overdue bill to restore service.';
+      notifyListeners();
+      return false;
+    }
     try {
       final complaint = await _repo.createComplaint(
         customer: customer,

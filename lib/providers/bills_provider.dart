@@ -144,6 +144,7 @@ class BillsProvider extends ChangeNotifier {
     required String billId,
     required String collectorId,
     required String visitType,
+    String? promisedDate,
   }) async {
     if (!_isOnline) {
       try {
@@ -151,11 +152,13 @@ class BillsProvider extends ChangeNotifier {
           billId: billId,
           collectorId: collectorId,
           visitType: visitType,
+          promisedDate: promisedDate,
         );
         _applyLocalVisit(
           billId: billId,
           collectorId: collectorId,
           visitType: visitType,
+          promisedDate: promisedDate,
         );
         _pendingSyncCount = await _repo.countQueuedOperations();
         _error = null;
@@ -174,11 +177,13 @@ class BillsProvider extends ChangeNotifier {
         billId: billId,
         collectorId: collectorId,
         visitType: visitType,
+        promisedDate: promisedDate,
       ).timeout(const Duration(seconds: 4));
       _applyLocalVisit(
         billId: billId,
         collectorId: collectorId,
         visitType: visitType,
+        promisedDate: promisedDate,
       );
       notifyListeners();
       return PaymentSubmissionResult.synced;
@@ -190,11 +195,13 @@ class BillsProvider extends ChangeNotifier {
             billId: billId,
             collectorId: collectorId,
             visitType: visitType,
+            promisedDate: promisedDate,
           );
           _applyLocalVisit(
             billId: billId,
             collectorId: collectorId,
             visitType: visitType,
+            promisedDate: promisedDate,
           );
           _pendingSyncCount = await _repo.countQueuedOperations();
           _error = null;
@@ -220,6 +227,8 @@ class BillsProvider extends ChangeNotifier {
     required String collectorId,
     required String paymentMethod,
     String? paymentNote,
+    String? receiptUrl,
+    RemainderAction remainderAction = RemainderAction.leave,
   }) async {
     if (!_isOnline) {
       try {
@@ -229,6 +238,8 @@ class BillsProvider extends ChangeNotifier {
           collectorId: collectorId,
           paymentMethod: paymentMethod,
           paymentNote: paymentNote,
+          receiptUrl: receiptUrl,
+          remainderAction: remainderAction,
         );
         _applyLocalPayment(
           billId: billId,
@@ -256,6 +267,8 @@ class BillsProvider extends ChangeNotifier {
         collectorId: collectorId,
         paymentMethod: paymentMethod,
         paymentNote: paymentNote,
+        receiptUrl: receiptUrl,
+        remainderAction: remainderAction,
       ).timeout(const Duration(seconds: 4));
       _applyLocalPayment(
         billId: billId,
@@ -288,6 +301,8 @@ class BillsProvider extends ChangeNotifier {
             collectorId: collectorId,
             paymentMethod: paymentMethod,
             paymentNote: paymentNote,
+            receiptUrl: receiptUrl,
+            remainderAction: remainderAction,
           );
           _applyLocalPayment(
             billId: billId,
@@ -350,6 +365,8 @@ class BillsProvider extends ChangeNotifier {
     required String collectorId,
     required String paymentMethod,
     String? paymentNote,
+    String? receiptUrl,
+    RemainderAction remainderAction = RemainderAction.leave,
   }) async {
     var remainingPayment = amount;
     var finalResult = PaymentSubmissionResult.synced;
@@ -380,12 +397,22 @@ class BillsProvider extends ChangeNotifier {
           : remainingPayment;
       if (amountForBill <= 0) continue;
 
+      final isPartialBill = amountForBill < liveBill.remaining;
+      final billRemainderAction =
+          isPartialBill &&
+              remainingPayment <= amountForBill &&
+              remainderAction == RemainderAction.carryForward
+          ? RemainderAction.carryForward
+          : RemainderAction.leave;
+
       final result = await submitPayment(
         billId: liveBill.id,
         amount: amountForBill,
         collectorId: collectorId,
         paymentMethod: paymentMethod,
         paymentNote: paymentNote,
+        receiptUrl: receiptUrl,
+        remainderAction: billRemainderAction,
       );
       if (result == PaymentSubmissionResult.failed) return result;
       if (result == PaymentSubmissionResult.alreadyPaid) {
@@ -461,6 +488,7 @@ class BillsProvider extends ChangeNotifier {
     required String billId,
     required String collectorId,
     required String visitType,
+    String? promisedDate,
   }) {
     final idx = _bills.indexWhere((b) => b.id == billId);
     if (idx == -1) return;
@@ -469,6 +497,9 @@ class BillsProvider extends ChangeNotifier {
       collectedBy: collectorId,
       paymentMethod: 'visit',
       paymentNote: visitType,
+      promisedDate: visitType == VisitType.promiseToPay.value
+          ? promisedDate
+          : null,
       paidAt: DateTime.now().toUtc().toIso8601String(),
     );
     _bills = [..._bills.take(idx), updatedBill, ..._bills.skip(idx + 1)];

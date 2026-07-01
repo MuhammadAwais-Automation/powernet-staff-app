@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/complaint_queue_provider.dart';
 import '../../models/complaint.dart';
+import '../../models/complaint_types.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/empty_state.dart';
 
@@ -622,7 +623,7 @@ class _ComplaintTile extends StatelessWidget {
                               Expanded(
                                 child: _buildMiniCell(
                                   'Type',
-                                  complaint.type,
+                                  formatComplaintTypeLabel(complaint.type),
                                   pn,
                                 ),
                               ),

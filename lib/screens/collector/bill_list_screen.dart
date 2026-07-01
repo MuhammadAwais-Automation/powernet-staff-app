@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import '../../data/follow_up_repository.dart';
 import '../../models/bill.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/bills_provider.dart';
@@ -926,14 +927,44 @@ class _VisitList extends StatelessWidget {
   }
 }
 
-class _VisitTile extends StatelessWidget {
+class _VisitTile extends StatefulWidget {
   final Bill bill;
   final PnColors pn;
 
   const _VisitTile({required this.bill, required this.pn});
 
   @override
+  State<_VisitTile> createState() => _VisitTileState();
+}
+
+class _VisitTileState extends State<_VisitTile> {
+  BillCallStats? _stats;
+
+  @override
+  void initState() {
+    super.initState();
+    FollowUpRepository().fetchStatsForBill(widget.bill.id).then((stats) {
+      if (mounted) setState(() => _stats = stats);
+    });
+  }
+
+  String _formatPromisedDate(String value) {
+    final parts = value.split('-');
+    if (parts.length != 3) return value;
+    const months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    ];
+    final month = int.tryParse(parts[1]) ?? 0;
+    final day = int.tryParse(parts[2]) ?? 0;
+    if (month < 1 || month > 12) return value;
+    return '$day ${months[month - 1]} ${parts[0]}';
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final bill = widget.bill;
+    final pn = widget.pn;
     final visitType = VisitType.fromValue(bill.paymentNote ?? '');
     final (icon, color) = switch (visitType) {
       VisitType.houseLocked => (Icons.lock_outline, pn.warning),
@@ -985,23 +1016,58 @@ class _VisitTile extends StatelessWidget {
                       fontWeight: FontWeight.bold,
                     ),
                   ),
+                  if (visitType == VisitType.promiseToPay &&
+                      bill.promisedDate != null) ...[
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Icon(Icons.event_outlined, size: 12, color: pn.cyan),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Promised: ${_formatPromisedDate(bill.promisedDate!)}',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: pn.cyan,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                  if (_stats != null && _stats!.total > 0) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      'Calls: ${_stats!.total} (Office ${_stats!.office} · Agent ${_stats!.agent})',
+                      style: TextStyle(fontSize: 10, color: pn.textMuted, fontWeight: FontWeight.w600),
+                    ),
+                  ],
                 ],
               ),
             ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(99),
-              ),
-              child: Text(
-                visitType.label.toUpperCase(),
-                style: TextStyle(
-                  color: color,
-                  fontSize: 10,
-                  fontWeight: FontWeight.w900,
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(99),
+                  ),
+                  child: Text(
+                    visitType.label.toUpperCase(),
+                    style: TextStyle(
+                      color: color,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
                 ),
-              ),
+                const SizedBox(height: 8),
+                TextButton(
+                  onPressed: () => context.push('/collector/bills/${bill.id}/follow-up'),
+                  child: const Text('Log Call'),
+                ),
+              ],
             ),
           ],
         ),

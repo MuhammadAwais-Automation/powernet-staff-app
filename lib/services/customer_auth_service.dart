@@ -8,6 +8,8 @@ const _customerCols =
     'package:packages(id, name, speed_mbps, default_price, is_active)';
 
 class CustomerAuthService {
+  static const portalStatuses = ['active', 'tdc'];
+
   Future<CustomerAccount?> login(String identifier, String password) async {
     final email = await _resolveLoginEmail(identifier);
     if (email == null) return null;
@@ -58,7 +60,7 @@ class CustomerAuthService {
         .from('customers')
         .select(_customerCols)
         .eq('auth_user_id', authUserId)
-        .eq('status', 'active')
+        .inFilter('status', portalStatuses)
         .maybeSingle();
     if (data == null) return null;
     return CustomerAccount.fromJson(data);

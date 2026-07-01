@@ -6,6 +6,7 @@ import '../../models/bill.dart';
 import '../../providers/customer_auth_provider.dart';
 import '../../providers/customer_portal_provider.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/customer_tdc_banner.dart';
 import 'payment_upload_receipt_sheet.dart';
 
 class CustomerBillsScreen extends StatefulWidget {
@@ -54,7 +55,12 @@ class _CustomerBillsScreenState extends State<CustomerBillsScreen> {
       appBar: AppBar(title: const Text('My Bills')),
       body: SafeArea(
         child: RefreshIndicator(
-          onRefresh: provider.refreshActive,
+          onRefresh: () async {
+            await provider.refreshActive();
+            if (context.mounted) {
+              await context.read<CustomerAuthProvider>().refreshProfile();
+            }
+          },
           color: pn.accent,
           backgroundColor: pn.surface,
           child: Column(
@@ -88,6 +94,12 @@ class _CustomerBillsScreenState extends State<CustomerBillsScreen> {
                   ),
                 ),
               ],
+
+              if (customer?.isTdc ?? false)
+                const Padding(
+                  padding: EdgeInsets.fromLTRB(20, 0, 20, 8),
+                  child: CustomerTdcBanner(),
+                ),
 
               // Total Due Glass Card Overview (Matches CSS .card.glass.between)
               Padding(
