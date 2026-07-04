@@ -73,13 +73,15 @@ class Staff {
   String get roleLabel {
     switch (normalizedRole) {
       case 'technician':
-        return 'Technician';
+        return 'Internet Technician';
       case 'helper':
         return 'Helper';
       case 'recovery_agent':
         return 'Recovery Agent';
+      case 'cable_technician':
+        return 'Cable Technician';
       case 'cable_operator':
-        return 'Cable Operator';
+        return 'Cable Technician';
       case 'field_agent':
         return 'Field Agent';
       case 'complaint_manager':
@@ -104,9 +106,14 @@ String normalizeStaffRole(String? role) {
     case 'recovery_agent':
       return 'recovery_agent';
     case 'technician':
+      return 'technician';
     case 'helper':
+      return 'helper';
     case 'field_agent':
+      return 'field_agent';
     case 'cable_operator':
+      return 'cable_technician';
+    case 'cable_technician':
     case 'complaint_manager':
     case 'admin':
       return normalized;

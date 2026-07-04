@@ -10,7 +10,8 @@ import '../../theme/app_theme.dart';
 import '../../widgets/empty_state.dart';
 
 class ComplaintListScreen extends StatefulWidget {
-  const ComplaintListScreen({super.key});
+  final String? serviceLine;
+  const ComplaintListScreen({super.key, this.serviceLine});
 
   @override
   State<ComplaintListScreen> createState() => _ComplaintListScreenState();
@@ -40,7 +41,11 @@ class _ComplaintListScreenState extends State<ComplaintListScreen>
     final queue = context.read<ComplaintQueueProvider>();
     final staff = auth.currentStaff;
     if (staff == null) return;
-    queue.loadForTechnicianAndAreas(staff.id, staff.areaIds);
+    if (widget.serviceLine == 'cable') {
+      queue.loadForCableTechnician(staff.id, staff.areaIds);
+    } else {
+      queue.loadForTechnicianAndAreas(staff.id, staff.areaIds);
+    }
   }
 
   @override
@@ -85,7 +90,7 @@ class _ComplaintListScreenState extends State<ComplaintListScreen>
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Complaints',
+              widget.serviceLine == 'cable' ? 'Cable Complaints' : 'Complaints',
               style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.w900,
@@ -94,7 +99,11 @@ class _ComplaintListScreenState extends State<ComplaintListScreen>
               ),
             ),
             Text(
-              staff?.areaName ?? 'Gulshan Block 4',
+              staff?.areaNames.isNotEmpty == true
+                  ? staff!.areaNames.join(', ')
+                  : (staff?.areaName?.trim().isNotEmpty == true
+                        ? staff!.areaName!
+                        : 'No area assigned'),
               style: TextStyle(
                 fontSize: 12,
                 color: pn.textMuted,
@@ -623,7 +632,7 @@ class _ComplaintTile extends StatelessWidget {
                               Expanded(
                                 child: _buildMiniCell(
                                   'Type',
-                                  formatComplaintTypeLabel(complaint.type),
+                                  '${formatServiceLineLabel(complaint.serviceLine, type: complaint.type)} · ${formatComplaintTypeLabel(complaint.type)}',
                                   pn,
                                 ),
                               ),

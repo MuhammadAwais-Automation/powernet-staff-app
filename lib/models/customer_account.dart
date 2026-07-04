@@ -20,6 +20,8 @@ class CustomerAccount {
   final String createdAt;
   final Area? area;
   final PackagePlan? package;
+  final bool hasInternet;
+  final bool hasCable;
 
   const CustomerAccount({
     required this.id,
@@ -40,6 +42,8 @@ class CustomerAccount {
     required this.createdAt,
     this.area,
     this.package,
+    this.hasInternet = true,
+    this.hasCable = false,
   });
 
   factory CustomerAccount.fromJson(Map<String, dynamic> j) => CustomerAccount(
@@ -65,6 +69,8 @@ class CustomerAccount {
     package: j['package'] != null
         ? PackagePlan.fromJson(j['package'] as Map<String, dynamic>)
         : null,
+    hasInternet: j['has_internet'] as bool? ?? true,
+    hasCable: j['has_cable'] as bool? ?? false,
   );
 
   Map<String, dynamic> toJson() => {

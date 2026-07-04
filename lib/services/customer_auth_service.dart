@@ -4,7 +4,8 @@ import '../models/customer_account.dart';
 const _customerCols =
     'id, customer_code, auth_user_id, house_id, full_name, father_name, cnic, '
     'phone, whatsapp, email, package_id, area_id, status, address_value, '
-    'due_amount, created_at, area:areas(id, code, name, type, is_active), '
+    'has_internet, has_cable, due_amount, created_at, '
+    'area:areas(id, code, name, type, is_active), '
     'package:packages(id, name, speed_mbps, default_price, is_active)';
 
 class CustomerAuthService {

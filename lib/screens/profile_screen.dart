@@ -49,9 +49,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
       case 'field_agent':
         context.read<CustomersProvider>().loadByAreas(staff.areaIds);
         break;
-      case 'cable_operator':
-        context.read<CustomersProvider>().loadByAreas(staff.areaIds);
-        context.read<ComplaintQueueProvider>().loadForAreas(staff.areaIds);
+      case 'cable_technician':
+        context.read<CustomersProvider>().loadCableByAreas(staff.areaIds);
+        context.read<ComplaintQueueProvider>().loadForCableTechnician(
+          staff.id,
+          staff.areaIds,
+        );
         break;
     }
   }
@@ -85,10 +88,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
           case 'field_agent':
             await context.read<CustomersProvider>().loadByAreas(staff.areaIds);
             break;
-          case 'cable_operator':
+          case 'cable_technician':
             await Future.wait([
-              context.read<CustomersProvider>().loadByAreas(staff.areaIds),
-              context.read<ComplaintQueueProvider>().loadForAreas(
+              context.read<CustomersProvider>().loadCableByAreas(staff.areaIds),
+              context.read<ComplaintQueueProvider>().loadForCableTechnician(
+                staff.id,
                 staff.areaIds,
               ),
             ]);
@@ -484,7 +488,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ],
         );
 
-      case 'cable_operator':
+      case 'cable_technician':
         final coCusts = context.watch<CustomersProvider>();
         final coQ = context.watch<ComplaintQueueProvider>();
         final loading = coCusts.loading || coQ.loading;

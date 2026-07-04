@@ -49,6 +49,7 @@ class Bill {
   final String? promisedDate;
   final String createdAt;
   final Map<String, dynamic>? customer;
+  final String serviceType;
 
   const Bill({
     required this.id,
@@ -66,9 +67,10 @@ class Bill {
     this.promisedDate,
     required this.createdAt,
     this.customer,
+    this.serviceType = 'internet',
   });
 
-  factory Bill.fromJson(Map<String, dynamic> j) => Bill(
+  factory Bill.fromJson(Map<String, dynamic> j, {String serviceType = 'internet'}) => Bill(
     id: j['id'] as String,
     customerId: j['customer_id'] as String,
     amount: (j['amount'] as num).toDouble(),
@@ -84,6 +86,7 @@ class Bill {
     promisedDate: j['promised_date'] as String?,
     createdAt: j['created_at'] as String,
     customer: j['customer'] as Map<String, dynamic>?,
+    serviceType: serviceType,
   );
 
   Map<String, dynamic> toJson() => {
@@ -102,6 +105,7 @@ class Bill {
     'promised_date': promisedDate,
     'created_at': createdAt,
     'customer': customer,
+    'service_type': serviceType,
   };
 
   Bill copyWith({
@@ -113,6 +117,7 @@ class Bill {
     String? paymentNote,
     String? paymentSource,
     String? promisedDate,
+    String? serviceType,
   }) => Bill(
     id: id,
     customerId: customerId,
@@ -129,8 +134,11 @@ class Bill {
     promisedDate: promisedDate ?? this.promisedDate,
     createdAt: createdAt,
     customer: customer,
+    serviceType: serviceType ?? this.serviceType,
   );
 
+  bool get isCable => serviceType == 'cable';
+  String get serviceLabel => isCable ? 'Cable' : 'Internet';
   double get remaining => amount - (paidAmount ?? 0);
   bool get isPaid => status == 'paid';
   bool get isOverdue => status == 'overdue';

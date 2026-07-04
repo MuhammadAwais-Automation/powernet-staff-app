@@ -1,5 +1,3 @@
-import 'dart:io' show Platform;
-
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -9,16 +7,17 @@ import '../data/follow_up_repository.dart';
 /// Registers staff device tokens for FCM push delivery.
 class PushNotificationService {
   final FollowUpRepository _repo = FollowUpRepository();
-  final FirebaseMessaging _messaging = FirebaseMessaging.instance;
 
   Future<String?> requestToken() async {
+    if (kIsWeb) return null;
+    final messaging = FirebaseMessaging.instance;
     try {
-      await _messaging.requestPermission(
+      await messaging.requestPermission(
         alert: true,
         badge: true,
         sound: true,
       );
-      return _messaging.getToken();
+      return messaging.getToken();
     } catch (e) {
       debugPrint('PushNotificationService token error: $e');
       return null;
@@ -29,6 +28,7 @@ class PushNotificationService {
     required String staffId,
     String? fcmToken,
   }) async {
+    if (kIsWeb) return;
     final token = (fcmToken ?? await requestToken())?.trim();
     if (token == null || token.isEmpty) {
       debugPrint('PushNotificationService: no FCM token — skipping registration');
@@ -36,7 +36,7 @@ class PushNotificationService {
     }
     final platform = kIsWeb
         ? 'web'
-        : Platform.isIOS
+        : defaultTargetPlatform == TargetPlatform.iOS
         ? 'ios'
         : 'android';
     try {
@@ -53,6 +53,7 @@ class PushNotificationService {
   void listenForegroundAlerts({
     required void Function(String title, String body) onAlert,
   }) {
+    if (kIsWeb) return;
     FirebaseMessaging.onMessage.listen((message) {
       final title = message.notification?.title ?? 'PowerNet Alert';
       final body = message.notification?.body ?? '';

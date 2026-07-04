@@ -165,9 +165,20 @@ class _CreateComplaintSheet extends StatefulWidget {
 
 class _CreateComplaintSheetState extends State<_CreateComplaintSheet> {
   final _issue = TextEditingController();
-  String _type = 'fiber_issue';
+  late String _type;
   bool _saving = false;
   String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    final customer = context.read<CustomerAuthProvider>().currentCustomer;
+    final options = complaintTypesForCustomer(
+      hasInternet: customer?.hasInternet ?? true,
+      hasCable: customer?.hasCable ?? false,
+    );
+    _type = options.first.value;
+  }
 
   @override
   void dispose() {
@@ -220,6 +231,11 @@ class _CreateComplaintSheetState extends State<_CreateComplaintSheet> {
   Widget build(BuildContext context) {
     final pn = Theme.of(context).extension<PnColors>()!;
     final bottom = MediaQuery.of(context).viewInsets.bottom;
+    final customer = context.watch<CustomerAuthProvider>().currentCustomer;
+    final typeOptions = complaintTypesForCustomer(
+      hasInternet: customer?.hasInternet ?? true,
+      hasCable: customer?.hasCable ?? false,
+    );
 
     return Container(
       decoration: BoxDecoration(
@@ -306,17 +322,26 @@ class _CreateComplaintSheetState extends State<_CreateComplaintSheet> {
           ),
           const SizedBox(height: 6),
           DropdownButtonFormField<String>(
-            initialValue: _type,
-            items: complaintTypeOptions
+            initialValue: typeOptions.any((o) => o.value == _type)
+                ? _type
+                : typeOptions.first.value,
+            items: typeOptions
                 .map(
                   (o) => DropdownMenuItem(
                     value: o.value,
-                    child: Text(o.label),
+                    child: Text(
+                      complaintTypeDropdownLabel(
+                        o,
+                        hasInternet: customer?.hasInternet ?? true,
+                        hasCable: customer?.hasCable ?? false,
+                      ),
+                    ),
                   ),
                 )
                 .toList(),
-            onChanged: (value) =>
-                setState(() => _type = value ?? 'fiber_issue'),
+            onChanged: (value) => setState(
+              () => _type = value ?? typeOptions.first.value,
+            ),
           ),
           const SizedBox(height: 18),
 

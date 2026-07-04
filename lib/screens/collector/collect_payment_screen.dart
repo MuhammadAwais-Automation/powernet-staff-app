@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import '../../data/bills_repository.dart';
+import '../../data/cable_bills_repository.dart';
 import '../../models/bill.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/bills_provider.dart';
@@ -15,7 +16,12 @@ import '../../widgets/empty_state.dart';
 
 class CollectPaymentScreen extends StatefulWidget {
   final String billId;
-  const CollectPaymentScreen({super.key, required this.billId});
+  final String serviceType;
+  const CollectPaymentScreen({
+    super.key,
+    required this.billId,
+    this.serviceType = 'internet',
+  });
 
   @override
   State<CollectPaymentScreen> createState() => _CollectPaymentScreenState();
@@ -23,6 +29,7 @@ class CollectPaymentScreen extends StatefulWidget {
 
 class _CollectPaymentScreenState extends State<CollectPaymentScreen> {
   final BillsRepository _repo = BillsRepository();
+  final CableBillsRepository _cableRepo = CableBillsRepository();
   final _formKey = GlobalKey<FormState>();
   final _amountCtrl = TextEditingController();
   final _noteCtrl = TextEditingController();
@@ -66,12 +73,17 @@ class _CollectPaymentScreenState extends State<CollectPaymentScreen> {
       if (mounted) setState(() => _loading = false);
     }
     try {
-      final bill = await _repo.fetchById(widget.billId);
+      final bool isCable = widget.serviceType == 'cable';
+      final bill = isCable
+          ? await _cableRepo.fetchById(widget.billId)
+          : await _repo.fetchById(widget.billId);
       if (mounted) {
         if (bill == null) {
           _applyLoadedLedger(null);
         } else {
-          final customerBills = await _repo.fetchByCustomer(bill.customerId);
+          final customerBills = isCable
+              ? await _cableRepo.fetchByCustomer(bill.customerId)
+              : await _repo.fetchByCustomer(bill.customerId);
           final pendingBills = customerBills
               .where((item) => !item.isPaid && item.remaining > 0)
               .toList();

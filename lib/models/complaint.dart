@@ -4,6 +4,7 @@ class Complaint {
   final String customerId;
   final String issue;
   final String type;
+  final String? serviceLine;
   final String priority;
   final String status;
   final String? assignedTo;
@@ -24,6 +25,7 @@ class Complaint {
     required this.customerId,
     required this.issue,
     required this.type,
+    this.serviceLine,
     required this.priority,
     required this.status,
     this.assignedTo,
@@ -45,6 +47,7 @@ class Complaint {
     customerId: j['customer_id'] as String,
     issue: j['issue'] as String,
     type: j['type'] as String,
+    serviceLine: j['service_line'] as String?,
     priority: j['priority'] as String,
     status: j['status'] as String,
     assignedTo: j['assigned_to'] as String?,
@@ -113,6 +116,17 @@ class Complaint {
   bool get isOpen => status == 'open';
   bool get isInProgress => status == 'in_progress';
   bool get isResolved => status == 'resolved';
+  bool get isCableService =>
+      serviceLine == 'cable' ||
+      const {
+        'cable_issue',
+        'cable_down',
+        'signal_issue',
+        'onu_fault',
+        'no_signal',
+      }.contains(type);
+
+  bool get isInternetService => !isCableService;
 
   bool get isHigh => priority == 'high';
   bool get isMedium => priority == 'medium';

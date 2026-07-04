@@ -44,7 +44,10 @@ class _CoCustomerDetailScreenState extends State<CoCustomerDetailScreen>
       final all = await _compRepo.fetchAll();
       _customer = cust;
       _complaints = all
-          .where((c) => c.customerId == widget.customerId)
+          .where(
+            (c) =>
+                c.customerId == widget.customerId && c.isCableService,
+          )
           .toList();
     } catch (e) {
       _error = e.toString();

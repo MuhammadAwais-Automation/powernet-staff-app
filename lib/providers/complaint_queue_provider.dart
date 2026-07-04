@@ -23,6 +23,7 @@ class ComplaintQueueProvider extends ChangeNotifier {
   bool _syncing = false;
 
   List<Complaint> _complaints = [];
+  Set<String> _assignedComplaintIds = {};
   bool _loading = false;
   String? _error;
   int _pendingSyncCount = 0;
@@ -61,6 +62,23 @@ class ComplaintQueueProvider extends ChangeNotifier {
   List<Complaint> get open => _complaints.where((c) => c.isOpen).toList();
   List<Complaint> get inProgress =>
       _complaints.where((c) => c.isInProgress).toList();
+
+  bool _isAssignedToMe(Complaint complaint) =>
+      _assignedComplaintIds.contains(complaint.id);
+
+  List<Complaint> get assignedOpen =>
+      open.where(_isAssignedToMe).toList();
+  List<Complaint> get assignedInProgress =>
+      inProgress.where(_isAssignedToMe).toList();
+  int get assignedActiveCount =>
+      assignedOpen.length + assignedInProgress.length;
+
+  List<Complaint> get areaQueueOpen =>
+      open.where((c) => !_isAssignedToMe(c)).toList();
+  List<Complaint> get areaQueueInProgress =>
+      inProgress.where((c) => !_isAssignedToMe(c)).toList();
+  int get areaQueueActiveCount =>
+      areaQueueOpen.length + areaQueueInProgress.length;
   List<Complaint> get resolvedToday {
     final today = DateTime.now();
     return _complaints.where((c) {
@@ -89,6 +107,7 @@ class ComplaintQueueProvider extends ChangeNotifier {
   Future<void> loadForAreas(List<String> areaIds, {bool silent = false}) async {
     _activeAreaIds = areaIds;
     _activeTechnicianId = null;
+    _assignedComplaintIds = {};
     _ensureRealtimeSubscription(null, areaIds);
     if (!silent) {
       _loading = true;
@@ -113,6 +132,62 @@ class ComplaintQueueProvider extends ChangeNotifier {
     } catch (e) {
       debugPrint('POWERNET_DEBUG: loadForAreas failed: $e');
       _error = 'No internet connection. Complaints could not be loaded.';
+    } finally {
+      _loading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> loadForCableTechnician(
+    String technicianId,
+    List<String> areaIds, {
+    bool silent = false,
+  }) async {
+    _activeTechnicianId = technicianId;
+    _activeAreaIds = areaIds;
+    _ensureRealtimeSubscription(technicianId, areaIds);
+    if (!silent) {
+      _loading = true;
+      _error = null;
+      notifyListeners();
+    }
+    try {
+      if (_isOnline) {
+        await syncQueuedNow(refreshAfterSync: false);
+      } else {
+        _pendingSyncCount = await _repo.countQueuedActions();
+      }
+      final assigned = await _repo.fetchAssigned(technicianId);
+      if (areaIds.isNotEmpty) {
+        final areaComplaints = await _repo.fetchByAreas(
+          areaIds,
+          serviceLine: 'cable',
+        );
+        _assignedComplaintIds = assigned.map((c) => c.id).toSet();
+        _complaints = _mergeComplaints(assigned, areaComplaints);
+      } else {
+        _assignedComplaintIds = assigned.map((c) => c.id).toSet();
+        _complaints = assigned;
+      }
+      _sortComplaints();
+      await _repo.cacheTechnicianSnapshot(
+        technicianId: technicianId,
+        areaIds: areaIds,
+        complaints: _complaints,
+      );
+    } catch (e) {
+      debugPrint('POWERNET_DEBUG: cable complaint load failed: $e');
+      _complaints = await _repo.getCachedTechnicianSnapshot(
+        technicianId,
+        areaIds,
+      );
+      _assignedComplaintIds = _complaints
+          .where((c) => c.assignedTo == technicianId)
+          .map((c) => c.id)
+          .toSet();
+      _pendingSyncCount = await _repo.countQueuedActions();
+      _sortComplaints();
+      _error = _complaints.isEmpty ? _messageForLoadError(e) : null;
     } finally {
       _loading = false;
       notifyListeners();
@@ -150,9 +225,14 @@ class ComplaintQueueProvider extends ChangeNotifier {
       }
       final assigned = await _repo.fetchAssigned(technicianId);
       if (areaIds.isNotEmpty) {
-        final areaComplaints = await _repo.fetchByAreas(areaIds);
+        final areaComplaints = await _repo.fetchByAreas(
+          areaIds,
+          serviceLine: 'internet',
+        );
+        _assignedComplaintIds = assigned.map((c) => c.id).toSet();
         _complaints = _mergeComplaints(assigned, areaComplaints);
       } else {
+        _assignedComplaintIds = assigned.map((c) => c.id).toSet();
         _complaints = assigned;
       }
       _sortComplaints();
@@ -167,6 +247,10 @@ class ComplaintQueueProvider extends ChangeNotifier {
         technicianId,
         areaIds,
       );
+      _assignedComplaintIds = _complaints
+          .where((c) => c.assignedTo == technicianId)
+          .map((c) => c.id)
+          .toSet();
       _pendingSyncCount = await _repo.countQueuedActions();
       _sortComplaints();
       _error = _complaints.isEmpty ? _messageForLoadError(e) : null;

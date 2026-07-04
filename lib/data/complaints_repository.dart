@@ -10,7 +10,7 @@ import '../config/supabase_config.dart';
 import '../models/complaint.dart';
 
 const complaintBaseSelect =
-    'id, complaint_code, customer_id, issue, type, priority, status, '
+    'id, complaint_code, customer_id, issue, type, service_line, priority, status, '
     'assigned_to, assigned_at, in_progress_at, opened_at, resolved_at, resolution_notes, hardware_used, team_id, '
     'customer:customers(id, full_name, area_id, customer_code, address_value, phone), '
     'technician:staff(id, full_name), '
@@ -23,7 +23,7 @@ const complaintLegacyBaseSelect =
     'technician:staff(id, full_name)';
 
 const complaintAreaSelect =
-    'id, complaint_code, customer_id, issue, type, priority, status, '
+    'id, complaint_code, customer_id, issue, type, service_line, priority, status, '
     'assigned_to, assigned_at, in_progress_at, opened_at, resolved_at, resolution_notes, hardware_used, team_id, '
     'customer:customers!inner(id, full_name, area_id, customer_code, address_value, phone), '
     'technician:staff(id, full_name), '
@@ -85,21 +85,39 @@ class QueuedComplaintAction {
 }
 
 class ComplaintsRepository {
-  Future<List<Complaint>> fetchAssigned(String technicianId) async {
+  Future<List<Complaint>> fetchAssigned(
+    String technicianId, {
+    String? serviceLine,
+  }) async {
     try {
-      return await _fetchAssigned(technicianId, complaintBaseSelect);
+      return _filterByServiceLine(
+        await _fetchAssigned(technicianId, complaintBaseSelect, serviceLine: serviceLine),
+        serviceLine,
+      );
     } catch (e) {
-      if (!_isMissingResolutionColumns(e)) rethrow;
-      return _fetchAssigned(technicianId, complaintLegacyBaseSelect);
+      if (!_isMissingResolutionColumns(e) && !_isMissingServiceLineColumn(e)) rethrow;
+      return _filterByServiceLine(
+        await _fetchAssigned(technicianId, complaintLegacyBaseSelect, serviceLine: null),
+        serviceLine,
+      );
     }
   }
 
-  Future<List<Complaint>> fetchByAreas(List<String> areaIds) async {
+  Future<List<Complaint>> fetchByAreas(
+    List<String> areaIds, {
+    String? serviceLine,
+  }) async {
     try {
-      return await _fetchByAreas(areaIds, complaintAreaSelect);
+      return _filterByServiceLine(
+        await _fetchByAreas(areaIds, complaintAreaSelect, serviceLine: serviceLine),
+        serviceLine,
+      );
     } catch (e) {
-      if (!_isMissingResolutionColumns(e)) rethrow;
-      return _fetchByAreas(areaIds, complaintLegacyAreaSelect);
+      if (!_isMissingResolutionColumns(e) && !_isMissingServiceLineColumn(e)) rethrow;
+      return _filterByServiceLine(
+        await _fetchByAreas(areaIds, complaintLegacyAreaSelect, serviceLine: null),
+        serviceLine,
+      );
     }
   }
 
@@ -325,8 +343,9 @@ class ComplaintsRepository {
 
   Future<List<Complaint>> _fetchAssigned(
     String technicianId,
-    String select,
-  ) async {
+    String select, {
+    String? serviceLine,
+  }) async {
     final startOfMonth = DateTime(
       DateTime.now().year,
       DateTime.now().month,
@@ -340,14 +359,17 @@ class ComplaintsRepository {
       orCondition += ',team_id.in.(${teamIds.join(",")})';
     }
 
-    final res = await supabase
+    var query = supabase
         .from('complaints')
         .select(select)
         .or(orCondition)
         .or(
           'status.in.(open,in_progress),and(status.eq.resolved,resolved_at.gte.$startOfMonth)',
-        )
-        .order('opened_at', ascending: false);
+        );
+    if (serviceLine != null && select.contains('service_line')) {
+      query = query.eq('service_line', serviceLine);
+    }
+    final res = await query.order('opened_at', ascending: false);
     return _parseComplaintList(res);
   }
 
@@ -408,15 +430,19 @@ class ComplaintsRepository {
 
   Future<List<Complaint>> _fetchByAreas(
     List<String> areaIds,
-    String select,
-  ) async {
+    String select, {
+    String? serviceLine,
+  }) async {
     if (areaIds.isEmpty) return [];
-    final res = await supabase
+    var query = supabase
         .from('complaints')
         .select(select)
         .inFilter('customer.area_id', areaIds)
-        .inFilter('status', ['open', 'in_progress'])
-        .order('opened_at', ascending: false);
+        .inFilter('status', ['open', 'in_progress']);
+    if (serviceLine != null && select.contains('service_line')) {
+      query = query.eq('service_line', serviceLine);
+    }
+    final res = await query.order('opened_at', ascending: false);
     return _parseComplaintList(res);
   }
 
@@ -453,5 +479,22 @@ class ComplaintsRepository {
         text.contains('hardware_used') ||
         text.contains('assigned_at') ||
         text.contains('in_progress_at');
+  }
+
+  bool _isMissingServiceLineColumn(Object error) {
+    final text = error.toString();
+    return text.contains('service_line');
+  }
+
+  List<Complaint> _filterByServiceLine(
+    List<Complaint> items,
+    String? serviceLine,
+  ) {
+    if (serviceLine == null) return items;
+    return items
+        .where(
+          (c) => serviceLine == 'cable' ? c.isCableService : !c.isCableService,
+        )
+        .toList();
   }
 }

@@ -118,9 +118,21 @@ GoRouter buildRouter(AuthProvider auth, CustomerAuthProvider customerAuth) {
         ],
       ),
 
-      // Cable operator routes
+      // Cable technician routes (+ legacy cable-operator aliases)
       GoRoute(
-        path: '/cable-operator/customers',
+        path: '/cable-technician/complaints',
+        builder: (context, state) =>
+            const ComplaintListScreen(serviceLine: 'cable'),
+        routes: [
+          GoRoute(
+            path: ':id',
+            builder: (context, state) =>
+                ComplaintDetailScreen(complaintId: state.pathParameters['id']!),
+          ),
+        ],
+      ),
+      GoRoute(
+        path: '/cable-technician/customers',
         builder: (context, state) => const CoCustomerListScreen(),
         routes: [
           GoRoute(
@@ -130,6 +142,16 @@ GoRouter buildRouter(AuthProvider auth, CustomerAuthProvider customerAuth) {
           ),
         ],
       ),
+      GoRoute(
+        path: '/cable-operator/customers',
+        redirect: (context, state) {
+          final id = state.pathParameters['id'];
+          if (id != null && id.isNotEmpty) {
+            return '/cable-technician/customers/$id';
+          }
+          return '/cable-technician/customers';
+        },
+      ),
 
       // Collector routes
       GoRoute(
@@ -138,8 +160,10 @@ GoRouter buildRouter(AuthProvider auth, CustomerAuthProvider customerAuth) {
         routes: [
           GoRoute(
             path: ':id/collect',
-            builder: (context, state) =>
-                CollectPaymentScreen(billId: state.pathParameters['id']!),
+            builder: (context, state) => CollectPaymentScreen(
+              billId: state.pathParameters['id']!,
+              serviceType: state.uri.queryParameters['service'] ?? 'internet',
+            ),
           ),
           GoRoute(
             path: ':id/follow-up',

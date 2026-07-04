@@ -293,6 +293,36 @@ class _BillListScreenState extends State<BillListScreen>
                             ),
                           ],
                         ),
+                        const SizedBox(height: 10),
+                        Wrap(
+                          spacing: 8,
+                          children: [
+                            ChoiceChip(
+                              label: const Text('All'),
+                              selected: provider.serviceFilter ==
+                                  CollectionServiceFilter.all,
+                              onSelected: (_) => provider.setServiceFilter(
+                                CollectionServiceFilter.all,
+                              ),
+                            ),
+                            ChoiceChip(
+                              label: const Text('Internet'),
+                              selected: provider.serviceFilter ==
+                                  CollectionServiceFilter.internet,
+                              onSelected: (_) => provider.setServiceFilter(
+                                CollectionServiceFilter.internet,
+                              ),
+                            ),
+                            ChoiceChip(
+                              label: const Text('Cable'),
+                              selected: provider.serviceFilter ==
+                                  CollectionServiceFilter.cable,
+                              onSelected: (_) => provider.setServiceFilter(
+                                CollectionServiceFilter.cable,
+                              ),
+                            ),
+                          ],
+                        ),
                         if (provider.pendingSyncCount > 0) ...[
                           const SizedBox(height: 12),
                           _SyncBanner(count: provider.pendingSyncCount, pn: pn),
@@ -318,7 +348,7 @@ class _BillListScreenState extends State<BillListScreen>
                     emptyMessage: 'No pending recoveries in this area',
                     pn: pn,
                     onTap: (ledger) => context.push(
-                      '/collector/bills/${ledger.currentBill.id}/collect',
+                      '/collector/bills/${ledger.currentBill.id}/collect?service=${ledger.currentBill.serviceType}',
                     ),
                   ),
                   _BillList(
@@ -326,7 +356,7 @@ class _BillListScreenState extends State<BillListScreen>
                     emptyMessage: 'No overdue bills right now',
                     pn: pn,
                     onTap: (ledger) => context.push(
-                      '/collector/bills/${ledger.currentBill.id}/collect',
+                      '/collector/bills/${ledger.currentBill.id}/collect?service=${ledger.currentBill.serviceType}',
                     ),
                   ),
                   _BillList(
@@ -334,7 +364,7 @@ class _BillListScreenState extends State<BillListScreen>
                     emptyMessage: 'No partial collections pending',
                     pn: pn,
                     onTap: (ledger) => context.push(
-                      '/collector/bills/${ledger.currentBill.id}/collect',
+                      '/collector/bills/${ledger.currentBill.id}/collect?service=${ledger.currentBill.serviceType}',
                     ),
                   ),
                   _CollectedBillList(

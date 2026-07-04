@@ -34,7 +34,7 @@ class _CoCustomerListScreenState extends State<CoCustomerListScreen>
   void _load() {
     final staff = context.read<AuthProvider>().currentStaff;
     if (staff != null) {
-      context.read<CustomersProvider>().loadByAreas(staff.areaIds);
+      context.read<CustomersProvider>().loadCableByAreas(staff.areaIds);
     }
   }
 

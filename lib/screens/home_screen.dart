@@ -9,6 +9,18 @@ import '../theme/app_theme.dart';
 import '../services/push_notification_service.dart';
 import '../widgets/pn_kpi_card.dart';
 
+String _assignedAreaLabel(dynamic staff) {
+  final names = staff.areaNames;
+  if (names is List && names.isNotEmpty) {
+    return names.join(', ');
+  }
+  final single = staff.areaName as String?;
+  if (single != null && single.trim().isNotEmpty) {
+    return single;
+  }
+  return 'No area assigned';
+}
+
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -76,9 +88,12 @@ class _HomeScreenState extends State<HomeScreen> {
       case 'field_agent':
         context.read<CustomersProvider>().loadByAreas(staff.areaIds);
         break;
-      case 'cable_operator':
-        context.read<CustomersProvider>().loadByAreas(staff.areaIds);
-        context.read<ComplaintQueueProvider>().loadForAreas(staff.areaIds);
+      case 'cable_technician':
+        context.read<CustomersProvider>().loadCableByAreas(staff.areaIds);
+        context.read<ComplaintQueueProvider>().loadForCableTechnician(
+          staff.id,
+          staff.areaIds,
+        );
         break;
     }
   }
@@ -119,9 +134,11 @@ class _RoleHome extends StatelessWidget {
       return _buildTechnicianHome(context, staff, pn);
     } else if (role == 'recovery_agent') {
       return _buildRecoveryHome(context, staff, pn);
+    } else if (role == 'cable_technician') {
+      return _buildCableTechnicianHome(context, staff, pn);
     }
 
-    // Default layout for Field Agent and Cable Operator, upgraded with premium visual elements
+    // Default layout for Field Agent and other roles
     return Column(
       children: [
         _buildAppBar(context, staff.fullName, staff.roleLabel, pn),
@@ -151,7 +168,7 @@ class _RoleHome extends StatelessWidget {
           context,
           'home',
           pn,
-          showComplaints: role == 'cable_operator',
+          showComplaints: false,
           showCollections: false,
         ),
       ],
@@ -203,7 +220,7 @@ class _RoleHome extends StatelessWidget {
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              'Assigned area: ${staff.areaName ?? "Gulshan Block 4"}',
+                              'Assigned area: ${_assignedAreaLabel(staff)}',
                               style: TextStyle(
                                 color: pn.textMuted,
                                 fontSize: 12,
@@ -275,9 +292,14 @@ class _RoleHome extends StatelessWidget {
                   children: [
                     _buildKpiCard(
                       label: 'Assigned',
-                      value: loading
-                          ? '…'
-                          : '${q.open.length + q.inProgress.length}',
+                      value: loading ? '…' : '${q.assignedActiveCount}',
+                      pn: pn,
+                      onTap: () => context.push('/technician/complaints'),
+                    ),
+                    _buildKpiCard(
+                      label: 'Area Queue',
+                      value: loading ? '…' : '${q.areaQueueActiveCount}',
+                      valueColor: pn.warning,
                       pn: pn,
                       onTap: () => context.push('/technician/complaints'),
                     ),
@@ -371,6 +393,238 @@ class _RoleHome extends StatelessWidget {
           pn,
           showComplaints: true,
           showCollections: false,
+        ),
+      ],
+    );
+  }
+
+  // --- Cable Technician Home ---
+  Widget _buildCableTechnicianHome(
+    BuildContext context,
+    dynamic staff,
+    PnColors pn,
+  ) {
+    final q = context.watch<ComplaintQueueProvider>();
+    final custs = context.watch<CustomersProvider>();
+    final loading = q.loading || custs.loading;
+    final areaLabel = _assignedAreaLabel(staff);
+
+    return Column(
+      children: [
+        _buildAppBar(context, staff.fullName, staff.roleLabel, pn),
+        Expanded(
+          child: RefreshIndicator(
+            onRefresh: () async => onRefresh(),
+            color: pn.accent,
+            backgroundColor: pn.surface,
+            child: ListView(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+              physics: const AlwaysScrollableScrollPhysics(),
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: pn.surfaceMuted,
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(color: pn.border),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              loading ? 'Syncing...' : 'Cable Field Work',
+                              style: TextStyle(
+                                color: pn.text,
+                                fontWeight: FontWeight.w900,
+                                fontSize: 15,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Assigned area: $areaLabel',
+                              style: TextStyle(
+                                color: pn.textMuted,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      ElevatedButton(
+                        onPressed: () {
+                          onRefresh();
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: const Text('Cable data synced successfully!'),
+                              backgroundColor: pn.success,
+                              behavior: SnackBarBehavior.floating,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                            ),
+                          );
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: pn.cyan.withValues(alpha: 0.12),
+                          foregroundColor: pn.cyan,
+                          elevation: 0,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 8,
+                          ),
+                          minimumSize: Size.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: Text(
+                          'Sync',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w800,
+                            fontSize: 12,
+                            color: pn.cyan,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 24),
+                Text(
+                  'Today',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: pn.text,
+                    letterSpacing: -0.3,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                GridView.count(
+                  crossAxisCount: 2,
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  crossAxisSpacing: 12,
+                  mainAxisSpacing: 12,
+                  childAspectRatio: 1.4,
+                  children: [
+                    _buildKpiCard(
+                      label: 'Cable Customers',
+                      value: loading ? '…' : '${custs.customers.length}',
+                      pn: pn,
+                      onTap: () => context.push('/cable-technician/customers'),
+                    ),
+                    _buildKpiCard(
+                      label: 'Assigned',
+                      value: loading ? '…' : '${q.assignedActiveCount}',
+                      pn: pn,
+                      onTap: () => context.push('/cable-technician/complaints'),
+                    ),
+                    _buildKpiCard(
+                      label: 'Area Queue',
+                      value: loading ? '…' : '${q.areaQueueActiveCount}',
+                      valueColor: pn.warning,
+                      pn: pn,
+                      onTap: () => context.push('/cable-technician/complaints'),
+                    ),
+                    _buildKpiCard(
+                      label: 'In Progress',
+                      value: loading ? '…' : '${q.inProgress.length}',
+                      valueColor: pn.cyan,
+                      pn: pn,
+                      onTap: () => context.push('/cable-technician/complaints'),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 14,
+                  ),
+                  decoration: BoxDecoration(
+                    color: pn.surface,
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(color: pn.border),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Queued Offline Actions',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: pn.textSoft,
+                        ),
+                      ),
+                      Text(
+                        '${q.pendingSyncCount}',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w900,
+                          color: pn.text,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 24),
+                ElevatedButton(
+                  onPressed: () => context.push('/cable-technician/complaints'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: pn.accent,
+                    foregroundColor: Colors.white,
+                    minimumSize: const Size(double.infinity, 54),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(18),
+                    ),
+                    elevation: 0,
+                  ),
+                  child: const Text(
+                    'View Cable Complaints',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 0.2,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                OutlinedButton(
+                  onPressed: () => context.push('/cable-technician/customers'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: pn.text,
+                    minimumSize: const Size(double.infinity, 50),
+                    side: BorderSide(color: pn.border),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(18),
+                    ),
+                  ),
+                  child: const Text(
+                    'View Cable Customers',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        _buildBottomNav(
+          context,
+          'home',
+          pn,
+          showComplaints: true,
+          showCollections: false,
+          complaintsRoute: '/cable-technician/complaints',
         ),
       ],
     );
@@ -768,6 +1022,7 @@ class _RoleHome extends StatelessWidget {
     PnColors pn, {
     required bool showComplaints,
     required bool showCollections,
+    String complaintsRoute = '/technician/complaints',
   }) {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 8),
@@ -791,7 +1046,7 @@ class _RoleHome extends StatelessWidget {
               label: 'Complaints',
               isActive: activeTab == 'complaints',
               pn: pn,
-              onTap: () => context.push('/technician/complaints'),
+              onTap: () => context.push(complaintsRoute),
             ),
           if (showCollections)
             _BottomNavItem(
@@ -906,8 +1161,15 @@ class _KpiGrid extends StatelessWidget {
         return [
           PnKpiCard(
             label: 'Assigned',
-            value: loading ? '…' : '${q.complaints.length}',
+            value: loading ? '…' : '${q.assignedActiveCount}',
             icon: Icons.assignment_outlined,
+            onTap: () => context.push('/technician/complaints'),
+          ),
+          PnKpiCard(
+            label: 'Area Queue',
+            value: loading ? '…' : '${q.areaQueueActiveCount}',
+            icon: Icons.list_alt_outlined,
+            valueColor: pn.warning,
             onTap: () => context.push('/technician/complaints'),
           ),
           PnKpiCard(
@@ -916,12 +1178,6 @@ class _KpiGrid extends StatelessWidget {
             icon: Icons.error_outline,
             valueColor: pn.warning,
             onTap: () => context.push('/technician/complaints'),
-          ),
-          PnKpiCard(
-            label: 'Resolved Today',
-            value: loading ? '…' : '${q.resolvedToday.length}',
-            icon: Icons.check_circle_outline,
-            valueColor: pn.success,
           ),
           PnKpiCard(
             label: 'In Progress',
@@ -992,36 +1248,37 @@ class _KpiGrid extends StatelessWidget {
             valueColor: pn.danger,
           ),
         ];
-      case 'cable_operator':
+      case 'cable_technician':
         final coCusts = context.watch<CustomersProvider>();
         final coQ = context.watch<ComplaintQueueProvider>();
         final coLoading = coCusts.loading;
         final coQLoading = coQ.loading;
         return [
           PnKpiCard(
-            label: 'Customers',
+            label: 'Cable Customers',
             value: coLoading ? '…' : '${coCusts.customers.length}',
             icon: Icons.people_outline,
-            onTap: () => context.push('/cable-operator/customers'),
+            onTap: () => context.push('/cable-technician/customers'),
           ),
           PnKpiCard(
-            label: 'Active',
-            value: coLoading ? '…' : '${coCusts.activeCount}',
-            icon: Icons.check_circle_outline,
-            valueColor: pn.success,
-            onTap: () => context.push('/cable-operator/customers'),
+            label: 'Assigned',
+            value: coQLoading ? '…' : '${coQ.assignedActiveCount}',
+            icon: Icons.assignment_outlined,
+            onTap: () => context.push('/cable-technician/complaints'),
           ),
           PnKpiCard(
-            label: 'Open Complaints',
-            value: coQLoading ? '…' : '${coQ.open.length}',
-            icon: Icons.error_outline,
+            label: 'Area Queue',
+            value: coQLoading ? '…' : '${coQ.areaQueueActiveCount}',
+            icon: Icons.list_alt_outlined,
             valueColor: pn.warning,
+            onTap: () => context.push('/cable-technician/complaints'),
           ),
           PnKpiCard(
-            label: 'Disconnected',
-            value: coLoading ? '…' : '${coCusts.disconnectedCount}',
-            icon: Icons.cancel_outlined,
-            valueColor: pn.danger,
+            label: 'In Progress',
+            value: coQLoading ? '…' : '${coQ.inProgress.length}',
+            icon: Icons.schedule,
+            valueColor: pn.cyan,
+            onTap: () => context.push('/cable-technician/complaints'),
           ),
         ];
       default:
@@ -1094,9 +1351,14 @@ class _QuickActions extends StatelessWidget {
         return [
           ('View Customers', Icons.people_outline, '/field-agent/customers'),
         ];
-      case 'cable_operator':
+      case 'cable_technician':
         return [
-          ('View Customers', Icons.people_outline, '/cable-operator/customers'),
+          ('View Customers', Icons.people_outline, '/cable-technician/customers'),
+          (
+            'Cable Complaints',
+            Icons.report_problem_outlined,
+            '/cable-technician/complaints',
+          ),
         ];
       default:
         return [];

@@ -5,9 +5,23 @@ const _cols =
     'id, customer_code, username, full_name, cnic, phone, package_id, iptv, '
     'address_type, address_value, area_id, connection_date, due_amount, '
     'onu_number, status, disconnected_date, reconnected_date, remarks, '
+    'has_cable, has_internet, '
     'created_at, area:areas(id, code, name, type, is_active)';
 
 class CustomersRepository {
+  Future<List<Customer>> fetchCableByAreas(List<String> areaIds) async {
+    if (areaIds.isEmpty) return [];
+    final res = await supabase
+        .from('customers')
+        .select(_cols)
+        .inFilter('area_id', areaIds)
+        .eq('has_cable', true)
+        .order('full_name');
+    return (res as List)
+        .map((j) => Customer.fromJson(j as Map<String, dynamic>))
+        .toList();
+  }
+
   Future<List<Customer>> fetchByAreas(List<String> areaIds) async {
     if (areaIds.isEmpty) return [];
     final res = await supabase

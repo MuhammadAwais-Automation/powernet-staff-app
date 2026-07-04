@@ -23,6 +23,20 @@ class CustomersProvider extends ChangeNotifier {
   int get disconnectedCount =>
       _customers.where((c) => c.status == 'disconnected').length;
 
+  Future<void> loadCableByAreas(List<String> areaIds) async {
+    _loading = true;
+    _error = null;
+    notifyListeners();
+    try {
+      _customers = await _repo.fetchCableByAreas(areaIds);
+    } catch (e) {
+      _error = e.toString();
+    } finally {
+      _loading = false;
+      notifyListeners();
+    }
+  }
+
   Future<void> loadByAreas(List<String> areaIds) async {
     _loading = true;
     _error = null;
