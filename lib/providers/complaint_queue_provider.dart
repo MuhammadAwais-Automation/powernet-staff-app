@@ -16,6 +16,7 @@ class ComplaintQueueProvider extends ChangeNotifier {
   StreamSubscription<bool>? _onlineSubscription;
   String? _activeTechnicianId;
   List<String> _activeAreaIds = const [];
+  String? _activeServiceLine;
   DateTime? _lastRealtimeReloadAt;
   late bool _isOnline;
   String? _subscribedTechnicianId;
@@ -107,6 +108,7 @@ class ComplaintQueueProvider extends ChangeNotifier {
   Future<void> loadForAreas(List<String> areaIds, {bool silent = false}) async {
     _activeAreaIds = areaIds;
     _activeTechnicianId = null;
+    _activeServiceLine = null;
     _assignedComplaintIds = {};
     _ensureRealtimeSubscription(null, areaIds);
     if (!silent) {
@@ -145,6 +147,7 @@ class ComplaintQueueProvider extends ChangeNotifier {
   }) async {
     _activeTechnicianId = technicianId;
     _activeAreaIds = areaIds;
+    _activeServiceLine = 'cable';
     _ensureRealtimeSubscription(technicianId, areaIds);
     if (!silent) {
       _loading = true;
@@ -201,6 +204,7 @@ class ComplaintQueueProvider extends ChangeNotifier {
   }) async {
     _activeTechnicianId = technicianId;
     _activeAreaIds = areaIds;
+    _activeServiceLine = 'internet';
     _ensureRealtimeSubscription(technicianId, areaIds);
     if (!silent) {
       _loading = true;
@@ -492,6 +496,21 @@ class ComplaintQueueProvider extends ChangeNotifier {
     _ensureRealtimeSubscription(technicianId, areaIds);
   }
 
+  Future<void> refreshActive({bool silent = true}) async {
+    final technicianId = _activeTechnicianId;
+    if (technicianId == null) {
+      if (_activeAreaIds.isNotEmpty) {
+        await loadForAreas(_activeAreaIds, silent: silent);
+      }
+      return;
+    }
+    if (_activeServiceLine == 'cable') {
+      await loadForCableTechnician(technicianId, _activeAreaIds, silent: silent);
+      return;
+    }
+    await loadForTechnicianAndAreas(technicianId, _activeAreaIds, silent: silent);
+  }
+
   void _ensureRealtimeSubscription(String? technicianId, List<String> areaIds) {
     if (!_enableRealtime) return;
     final isSameTech = _subscribedTechnicianId == technicianId;
@@ -533,11 +552,7 @@ class ComplaintQueueProvider extends ChangeNotifier {
       return;
     }
     _lastRealtimeReloadAt = now;
-    if (technicianId != null) {
-      await loadForTechnicianAndAreas(technicianId, areaIds, silent: true);
-    } else {
-      await loadForAreas(areaIds, silent: true);
-    }
+    await refreshActive(silent: true);
   }
 
   void _listenForConnectivity() {

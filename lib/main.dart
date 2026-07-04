@@ -15,6 +15,7 @@ import 'providers/customer_portal_provider.dart';
 import 'providers/customers_provider.dart';
 import 'services/push_notification_service.dart';
 import 'theme/app_theme.dart';
+import 'widgets/staff_session_host.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -59,14 +60,16 @@ class _PowerNetStaffAppState extends State<PowerNetStaffApp> {
         ChangeNotifierProvider(create: (_) => CustomersProvider()),
         ChangeNotifierProvider(create: (_) => CustomerPortalProvider()),
       ],
-      child: Consumer<AuthProvider>(
-        builder: (context, auth, child) => MaterialApp.router(
-          title: 'PowerNet Staff',
-          debugShowCheckedModeBanner: false,
-          theme: buildLightTheme(),
-          darkTheme: buildDarkTheme(),
-          themeMode: ThemeMode.system,
-          routerConfig: _router,
+      child: StaffSessionHost(
+        child: Consumer<AuthProvider>(
+          builder: (context, auth, child) => MaterialApp.router(
+            title: 'PowerNet Staff',
+            debugShowCheckedModeBanner: false,
+            theme: buildLightTheme(),
+            darkTheme: buildDarkTheme(),
+            themeMode: ThemeMode.system,
+            routerConfig: _router,
+          ),
         ),
       ),
     );

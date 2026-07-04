@@ -18,7 +18,7 @@ class ComplaintListScreen extends StatefulWidget {
 }
 
 class _ComplaintListScreenState extends State<ComplaintListScreen>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   late TabController _tabs;
   final _searchCtrl = TextEditingController();
   String _query = '';
@@ -26,6 +26,7 @@ class _ComplaintListScreenState extends State<ComplaintListScreen>
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     // 3 tabs: Open, In Progress, Resolved matching 10-technician-complaints.html
     _tabs = TabController(length: 3, vsync: this);
     _searchCtrl.addListener(() {
@@ -50,9 +51,17 @@ class _ComplaintListScreenState extends State<ComplaintListScreen>
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _tabs.dispose();
     _searchCtrl.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _load();
+    }
   }
 
   List<Complaint> _filter(List<Complaint> items) {

@@ -4,9 +4,12 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../data/follow_up_repository.dart';
 
+typedef PushAlertHandler = void Function(String title, String body, Map<String, String> data);
+
 /// Registers staff device tokens for FCM push delivery.
 class PushNotificationService {
   final FollowUpRepository _repo = FollowUpRepository();
+  bool _initialized = false;
 
   Future<String?> requestToken() async {
     if (kIsWeb) return null;
@@ -50,35 +53,79 @@ class PushNotificationService {
     }
   }
 
-  void listenForegroundAlerts({
-    required void Function(String title, String body) onAlert,
-  }) {
+  Future<void> bindStaffSession({
+    required String staffId,
+    required PushAlertHandler onAlert,
+    void Function(Map<String, String> data)? onOpen,
+  }) async {
     if (kIsWeb) return;
+    await initializeForStaff(staffId: staffId);
+
+    if (_initialized) return;
+    _initialized = true;
+
+    FirebaseMessaging.instance.onTokenRefresh.listen((token) {
+      initializeForStaff(staffId: staffId, fcmToken: token);
+    });
+
     FirebaseMessaging.onMessage.listen((message) {
       final title = message.notification?.title ?? 'PowerNet Alert';
       final body = message.notification?.body ?? '';
-      onAlert(title, body);
+      onAlert(title, body, _messageData(message));
     });
+
+    FirebaseMessaging.onMessageOpenedApp.listen((message) {
+      onOpen?.call(_messageData(message));
+    });
+
+    final initial = await FirebaseMessaging.instance.getInitialMessage();
+    if (initial != null) {
+      onOpen?.call(_messageData(initial));
+    }
+  }
+
+  Map<String, String> _messageData(RemoteMessage message) {
+    return message.data.map((key, value) => MapEntry(key, value.toString()));
   }
 
   RealtimeChannel? subscribeComplaintAlerts({
-    required void Function(String title, String body) onAlert,
+    required String staffId,
+    required PushAlertHandler onAlert,
   }) {
     final channel = Supabase.instance.client
-        .channel('staff-complaint-alerts')
+        .channel('staff-complaint-alerts-$staffId')
         .onPostgresChanges(
-          event: PostgresChangeEvent.insert,
+          event: PostgresChangeEvent.all,
           schema: 'public',
           table: 'complaints',
           callback: (payload) {
-            final row = payload.newRecord;
-            final code = row['complaint_code'] as String? ?? 'New complaint';
+            final row = _rowMap(payload.newRecord);
+            if (row.isEmpty) return;
+
+            final assignedTo = row['assigned_to'] as String?;
+            final teamId = row['team_id'] as String?;
+            if (assignedTo != staffId && (teamId == null || teamId.isEmpty)) {
+              return;
+            }
+
+            final code = row['complaint_code'] as String? ?? 'Complaint';
             final issue = row['issue'] as String? ?? '';
-            onAlert('New complaint $code', issue);
+            onAlert(
+              'Assigned: $code',
+              issue,
+              {
+                'type': 'complaint_assigned',
+                'complaintId': row['id']?.toString() ?? '',
+              },
+            );
           },
         )
         .subscribe();
     return channel;
+  }
+
+  Map<String, dynamic> _rowMap(Map<String, dynamic> record) {
+    return record.map((key, value) => MapEntry(key, value));
   }
 }
 
