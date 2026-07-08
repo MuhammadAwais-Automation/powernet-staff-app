@@ -361,7 +361,7 @@ class _BillListScreenState extends State<BillListScreen>
                   ),
                   _BillList(
                     items: partial,
-                    emptyMessage: 'No partial collections pending',
+                    emptyMessage: 'No less paid collections pending',
                     pn: pn,
                     onTap: (ledger) => context.push(
                       '/collector/bills/${ledger.currentBill.id}/collect?service=${ledger.currentBill.serviceType}',
@@ -490,7 +490,7 @@ class _TabsHeader extends SliverPersistentHeaderDelegate {
           tabs: const [
             Tab(text: 'All Rec.'),
             Tab(text: 'Overdue'),
-            Tab(text: 'Partial'),
+            Tab(text: 'Less Paid'),
             Tab(text: 'Today'),
             Tab(text: 'Visits'),
           ],
@@ -564,7 +564,7 @@ class _BillTile extends StatelessWidget {
       case 'overdue':
         return 'Overdue';
       case 'partial':
-        return 'Partial';
+        return 'Less Paid';
       default:
         return 'Pending';
     }

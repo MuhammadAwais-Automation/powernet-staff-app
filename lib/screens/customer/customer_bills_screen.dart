@@ -294,7 +294,13 @@ class _BillCard extends StatelessWidget {
     // Resolve color scheme for status chip
     Color statusColor;
     Color statusBg;
-    String statusLabel = bill.collectionStatus.toUpperCase();
+    String statusLabel = switch (bill.collectionStatus) {
+      'paid' => 'PAID',
+      'overdue' => 'OVERDUE',
+      'partial' => 'LESS PAID',
+      'pending' => 'PENDING',
+      _ => bill.collectionStatus.toUpperCase(),
+    };
 
     if (isPendingVerification) {
       statusColor = pn.warning;
@@ -313,7 +319,6 @@ class _BillCard extends StatelessWidget {
     } else if (bill.collectionStatus == 'partial') {
       statusColor = pn.accent;
       statusBg = pn.softOrange;
-      statusLabel = 'PARTIAL';
     } else {
       statusColor = pn.warning;
       statusBg = pn.softOrange;

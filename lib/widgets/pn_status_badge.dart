@@ -34,7 +34,16 @@ class PnStatusBadge extends StatelessWidget {
       'disconnected' => PnStatus.disconnected,
       _ => PnStatus.open,
     };
-    return PnStatusBadge(label: value, status: s);
+    return PnStatusBadge(
+      label: switch (value.toLowerCase()) {
+        'partial' => 'Less Paid',
+        'paid' => 'Paid',
+        'overdue' => 'Overdue',
+        'pending' => 'Pending',
+        _ => value,
+      },
+      status: s,
+    );
   }
 
   @override

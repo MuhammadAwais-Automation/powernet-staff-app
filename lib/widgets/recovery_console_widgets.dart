@@ -105,7 +105,7 @@ class RecoveryHeroCard extends StatelessWidget {
               ),
               _SignalChip(
                 icon: Icons.pie_chart_outline,
-                label: '$partialCount partial',
+                label: '$partialCount less paid',
                 color: info,
               ),
             ],
@@ -157,7 +157,7 @@ class RecoverySegmentedTabs extends StatelessWidget {
           tabs: const [
             _SegmentTab(label: 'All'),
             _SegmentTab(label: 'Overdue'),
-            _SegmentTab(label: 'Partial'),
+            _SegmentTab(label: 'Less Paid'),
             _SegmentTab(label: 'Today'),
             _SegmentTab(label: 'Visits'),
           ],

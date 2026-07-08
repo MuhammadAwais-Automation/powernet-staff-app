@@ -1046,6 +1046,15 @@ class _BillHeader extends StatelessWidget {
 
   const _BillHeader({required this.ledger});
 
+  String _collectionStatusLabel() {
+    return switch (ledger.collectionStatus) {
+      'paid' => 'PAID',
+      'overdue' => 'OVERDUE',
+      'partial' => 'LESS PAID',
+      _ => ledger.collectionStatus.toUpperCase(),
+    };
+  }
+
   @override
   Widget build(BuildContext context) {
     final pn = Theme.of(context).extension<PnColors>()!;
@@ -1091,7 +1100,7 @@ class _BillHeader extends StatelessWidget {
                     borderRadius: BorderRadius.circular(99),
                   ),
                   child: Text(
-                    ledger.collectionStatus.toUpperCase(),
+                    _collectionStatusLabel(),
                     style: TextStyle(
                       fontSize: 10,
                       fontWeight: FontWeight.w900,
@@ -1262,7 +1271,7 @@ class _MonthBillRow extends StatelessWidget {
 
   String _statusLabel() {
     if (bill.isOverdue) return 'OVERDUE';
-    if ((bill.paidAmount ?? 0) > 0) return 'PARTIAL';
+    if ((bill.paidAmount ?? 0) > 0) return 'LESS PAID';
     return 'PENDING';
   }
 
@@ -1450,23 +1459,17 @@ class _QuickAmountRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final half = (ledger.totalRemaining / 2).round();
     final full = ledger.totalRemaining.round();
     return Row(
       children: [
-        _QuickAmountButton(
-          label: 'Half',
-          amount: half,
-          pn: pn,
-          onTap: () => amountCtrl.text = half.toString(),
-        ),
-        const SizedBox(width: 8),
-        _QuickAmountButton(
-          label: 'Full',
-          amount: full,
-          pn: pn,
-          primaryAction: true,
-          onTap: () => amountCtrl.text = full.toString(),
+        Expanded(
+          child: _QuickAmountButton(
+            label: 'Full',
+            amount: full,
+            pn: pn,
+            primaryAction: true,
+            onTap: () => amountCtrl.text = full.toString(),
+          ),
         ),
       ],
     );
